@@ -27,7 +27,7 @@ class NotificationMailService
 
             $mailable = new \App\Mail\LogPendingApproval($log, $supervisor);
             
-            Mail::queue($mailable)
+            Mail::to($supervisor->email)->queue($mailable)
                 ->onConnection('database')
                 ->onQueue('default');
 
@@ -62,7 +62,7 @@ class NotificationMailService
 
             $mailable = new \App\Mail\LogApproved($log, $supervisorName);
             
-            Mail::queue($mailable)
+            Mail::to($student->email)->queue($mailable)
                 ->onConnection('database')
                 ->onQueue('default');
 
@@ -96,7 +96,7 @@ class NotificationMailService
 
             $mailable = new \App\Mail\LogRejected($log, $supervisorName, $comment);
             
-            Mail::queue($mailable)
+            Mail::to($student->email)->queue($mailable)
                 ->onConnection('database')
                 ->onQueue('default');
 

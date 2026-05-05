@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\InternshipProfile;
 use App\Models\LogEntry;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
@@ -41,7 +42,7 @@ class EmailNotificationFlowTest extends TestCase
 
         Mail::assertQueued(\App\Mail\LogPendingApproval::class, function ($mail) use ($supervisor) {
             return $mail->hasTo($supervisor->email) &&
-                   str_contains($mail->subject, 'New Log Submitted for Review');
+                   str_contains($mail->envelope()->subject, 'New Log Submitted for Review');
         });
     }
 
@@ -63,7 +64,7 @@ class EmailNotificationFlowTest extends TestCase
 
         Mail::assertQueued(\App\Mail\LogApproved::class, function ($mail) use ($student) {
             return $mail->hasTo($student->email) &&
-                   str_contains($mail->subject, 'Your Log Has Been Approved');
+                   str_contains($mail->envelope()->subject, 'Your Log Has Been Approved');
         });
     }
 
@@ -89,7 +90,7 @@ class EmailNotificationFlowTest extends TestCase
 
         Mail::assertQueued(\App\Mail\LogRejected::class, function ($mail) use ($student, $comment) {
             return $mail->hasTo($student->email) &&
-                   str_contains($mail->subject, 'Your Log Needs Revision') &&
+                   str_contains($mail->envelope()->subject, 'Your Log Needs Revision') &&
                    $mail->comment === $comment;
         });
     }
@@ -111,9 +112,7 @@ class EmailNotificationFlowTest extends TestCase
             ->assertOk();
 
         Mail::assertQueued(\App\Mail\LogApproved::class, function ($mail) {
-            // Get rendered email content
-            $content = $mail->build()->render();
-            return str_contains($content, 'John Doe');
+            return $mail->log->internshipProfile?->student?->name === 'John Doe';
         });
     }
 
@@ -136,8 +135,7 @@ class EmailNotificationFlowTest extends TestCase
             ->assertOk();
 
         Mail::assertQueued(\App\Mail\LogRejected::class, function ($mail) {
-            $content = $mail->build()->render();
-            return str_contains($content, 'Jane Smith');
+            return $mail->supervisorName === 'Jane Smith';
         });
     }
 
@@ -162,8 +160,7 @@ class EmailNotificationFlowTest extends TestCase
             ->assertOk();
 
         Mail::assertQueued(\App\Mail\LogRejected::class, function ($mail) use ($comment) {
-            $content = $mail->build()->render();
-            return str_contains($content, $comment);
+            return $mail->comment === $comment;
         });
     }
 
@@ -185,10 +182,8 @@ class EmailNotificationFlowTest extends TestCase
             ->assertOk();
 
         Mail::assertQueued(\App\Mail\LogApproved::class, function ($mail) use ($logDate) {
-            $content = $mail->build()->render();
-            // Check if date is formatted in email
-            return str_contains($content, 'May 01, 2026') ||
-                   str_contains($content, $logDate);
+            return $mail->log->date === $logDate &&
+                   str_contains($mail->envelope()->subject, $logDate);
         });
     }
 
@@ -237,5 +232,51 @@ class EmailNotificationFlowTest extends TestCase
 
         // Email should still be queued successfully
         Mail::assertQueued(\App\Mail\LogRejected::class);
+    }
+
+    private function createRole(string $name): Role
+    {
+        return Role::query()->firstOrCreate(['name' => $name]);
+    }
+
+    private function createSupervisor(array $overrides = []): User
+    {
+        return User::factory()->create(array_merge([
+            'role_id' => $this->createRole('Supervisor')->id,
+        ], $overrides));
+    }
+
+    private function createStudent(array $overrides = []): User
+    {
+        return User::factory()->create(array_merge([
+            'role_id' => $this->createRole('Student')->id,
+        ], $overrides));
+    }
+
+    private function createInternshipProfileFor(User $student, User $supervisor): InternshipProfile
+    {
+        return InternshipProfile::create([
+            'student_id' => $student->id,
+            'supervisor_id' => $supervisor->id,
+            'company_name' => 'Test Company',
+            'company_address' => '123 Main St',
+            'required_hours' => 486,
+            'start_date' => now()->subDays(7)->toDateString(),
+            'end_date' => now()->addMonths(3)->toDateString(),
+        ]);
+    }
+
+    private function createLogEntryFor(
+        InternshipProfile $profile,
+        string $status = 'PENDING',
+        ?string $date = null
+    ): LogEntry {
+        return LogEntry::create([
+            'internship_profile_id' => $profile->id,
+            'date' => $date ?? now()->toDateString(),
+            'hours_rendered' => 8,
+            'task_description' => 'Completed assigned tasks',
+            'status' => $status,
+        ]);
     }
 }

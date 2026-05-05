@@ -8,6 +8,7 @@ use App\Services\InputSanitizationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class InputSanitizationTest extends TestCase
@@ -26,7 +27,7 @@ class InputSanitizationTest extends TestCase
         Role::create(['name' => 'Student']);
     }
 
-    /** @test */
+    #[Test]
     public function register_sanitizes_name_and_email_inputs()
     {
         $response = $this->postJson('/api/v1/auth/register', [
@@ -36,7 +37,7 @@ class InputSanitizationTest extends TestCase
             'password_confirmation' => 'password123',
         ]);
 
-        $response->assertStatus(200);
+        $response->assertStatus(201);
 
         // Verify the user was created with sanitized data
         $user = User::where('email', 'test@example.com')->first();
@@ -45,7 +46,7 @@ class InputSanitizationTest extends TestCase
         $this->assertEquals('test@example.com', $user->email); // Lowercase, trimmed
     }
 
-    /** @test */
+    #[Test]
     public function login_sanitizes_email_input()
     {
         // Create a user first
@@ -65,7 +66,7 @@ class InputSanitizationTest extends TestCase
         $response->assertJsonPath('success', true);
     }
 
-    /** @test */
+    #[Test]
     public function sanitization_service_removes_html_tags()
     {
         $input = '<script>alert("xss")</script>Hello World';
@@ -75,7 +76,7 @@ class InputSanitizationTest extends TestCase
         $this->assertStringNotContainsString('<script>', $sanitized);
     }
 
-    /** @test */
+    #[Test]
     public function sanitization_service_normalizes_whitespace()
     {
         $input = "  Hello    \n   World  ";
@@ -84,7 +85,7 @@ class InputSanitizationTest extends TestCase
         $this->assertEquals('Hello World', $sanitized);
     }
 
-    /** @test */
+    #[Test]
     public function sanitization_service_sanitizes_email()
     {
         $input = '  <b>TEST@EXAMPLE.COM</b>  ';
@@ -93,7 +94,7 @@ class InputSanitizationTest extends TestCase
         $this->assertEquals('test@example.com', $sanitized);
     }
 
-    /** @test */
+    #[Test]
     public function sanitization_service_sanitizes_arrays()
     {
         $input = [
@@ -109,7 +110,7 @@ class InputSanitizationTest extends TestCase
         $this->assertEquals(123, $sanitized['number']);
     }
 
-    /** @test */
+    #[Test]
     public function sanitization_logs_changes()
     {
         // Enable log capture
@@ -127,19 +128,20 @@ class InputSanitizationTest extends TestCase
         $this->sanitizer->logSanitization('name', $input, $sanitized);
     }
 
-    /** @test */
+    #[Test]
     public function sanitization_does_not_log_unchanged_inputs()
     {
-        // Should not log when no changes occur
-        Log::shouldNotReceive('info');
+        Log::spy();
 
         $input = 'Hello World';
         $sanitized = $this->sanitizer->sanitizeString($input);
 
         $this->sanitizer->logSanitization('name', $input, $sanitized);
+
+        Log::shouldNotHaveReceived('info');
     }
 
-    /** @test */
+    #[Test]
     public function valid_data_passes_through_unchanged()
     {
         $validName = 'John Doe';
@@ -153,7 +155,7 @@ class InputSanitizationTest extends TestCase
         $this->assertEquals($validEmail, $sanitizedEmail);
     }
 
-    /** @test */
+    #[Test]
     public function text_sanitization_preserves_line_breaks()
     {
         $input = "Hello\nWorld\r\nTest";
