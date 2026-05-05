@@ -1,0 +1,9 @@
+{
+    "cmake.sourceDirectory": "C:/Users/val john/webapp/flutter/linux/runner",
+    "dart.analysisExcludedFolders": [
+        "flutter/flutter"
+    ],
+    "files.watcherExclude": {
+        "flutter/flutter/**": true
+    }
+}

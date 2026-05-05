@@ -1,0 +1,114 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:dio/dio.dart';
+import 'package:intern_track_app/core/exceptions/api_exception.dart';
+import 'package:intern_track_app/core/services/auth_service.dart';
+import 'package:intern_track_app/core/services/api_client.dart';
+import 'package:intern_track_app/core/services/token_service.dart';
+import 'package:intern_track_app/features/auth/presentation/providers/auth_provider.dart';
+import 'package:intern_track_app/shared/models/app_user.dart';
+
+void main() {
+  group('AuthProvider', () {
+    test('loads a valid stored token and authenticated user', () async {
+      final tokenService = _FakeTokenService('stored-token');
+      final authService = _FakeAuthService(user: _student);
+      final provider = AuthProvider(tokenService, authService: authService);
+
+      await provider.initialize();
+
+      expect(provider.isReady, isTrue);
+      expect(provider.isAuthenticated, isTrue);
+      expect(provider.token, 'stored-token');
+      expect(provider.user, _student);
+      expect(tokenService.cleared, isFalse);
+    });
+
+    test('clears an invalid stored token during initialization', () async {
+      final tokenService = _FakeTokenService('stale-token');
+      final authService = _FakeAuthService(
+        error: ApiException(
+          message: 'Unauthenticated.',
+          errorType: ApiErrorType.unauthorized,
+        ),
+      );
+      final provider = AuthProvider(tokenService, authService: authService);
+
+      await provider.initialize();
+
+      expect(provider.isReady, isTrue);
+      expect(provider.isAuthenticated, isFalse);
+      expect(provider.token, isNull);
+      expect(provider.user, isNull);
+      expect(tokenService.storedToken, isNull);
+      expect(tokenService.cleared, isTrue);
+    });
+
+    test('clears token when setToken cannot sync the user', () async {
+      final tokenService = _FakeTokenService();
+      final authService = _FakeAuthService(
+        error: ApiException(
+          message: 'Unauthenticated.',
+          errorType: ApiErrorType.unauthorized,
+        ),
+      );
+      final provider = AuthProvider(tokenService, authService: authService);
+
+      await provider.setToken('bad-token');
+
+      expect(provider.isAuthenticated, isFalse);
+      expect(provider.token, isNull);
+      expect(provider.user, isNull);
+      expect(tokenService.storedToken, isNull);
+      expect(tokenService.cleared, isTrue);
+    });
+  });
+}
+
+const _student = AppUser(
+  id: 1,
+  name: 'Student User',
+  email: 'student@example.test',
+  role: 'Student',
+);
+
+class _FakeTokenService extends TokenService {
+  _FakeTokenService([this.storedToken]) : super();
+
+  String? storedToken;
+  bool cleared = false;
+
+  @override
+  Future<void> saveToken(String token) async {
+    storedToken = token;
+    cleared = false;
+  }
+
+  @override
+  Future<String?> getToken() async {
+    return storedToken;
+  }
+
+  @override
+  Future<void> clearToken() async {
+    storedToken = null;
+    cleared = true;
+  }
+}
+
+class _FakeAuthService extends AuthService {
+  _FakeAuthService({this.user, this.error})
+    : super(ApiClient(dio: Dio()));
+
+  final AppUser? user;
+  final Object? error;
+
+  @override
+  Future<AppUser> getAuthenticatedUser() async {
+    final error = this.error;
+    if (error != null) {
+      throw error;
+    }
+
+    return user!;
+  }
+}

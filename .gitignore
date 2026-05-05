@@ -1,0 +1,5 @@
+/laravel/vendor
+/laravel/.env
+/laravel/node_modules
+/laravel/public/build
+/laravel/public/hot

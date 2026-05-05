@@ -1,0 +1,54 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: interntrack_app
+    working_dir: /var/www
+    volumes:
+      - .:/var/www
+      - vendor_data:/var/www/vendor
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mysql
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: interntrack
+      DB_TEST_DATABASE: interntrack_test
+      DB_USERNAME: interntrack_user
+      DB_PASSWORD: secret
+
+  mysql:
+    image: mariadb:11
+    container_name: interntrack_mysql
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: interntrack
+      MARIADB_USER: interntrack_user
+      MARIADB_PASSWORD: secret
+      MARIADB_ROOT_PASSWORD: secret
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: interntrack_phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: secret
+    ports:
+      - "8080:80"
+
+volumes:
+  mysql_data:
+  vendor_data:

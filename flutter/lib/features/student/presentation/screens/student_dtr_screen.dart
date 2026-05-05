@@ -1,0 +1,950 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+
+import '../../../../core/exceptions/api_exception.dart';
+import '../../../../core/services/api_client.dart';
+import '../../../../core/services/dtr_service.dart';
+import '../../../../core/utils/file_download_stub.dart'
+    if (dart.library.html) '../../../../core/utils/file_download_web.dart'
+    as file_download;
+import '../../../../shared/models/daily_time_record.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+
+class StudentDtrScreen extends StatefulWidget {
+  const StudentDtrScreen({super.key});
+
+  @override
+  State<StudentDtrScreen> createState() => _StudentDtrScreenState();
+}
+
+class _StudentDtrScreenState extends State<StudentDtrScreen> {
+  late final DtrService _dtrService;
+
+  Timer? _timer;
+  DailyTimeRecord? _record;
+  Duration _liveElapsed = Duration.zero;
+  late int _selectedMonth;
+  late int _selectedYear;
+  bool _isLoading = true;
+  bool _isSubmitting = false;
+  bool _isExporting = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _selectedMonth = now.month;
+    _selectedYear = now.year;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isLoading && _record == null && _errorMessage == null) {
+      _dtrService = DtrService(context.read<ApiClient>());
+      _loadRecord();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadRecord() async {
+    final token = context.read<AuthProvider>().token ?? '';
+    if (token.isEmpty) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Missing authentication token. Please log in again.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final record = await _dtrService.getTodayRecord();
+      if (!mounted) return;
+
+      setState(() {
+        _record = record;
+      });
+      _syncTimer();
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _submitPunch() async {
+    final token = context.read<AuthProvider>().token ?? '';
+    final record = _record;
+    if (token.isEmpty || record == null || record.nextAction == null || _isSubmitting) {
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      late final DailyTimeRecord updatedRecord;
+      switch (record.nextAction) {
+        case 'TIME_IN':
+          updatedRecord = await _dtrService.timeIn();
+          break;
+        case 'LUNCH_OUT':
+          updatedRecord = await _dtrService.lunchOut();
+          break;
+        case 'LUNCH_IN':
+          updatedRecord = await _dtrService.lunchIn();
+          break;
+        case 'TIME_OUT':
+          updatedRecord = await _dtrService.timeOut();
+          break;
+        default:
+          throw ApiException(
+            message: 'No valid punch action is available.',
+            errorType: ApiErrorType.clientError,
+          );
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _record = updatedRecord;
+      });
+      _syncTimer();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_successMessageFor(updatedRecord))),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      final message = e.toString().replaceFirst('Exception: ', '');
+      setState(() {
+        _errorMessage = message;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _exportMonthly({required bool pdf}) async {
+    final token = context.read<AuthProvider>().token ?? '';
+    if (token.isEmpty || _isExporting) {
+      return;
+    }
+
+    setState(() {
+      _isExporting = true;
+    });
+
+    try {
+      final file = pdf
+          ? await _dtrService.exportPdf(
+              month: _selectedMonth,
+              year: _selectedYear,
+            )
+          : await _dtrService.exportExcel(
+              month: _selectedMonth,
+              year: _selectedYear,
+            );
+
+      if (!mounted) return;
+
+      final downloaded = await file_download.downloadBytes(
+        bytes: file.bytes,
+        filename: file.filename,
+        mimeType: file.mimeType,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            downloaded
+                ? '${pdf ? 'PDF' : 'Excel'} export downloaded successfully.'
+                : 'Export is ready, but direct download is only available on web in this build.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().replaceFirst('Exception: ', ''),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isExporting = false;
+        });
+      }
+    }
+  }
+
+  String _successMessageFor(DailyTimeRecord record) {
+    return switch (record.status) {
+      'WORKING' when record.lunchInAt == null => 'Time In recorded successfully.',
+      'ON_BREAK' => 'Lunch Out recorded successfully.',
+      'WORKING' => 'Lunch In recorded successfully.',
+      'COMPLETED' => 'Time Out recorded successfully.',
+      _ => 'Attendance updated successfully.',
+    };
+  }
+
+  void _syncTimer() {
+    _timer?.cancel();
+
+    final start = _activeSegmentStart(_record);
+    if (start == null) {
+      if (mounted) {
+        setState(() {
+          _liveElapsed = Duration.zero;
+        });
+      }
+      return;
+    }
+
+    void tick() {
+      if (!mounted) return;
+      setState(() {
+        _liveElapsed = DateTime.now().difference(start);
+      });
+    }
+
+    tick();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => tick());
+  }
+
+  DateTime? _activeSegmentStart(DailyTimeRecord? record) {
+    if (record == null || record.status != 'WORKING') {
+      return null;
+    }
+
+    if (record.lunchInAt != null && record.timeOutAt == null) {
+      return record.lunchInAt;
+    }
+
+    if (record.timeInAt != null && record.lunchOutAt == null) {
+      return record.timeInAt;
+    }
+
+    return null;
+  }
+
+  String _formatDate(String rawDate) {
+    final parsed = DateTime.tryParse(rawDate);
+    if (parsed == null) {
+      return rawDate;
+    }
+
+    return DateFormat('MMMM d, yyyy').format(parsed);
+  }
+
+  String _formatTime(DateTime? value) {
+    if (value == null) {
+      return 'Not recorded';
+    }
+
+    return DateFormat('h:mm:ss a').format(value);
+  }
+
+  String _formatMinutes(int minutes) {
+    final safeMinutes = minutes < 0 ? 0 : minutes;
+    final hours = safeMinutes ~/ 60;
+    final remainder = safeMinutes % 60;
+    return '$hours hour${hours == 1 ? '' : 's'} $remainder minute${remainder == 1 ? '' : 's'}';
+  }
+
+  String _formatDuration(Duration duration) {
+    final totalSeconds = duration.inSeconds < 0 ? 0 : duration.inSeconds;
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+
+    String twoDigits(int value) => value.toString().padLeft(2, '0');
+
+    return '${twoDigits(hours)}:${twoDigits(minutes)}:${twoDigits(seconds)}';
+  }
+
+  int _displayedFirstMinutes(DailyTimeRecord record) {
+    if (record.firstWorkMinutes > 0) {
+      return record.firstWorkMinutes;
+    }
+
+    if (record.status == 'WORKING' && record.timeInAt != null && record.lunchOutAt == null) {
+      return _liveElapsed.inMinutes;
+    }
+
+    return 0;
+  }
+
+  int _displayedSecondMinutes(DailyTimeRecord record) {
+    if (record.secondWorkMinutes > 0) {
+      return record.secondWorkMinutes;
+    }
+
+    if (record.status == 'WORKING' && record.lunchInAt != null && record.timeOutAt == null) {
+      return _liveElapsed.inMinutes;
+    }
+
+    return 0;
+  }
+
+  int _displayedTotalMinutes(DailyTimeRecord record) {
+    final savedTotal = record.totalWorkMinutes;
+
+    if (record.status != 'WORKING') {
+      return savedTotal;
+    }
+
+    if (record.lunchInAt != null && record.timeOutAt == null) {
+      return record.firstWorkMinutes + _liveElapsed.inMinutes;
+    }
+
+    if (record.timeInAt != null && record.lunchOutAt == null) {
+      return _liveElapsed.inMinutes;
+    }
+
+    return savedTotal;
+  }
+
+  Color _statusColor(String status) {
+    return switch (status) {
+      'WORKING' => const Color(0xFF0F766E),
+      'ON_BREAK' => const Color(0xFFB54708),
+      'COMPLETED' => const Color(0xFF039855),
+      _ => const Color(0xFF667085),
+    };
+  }
+
+  Color _statusBackground(String status) {
+    return switch (status) {
+      'WORKING' => const Color(0xFFDFF7F3),
+      'ON_BREAK' => const Color(0xFFFFF3DB),
+      'COMPLETED' => const Color(0xFFE7F8EC),
+      _ => const Color(0xFFF2F4F7),
+    };
+  }
+
+  Widget _buildStatusCard(DailyTimeRecord record) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x120F172A),
+            blurRadius: 18,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Attendance Status',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Color(0xFF667085),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  record.currentStateLabel,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF102A56),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: _statusBackground(record.status),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    record.status,
+                    style: TextStyle(
+                      color: _statusColor(record.status),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 66,
+            height: 66,
+            decoration: BoxDecoration(
+              color: _statusBackground(record.status),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Icon(
+              switch (record.status) {
+                'WORKING' => Icons.play_circle_fill_rounded,
+                'ON_BREAK' => Icons.coffee_rounded,
+                'COMPLETED' => Icons.task_alt_rounded,
+                _ => Icons.schedule_rounded,
+              },
+              color: _statusColor(record.status),
+              size: 34,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLiveTimerCard(DailyTimeRecord record) {
+    final isRunning = record.status == 'WORKING';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: <Color>[
+            Color(0xFF102A56),
+            Color(0xFF1D4E89),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Live Timer',
+            style: TextStyle(
+              fontSize: 15,
+              color: Color(0xFFD8E7FF),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _formatDuration(_liveElapsed),
+            style: const TextStyle(
+              fontSize: 34,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isRunning
+                ? 'Timer is running while you are actively working.'
+                : record.status == 'ON_BREAK'
+                    ? 'Timer paused during lunch break.'
+                    : record.status == 'COMPLETED'
+                        ? 'Daily time record has been completed.'
+                        : 'Start your day with Time In to begin the live timer.',
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFFD8E7FF),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPunchRow({
+    required String label,
+    required DateTime? timestamp,
+    required bool isNext,
+  }) {
+    final isDone = timestamp != null;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isNext ? const Color(0xFF0F4C5C) : const Color(0xFFE4E7EC),
+          width: isNext ? 1.4 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: isDone
+                  ? const Color(0xFFE7F8EC)
+                  : isNext
+                      ? const Color(0xFFD9F0F4)
+                      : const Color(0xFFF2F4F7),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              isDone
+                  ? Icons.check_rounded
+                  : isNext
+                      ? Icons.play_arrow_rounded
+                      : Icons.lock_outline_rounded,
+              color: isDone
+                  ? const Color(0xFF039855)
+                  : isNext
+                      ? const Color(0xFF0F4C5C)
+                      : const Color(0xFF98A2B3),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF102A56),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _formatTime(timestamp),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF667085),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            isDone
+                ? 'Completed'
+                : isNext
+                    ? 'Next'
+                    : 'Locked',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: isDone
+                  ? const Color(0xFF039855)
+                  : isNext
+                      ? const Color(0xFF0F4C5C)
+                      : const Color(0xFF98A2B3),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(DailyTimeRecord record) {
+    final first = _displayedFirstMinutes(record);
+    final second = _displayedSecondMinutes(record);
+    final total = _displayedTotalMinutes(record);
+
+    Widget summaryItem(String label, int minutes) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF667085),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _formatMinutes(minutes),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF102A56),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x120F172A),
+            blurRadius: 18,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Rendered Time Summary',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF102A56),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              summaryItem('First Segment', first),
+              const SizedBox(width: 12),
+              summaryItem('Second Segment', second),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEDF7F8),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Total Rendered Time',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF52737B),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _formatMinutes(total),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F4C5C),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _actionLabel(String? nextAction) {
+    return switch (nextAction) {
+      'TIME_IN' => 'Time In',
+      'LUNCH_OUT' => 'Lunch Out',
+      'LUNCH_IN' => 'Lunch In',
+      'TIME_OUT' => 'Time Out',
+      _ => 'Completed',
+    };
+  }
+
+  Widget _buildExportCard() {
+    final monthOptions = List<int>.generate(12, (index) => index + 1);
+    final currentYear = DateTime.now().year;
+    final yearOptions = List<int>.generate(7, (index) => currentYear - 5 + index);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x120F172A),
+            blurRadius: 18,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Monthly DTR Export',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF102A56),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Download your formal Daily Time Record sheet in PDF or Excel-compatible CSV format.',
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF667085),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<int>(
+                  initialValue: _selectedMonth,
+                  decoration: const InputDecoration(
+                    labelText: 'Month',
+                  ),
+                  items: monthOptions
+                      .map(
+                        (month) => DropdownMenuItem<int>(
+                          value: month,
+                          child: Text(DateFormat('MMMM').format(DateTime(2000, month))),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: _isExporting
+                      ? null
+                      : (value) {
+                          if (value == null) return;
+                          setState(() {
+                            _selectedMonth = value;
+                          });
+                        },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButtonFormField<int>(
+                  initialValue: _selectedYear,
+                  decoration: const InputDecoration(
+                    labelText: 'Year',
+                  ),
+                  items: yearOptions
+                      .map(
+                        (year) => DropdownMenuItem<int>(
+                          value: year,
+                          child: Text('$year'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: _isExporting
+                      ? null
+                      : (value) {
+                          if (value == null) return;
+                          setState(() {
+                            _selectedYear = value;
+                          });
+                        },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              FilledButton.icon(
+                onPressed: _isExporting ? null : () => _exportMonthly(pdf: true),
+                icon: _isExporting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.picture_as_pdf_rounded),
+                label: const Text('Export PDF'),
+              ),
+              OutlinedButton.icon(
+                onPressed: _isExporting ? null : () => _exportMonthly(pdf: false),
+                icon: const Icon(Icons.table_chart_rounded),
+                label: const Text('Export Excel'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final record = _record;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Daily Time Record'),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null && record == null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Color(0xFF475467)),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: _loadRecord,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : record == null
+                  ? const SizedBox.shrink()
+                  : RefreshIndicator(
+                      onRefresh: _loadRecord,
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(18, 18, 18, 26),
+                        children: [
+                          Text(
+                            _formatDate(record.date),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Color(0xFF667085),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          _buildStatusCard(record),
+                          const SizedBox(height: 16),
+                          _buildLiveTimerCard(record),
+                          const SizedBox(height: 16),
+                          _buildExportCard(),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Punch Sequence',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF102A56),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildPunchRow(
+                            label: 'Time In',
+                            timestamp: record.timeInAt,
+                            isNext: record.nextAction == 'TIME_IN',
+                          ),
+                          const SizedBox(height: 10),
+                          _buildPunchRow(
+                            label: 'Lunch Out',
+                            timestamp: record.lunchOutAt,
+                            isNext: record.nextAction == 'LUNCH_OUT',
+                          ),
+                          const SizedBox(height: 10),
+                          _buildPunchRow(
+                            label: 'Lunch In',
+                            timestamp: record.lunchInAt,
+                            isNext: record.nextAction == 'LUNCH_IN',
+                          ),
+                          const SizedBox(height: 10),
+                          _buildPunchRow(
+                            label: 'Time Out',
+                            timestamp: record.timeOutAt,
+                            isNext: record.nextAction == 'TIME_OUT',
+                          ),
+                          const SizedBox(height: 16),
+                          _buildSummaryCard(record),
+                          if (_errorMessage != null) ...[
+                            const SizedBox(height: 14),
+                            Text(
+                              _errorMessage!,
+                              style: const TextStyle(color: Color(0xFFB42318)),
+                            ),
+                          ],
+                          const SizedBox(height: 18),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: record.nextAction == null || _isSubmitting
+                                  ? null
+                                  : _submitPunch,
+                              icon: _isSubmitting
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.fingerprint_rounded),
+                              label: Text(
+                                _isSubmitting
+                                    ? 'Submitting...'
+                                    : _actionLabel(record.nextAction),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(54),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+    );
+  }
+}
