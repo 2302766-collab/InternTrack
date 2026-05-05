@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intern_track_app/shared/models/student_adviser_assignment.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/services/admin_student_service.dart';
 import '../../../../shared/models/admin_student_summary.dart';
-import '../../../../shared/models/admin_students_page.dart';
 import '../../../../shared/models/adviser_info.dart';
 import '../providers/adviser_management_provider.dart';
 
@@ -108,7 +106,7 @@ class _StudentAdviserAssignmentScreenState
       appBar: AppBar(
         title: const Text('Manage Student Advisers'),
         elevation: 0,
-        backgroundColor: AppColors.primary,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
       ),
       body: Consumer<AdviserManagementProvider>(
@@ -135,7 +133,7 @@ class _StudentAdviserAssignmentScreenState
                     Text(
                       _errorMessage ?? 'An error occurred',
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.bodySemibold,
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton(
@@ -161,7 +159,7 @@ class _StudentAdviserAssignmentScreenState
                   const SizedBox(height: 16),
                   Text(
                     'No students found',
-                    style: AppTextStyles.bodySemibold,
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ],
               ),
@@ -188,7 +186,7 @@ class _StudentAdviserAssignmentScreenState
                             .firstWhere(
                               (a) => a.id == assignment.adviserId,
                               orElse: () => AdviserInfo(
-                                id: assignment.adviserId,
+                                id: assignment.adviserId!,
                                 name: assignment.adviserName,
                                 email: null,
                               ),
@@ -230,7 +228,7 @@ class _StudentAdviserAssignmentScreenState
 
 class _StudentAdviserCard extends StatelessWidget {
   final AdminStudentSummary student;
-  final dynamic currentAdviser;
+  final StudentAdviserAssignment? currentAdviser;
   final AdviserInfo? selectedAdviser;
   final List<AdviserInfo> availableAdvisers;
   final bool isAssigning;
@@ -270,13 +268,13 @@ class _StudentAdviserCard extends StatelessWidget {
                     children: [
                       Text(
                         student.name,
-                        style: AppTextStyles.bodySemibold,
+                        style: Theme.of(context).textTheme.titleMedium,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'ID: ${student.studentId}',
-                        style: AppTextStyles.captionRegular.copyWith(
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.grey[600],
                         ),
                       ),
@@ -296,7 +294,7 @@ class _StudentAdviserCard extends StatelessWidget {
                 children: [
                   Text(
                     'Current Adviser:',
-                    style: AppTextStyles.captionSemibold.copyWith(
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: Colors.grey[700],
                     ),
                   ),
@@ -317,8 +315,8 @@ class _StudentAdviserCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            currentAdviser.adviserName ?? 'Unknown',
-                            style: AppTextStyles.bodyRegular,
+                            currentAdviser!.adviserName ?? 'Unknown',
+                            style: Theme.of(context).textTheme.bodyMedium,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -334,7 +332,7 @@ class _StudentAdviserCard extends StatelessWidget {
                 children: [
                   Text(
                     'Status:',
-                    style: AppTextStyles.captionSemibold.copyWith(
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: Colors.grey[700],
                     ),
                   ),
@@ -355,7 +353,7 @@ class _StudentAdviserCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         Text(
                           'No adviser assigned',
-                          style: AppTextStyles.bodyRegular,
+                          style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ],
                     ),
@@ -366,13 +364,13 @@ class _StudentAdviserCard extends StatelessWidget {
             // Adviser dropdown
             Text(
               hasChanges ? 'Change to:' : 'Assign adviser:',
-              style: AppTextStyles.captionSemibold.copyWith(
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 color: Colors.grey[700],
               ),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<AdviserInfo?>(
-              value: selectedAdviser,
+              initialValue: selectedAdviser,
               hint: const Text('Select an adviser...'),
               isExpanded: true,
               items: [
@@ -380,7 +378,7 @@ class _StudentAdviserCard extends StatelessWidget {
                   value: null,
                   child: Text(
                     'None (Remove adviser)',
-                    style: AppTextStyles.bodyRegular.copyWith(
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Colors.grey[600],
                     ),
                   ),
@@ -418,10 +416,10 @@ class _StudentAdviserCard extends StatelessWidget {
                             onAdviserChanged(
                               currentAdviser?.adviserId != null
                                   ? availableAdvisers.firstWhere(
-                                      (a) => a.id == currentAdviser.adviserId,
+                                      (a) => a.id == currentAdviser!.adviserId,
                                       orElse: () => AdviserInfo(
-                                        id: currentAdviser.adviserId,
-                                        name: currentAdviser.adviserName,
+                                        id: currentAdviser!.adviserId!,
+                                        name: currentAdviser!.adviserName,
                                         email: null,
                                       ),
                                     )
@@ -434,7 +432,7 @@ class _StudentAdviserCard extends StatelessWidget {
                   ElevatedButton(
                     onPressed: isAssigning ? null : onAssign,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                     ),
                     child: isAssigning
                         ? SizedBox(
@@ -443,7 +441,7 @@ class _StudentAdviserCard extends StatelessWidget {
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white.withOpacity(0.7),
+                                Colors.white.withValues(alpha: 0.7),
                               ),
                             ),
                           )
