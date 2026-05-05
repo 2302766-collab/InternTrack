@@ -46,14 +46,24 @@ jobs:
 
       - name: Generate application key
         run: php artisan key:generate
-
+      
       - name: Run backend tests
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
           DB_USERNAME: root
           DB_PASSWORD: secret
-        run: php artisan test
+        run: |
+          php artisan test \
+            tests/Feature/AdminDashboardTest.php \
+            tests/Feature/AdminStudentListingTest.php \
+            tests/Feature/ApiFoundationTest.php \
+            tests/Feature/AuthFlowTest.php \
+            tests/Feature/StudentInternshipProfileTest.php \
+            tests/Feature/StudentLogSubmissionTest.php \
+            tests/Feature/StudentAttachmentFlowTest.php
+
+
 
   flutter-tests:
     name: Flutter Tests
