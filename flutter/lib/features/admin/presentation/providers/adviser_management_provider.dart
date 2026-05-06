@@ -12,7 +12,7 @@ class AdviserManagementProvider extends ChangeNotifier {
 
   // State
   List<AdviserInfo> _advisers = [];
-  Map<int, StudentAdviserAssignment> _studentAssignments = {};
+  final Map<int, StudentAdviserAssignment> _studentAssignments = {};
   bool _isLoading = false;
   bool _isAssigning = false;
   String? _errorMessage;

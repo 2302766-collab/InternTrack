@@ -168,6 +168,17 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     }
   }
 
+  Future<void> _logout() async {
+    await context.read<AuthProvider>().logout();
+    if (!mounted) return;
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.login,
+      (route) => false,
+    );
+  }
+
   String _initialsFor(String name) {
     final parts = name
         .trim()
@@ -229,66 +240,27 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Widget _buildHeader(AuthProvider authProvider) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(28, 20, 28, 20),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFE6E8EC)),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          IconButton(
-            onPressed: () async {
-              await context.read<AuthProvider>().logout();
-              if (!mounted) return;
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                AppRoutes.login,
-                (route) => false,
-              );
-            },
-            icon: const Icon(Icons.arrow_back),
-            tooltip: 'Logout',
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Supervisor Dashboard',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF102A56),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Review and manage student logs',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF4A6480),
-                  ),
-                ),
-              ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 900;
+        final isCompact = constraints.maxWidth < 520;
+
+        final profileSection = Row(
+          children: [
+            NotificationBellButton(
+              token: authProvider.token ?? '',
             ),
-          ),
-          const SizedBox(width: 12),
-          Row(
-            children: [
-              NotificationBellButton(
-                token: authProvider.token ?? '',
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: isCompact
+                    ? CrossAxisAlignment.start
+                    : CrossAxisAlignment.end,
                 children: [
                   Text(
                     widget.userName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -298,6 +270,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   const SizedBox(height: 2),
                   const Text(
                     'Company Supervisor',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 13,
                       color: Color(0xFF68768A),
@@ -305,22 +279,121 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   ),
                 ],
               ),
-              const SizedBox(width: 14),
-              CircleAvatar(
-                radius: 26,
-                backgroundColor: const Color(0xFF06C167),
-                child: Text(
-                  _initialsFor(authProvider.user?.name ?? widget.userName),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
+            ),
+            const SizedBox(width: 14),
+            CircleAvatar(
+              radius: 26,
+              backgroundColor: const Color(0xFF06C167),
+              child: Text(
+                _initialsFor(authProvider.user?.name ?? widget.userName),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            ],
+            ),
+          ],
+        );
+
+        return Container(
+          padding: EdgeInsets.fromLTRB(
+            isNarrow ? 16 : 28,
+            20,
+            isNarrow ? 16 : 28,
+            20,
           ),
-        ],
-      ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              bottom: BorderSide(color: Color(0xFFE6E8EC)),
+            ),
+          ),
+          child: isNarrow
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        IconButton(
+                          onPressed: _logout,
+                          icon: const Icon(Icons.arrow_back),
+                          tooltip: 'Logout',
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Supervisor Dashboard',
+                                style: TextStyle(
+                                  fontSize: isCompact ? 20 : 24,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF102A56),
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Review and manage student logs',
+                                style: TextStyle(
+                                  fontSize: isCompact ? 13 : 14,
+                                  color: Color(0xFF4A6480),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 360),
+                      child: profileSection,
+                    ),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    IconButton(
+                      onPressed: _logout,
+                      icon: const Icon(Icons.arrow_back),
+                      tooltip: 'Logout',
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Supervisor Dashboard',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF102A56),
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Review and manage student logs',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF4A6480),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 360),
+                      child: profileSection,
+                    ),
+                  ],
+                ),
+        );
+      },
     );
   }
 
@@ -331,55 +404,64 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     required Color accent,
     double? width,
   }) {
-    final cardWidget = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 26),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x120F172A),
-            blurRadius: 18,
-            offset: Offset(0, 6),
+    final cardWidget = LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 520;
+
+        return Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: isCompact ? 22 : 28,
+            vertical: isCompact ? 22 : 26,
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF355070),
-                  ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x120F172A),
+                blurRadius: 18,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: isCompact ? 15 : 16,
+                        color: const Color(0xFF355070),
+                      ),
+                    ),
+                    SizedBox(height: isCompact ? 10 : 12),
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: isCompact ? 32 : 40,
+                        fontWeight: FontWeight.w600,
+                        color: accent,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.w600,
-                    color: accent,
-                  ),
+              ),
+              Container(
+                width: isCompact ? 50 : 54,
+                height: isCompact ? 50 : 54,
+                decoration: BoxDecoration(
+                  color: accent.withAlpha(28),
+                  shape: BoxShape.circle,
                 ),
-              ],
-            ),
+                child: Icon(icon, color: accent, size: isCompact ? 30 : 34),
+              ),
+            ],
           ),
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: accent.withAlpha(28),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: accent, size: 34),
-          ),
-        ],
-      ),
+        );
+      },
     );
 
     if (width != null) {
@@ -389,21 +471,38 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Widget _buildActionBar() {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        ElevatedButton.icon(
-          onPressed: _openAssignedInterns,
-          icon: const Icon(Icons.groups_2_outlined),
-          label: const Text('View Assigned Interns'),
-        ),
-        OutlinedButton.icon(
-          onPressed: _openPendingQueue,
-          icon: const Icon(Icons.fact_check_outlined),
-          label: const Text('Review Pending Logs'),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 640;
+        final actionWidth = isCompact
+            ? constraints.maxWidth
+            : constraints.maxWidth >= 920
+            ? (constraints.maxWidth - 12) / 2
+            : constraints.maxWidth;
+
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            SizedBox(
+              width: actionWidth,
+              child: ElevatedButton.icon(
+                onPressed: _openAssignedInterns,
+                icon: const Icon(Icons.groups_2_outlined),
+                label: const Text('View Assigned Interns'),
+              ),
+            ),
+            SizedBox(
+              width: actionWidth,
+              child: OutlinedButton.icon(
+                onPressed: _openPendingQueue,
+                icon: const Icon(Icons.fact_check_outlined),
+                label: const Text('Review Pending Logs'),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -783,80 +882,60 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       onRefresh: _loadDashboardData,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isNarrow = constraints.maxWidth < 900;
+          final viewportWidth =
+              constraints.maxWidth.clamp(0.0, 1240.0).toDouble();
+          final isNarrow = viewportWidth < 900;
+          final statCardWidth = viewportWidth >= 1080
+              ? (viewportWidth - 24) / 3
+              : viewportWidth >= 700
+              ? (viewportWidth - 12) / 2
+              : viewportWidth;
 
-          return ListView(
-            padding: EdgeInsets.fromLTRB(
-              isNarrow ? 16 : 30,
-              isNarrow ? 20 : 28,
-              isNarrow ? 16 : 30,
-              isNarrow ? 20 : 30,
-            ),
-            children: [
-              if (isNarrow)
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    SizedBox(
-                      width: (constraints.maxWidth - 16 * 2 - 12) / 2,
-                      child: _buildStatCard(
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1240),
+              child: ListView(
+                padding: EdgeInsets.fromLTRB(
+                  constraints.maxWidth < 640 ? 16 : 30,
+                  isNarrow ? 20 : 28,
+                  constraints.maxWidth < 640 ? 16 : 30,
+                  isNarrow ? 20 : 30,
+                ),
+                children: [
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      _buildStatCard(
                         title: 'Pending Review',
                         value: '$pendingCount',
                         icon: Icons.access_time_rounded,
                         accent: const Color(0xFF326DE6),
+                        width: statCardWidth,
                       ),
-                    ),
-                    SizedBox(
-                      width: (constraints.maxWidth - 16 * 2 - 12) / 2,
-                      child: _buildStatCard(
+                      _buildStatCard(
                         title: 'Approved Today',
                         value: '$approvedToday',
                         icon: Icons.check_circle_outline_rounded,
                         accent: const Color(0xFF06C167),
+                        width: statCardWidth,
                       ),
-                    ),
-                    SizedBox(
-                      width: (constraints.maxWidth - 16 * 2 - 12) / 2,
-                      child: _buildStatCard(
+                      _buildStatCard(
                         title: 'Total Students',
                         value: '$totalStudents',
                         icon: Icons.circle,
                         accent: const Color(0xFF98A2B3),
+                        width: statCardWidth,
                       ),
-                    ),
-                  ],
-                )
-              else
-                Row(
-                  children: [
-                    _buildStatCard(
-                      title: 'Pending Review',
-                      value: '$pendingCount',
-                      icon: Icons.access_time_rounded,
-                      accent: const Color(0xFF326DE6),
-                    ),
-                    const SizedBox(width: 28),
-                    _buildStatCard(
-                      title: 'Approved Today',
-                      value: '$approvedToday',
-                      icon: Icons.check_circle_outline_rounded,
-                      accent: const Color(0xFF06C167),
-                    ),
-                    const SizedBox(width: 28),
-                    _buildStatCard(
-                      title: 'Total Students',
-                      value: '$totalStudents',
-                      icon: Icons.circle,
-                      accent: const Color(0xFF98A2B3),
-                    ),
-                  ],
-                ),
-              SizedBox(height: isNarrow ? 16 : 22),
-              _buildActionBar(),
-              SizedBox(height: isNarrow ? 16 : 24),
-              _buildLogsPanel(),
-            ],
+                    ],
+                  ),
+                  SizedBox(height: isNarrow ? 16 : 22),
+                  _buildActionBar(),
+                  SizedBox(height: isNarrow ? 16 : 24),
+                  _buildLogsPanel(),
+                ],
+              ),
+            ),
           );
         },
       ),

@@ -227,27 +227,32 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
         final isNarrow = constraints.maxWidth < 900;
 
         final profileSection = Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
             NotificationBellButton(token: authProvider.token ?? ''),
             const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  widget.userName,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF102A56),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    widget.userName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF102A56),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Academic Adviser',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF68768A)),
-                ),
-              ],
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Academic Adviser',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13, color: Color(0xFF68768A)),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(width: 14),
             CircleAvatar(
@@ -265,7 +270,12 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
         );
 
         return Container(
-          padding: const EdgeInsets.fromLTRB(28, 20, 28, 20),
+          padding: EdgeInsets.fromLTRB(
+            isNarrow ? 16 : 28,
+            20,
+            isNarrow ? 16 : 28,
+            20,
+          ),
           decoration: const BoxDecoration(
             color: Colors.white,
             border: Border(bottom: BorderSide(color: Color(0xFFE6E8EC))),
@@ -310,7 +320,10 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                     const SizedBox(height: 16),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: profileSection,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 360),
+                        child: profileSection,
+                      ),
                     ),
                   ],
                 )
@@ -461,37 +474,76 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            alert.studentName,
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF102A56),
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: alert.color.withAlpha(28),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            alert.status,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: alert.color,
-                            ),
-                          ),
-                        ),
-                      ],
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isCompact = constraints.maxWidth < 520;
+
+                        return isCompact
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    alert.studentName,
+                                    style: const TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF102A56),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: alert.color.withAlpha(28),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      alert.status,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: alert.color,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      alert.studentName,
+                                      style: const TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF102A56),
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: alert.color.withAlpha(28),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      alert.status,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: alert.color,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                      },
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -511,259 +563,296 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   }
 
   Widget _buildProgressPanel() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x120F172A),
-            blurRadius: 20,
-            offset: Offset(0, 6),
+    return LayoutBuilder(
+      builder: (context, panelConstraints) {
+        final isCompactPanel = panelConstraints.maxWidth < 720;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x120F172A),
+                blurRadius: 20,
+                offset: Offset(0, 6),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isNarrow = constraints.maxWidth < 720;
-                return isNarrow
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Intern Progress',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  isCompactPanel ? 18 : 28,
+                  24,
+                  isCompactPanel ? 18 : 28,
+                  24,
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isNarrow = constraints.maxWidth < 720;
+                    return isNarrow
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Intern Progress',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF102A56),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: _interns.isEmpty
+                                      ? null
+                                      : _openInternReports,
+                                  icon: const Icon(Icons.download_rounded),
+                                  label: const Text('Open Intern Reports'),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Intern Progress',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF102A56),
+                                  ),
+                                ),
+                              ),
+                              ElevatedButton.icon(
+                                onPressed: _interns.isEmpty
+                                    ? null
+                                    : _openInternReports,
+                                icon: const Icon(Icons.download_rounded),
+                                label: const Text('Open Intern Reports'),
+                              ),
+                            ],
+                          );
+                  },
+                ),
+              ),
+              const Divider(height: 1, color: Color(0xFFE7EBF0)),
+              Padding(
+                padding: EdgeInsets.all(isCompactPanel ? 18 : 28),
+                child: Column(
+                  children: [
+                    if (_interns.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'No interns assigned yet.',
                             style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF102A56),
+                              fontSize: 15,
+                              color: Color(0xFF68768A),
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: _interns.isEmpty
-                                  ? null
-                                  : _openInternReports,
-                              icon: const Icon(Icons.download_rounded),
-                              label: const Text('Open Intern Reports'),
-                            ),
-                          ),
-                        ],
+                        ),
                       )
-                    : Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Intern Progress',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF102A56),
+                    else
+                      ..._interns.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final detail = entry.value;
+                        final progress = _progressValue(detail);
+                        final status = _statusLabel(detail);
+                        final statusColor = _statusColor(detail);
+
+                        return InkWell(
+                          onTap: () => _openIntern(detail),
+                          borderRadius: BorderRadius.circular(24),
+                          child: Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 18),
+                            padding: EdgeInsets.all(isCompactPanel ? 18 : 28),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: index == 0
+                                    ? const Color(0xFF3B82F6)
+                                    : const Color(0xFFE0E6ED),
                               ),
                             ),
-                          ),
-                          ElevatedButton.icon(
-                            onPressed: _interns.isEmpty
-                                ? null
-                                : _openInternReports,
-                            icon: const Icon(Icons.download_rounded),
-                            label: const Text('Open Intern Reports'),
-                          ),
-                        ],
-                      );
-              },
-            ),
-          ),
-          const Divider(height: 1, color: Color(0xFFE7EBF0)),
-          Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              children: [
-                if (_interns.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'No interns assigned yet.',
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Color(0xFF68768A),
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  ..._interns.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final detail = entry.value;
-                    final progress = _progressValue(detail);
-                    final status = _statusLabel(detail);
-                    final statusColor = _statusColor(detail);
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final isNarrow = constraints.maxWidth < 720;
 
-                    return InkWell(
-                      onTap: () => _openIntern(detail),
-                      borderRadius: BorderRadius.circular(24),
-                      child: Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 18),
-                        padding: const EdgeInsets.all(28),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: index == 0
-                                ? const Color(0xFF3B82F6)
-                                : const Color(0xFFE0E6ED),
-                          ),
-                        ),
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final isNarrow = constraints.maxWidth < 720;
-
-                            final identitySection = Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                CircleAvatar(
-                                  radius: 24,
-                                  backgroundColor: const Color(0xFF326DE6),
-                                  child: Text(
-                                    _initialsFor(detail.studentName),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        detail.studentName,
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF102A56),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        detail.companyName,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          color: Color(0xFF4A6480),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            );
-
-                            final statusSection = Column(
-                              crossAxisAlignment: isNarrow
-                                  ? CrossAxisAlignment.start
-                                  : CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  status,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: statusColor,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Last log: ${_formatDate(_lastLogDate(detail))}',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Color(0xFF4A6480),
-                                  ),
-                                ),
-                              ],
-                            );
-
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (isNarrow) ...[
-                                  identitySection,
-                                  const SizedBox(height: 14),
-                                  statusSection,
-                                ] else
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(child: identitySection),
-                                      const SizedBox(width: 16),
-                                      statusSection,
-                                    ],
-                                  ),
-                                const SizedBox(height: 20),
-                                const Text(
-                                  'Progress',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    color: Color(0xFF355070),
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(999),
-                                  child: LinearProgressIndicator(
-                                    minHeight: 16,
-                                    value: progress,
-                                    backgroundColor: const Color(0xFFDDE2EA),
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      _progressColor(detail, index),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
-                                Row(
+                                final identitySection = Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Expanded(
+                                    CircleAvatar(
+                                      radius: 24,
+                                      backgroundColor: const Color(0xFF326DE6),
                                       child: Text(
-                                        '${detail.completedHours} / ${detail.requiredHours} hours',
+                                        _initialsFor(detail.studentName),
                                         style: const TextStyle(
-                                          fontSize: 14,
-                                          color: Color(0xFF243B63),
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
                                         ),
                                       ),
                                     ),
-                                    Text(
-                                      '${(progress * 100).round()}%',
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF102A56),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            detail.studentName,
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF102A56),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            detail.companyName,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              color: Color(0xFF4A6480),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-                    );
-                  }),
-              ],
-            ),
+                                );
+
+                                final statusSection = Column(
+                                  crossAxisAlignment: isNarrow
+                                      ? CrossAxisAlignment.start
+                                      : CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      status,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: statusColor,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Last log: ${_formatDate(_lastLogDate(detail))}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Color(0xFF4A6480),
+                                      ),
+                                    ),
+                                  ],
+                                );
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (isNarrow) ...[
+                                      identitySection,
+                                      const SizedBox(height: 14),
+                                      statusSection,
+                                    ] else
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(child: identitySection),
+                                          const SizedBox(width: 16),
+                                          statusSection,
+                                        ],
+                                      ),
+                                    const SizedBox(height: 20),
+                                    const Text(
+                                      'Progress',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        color: Color(0xFF355070),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(999),
+                                      child: LinearProgressIndicator(
+                                        minHeight: 16,
+                                        value: progress,
+                                        backgroundColor:
+                                            const Color(0xFFDDE2EA),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              _progressColor(detail, index),
+                                            ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    if (isNarrow)
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${detail.completedHours} / ${detail.requiredHours} hours',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              color: Color(0xFF243B63),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            '${(progress * 100).round()}%',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF102A56),
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    else
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              '${detail.completedHours} / ${detail.requiredHours} hours',
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Color(0xFF243B63),
+                                              ),
+                                            ),
+                                          ),
+                                          Text(
+                                            '${(progress * 100).round()}%',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF102A56),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                      }),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -787,55 +876,67 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
       onRefresh: _loadDashboardData,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final maxWidth = constraints.maxWidth;
+          final contentWidth =
+              constraints.maxWidth.clamp(0.0, 1240.0).toDouble();
+          final maxWidth = contentWidth;
           final statCardWidth = maxWidth >= 1280
               ? (maxWidth - 54) / 4
               : maxWidth >= 860
               ? (maxWidth - 18) / 2
               : maxWidth;
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(26, 28, 26, 30),
-            children: [
-              Wrap(
-                spacing: 18,
-                runSpacing: 18,
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1240),
+              child: ListView(
+                padding: EdgeInsets.fromLTRB(
+                  constraints.maxWidth < 640 ? 16 : 26,
+                  28,
+                  constraints.maxWidth < 640 ? 16 : 26,
+                  30,
+                ),
                 children: [
-                  _buildStatCard(
-                    title: 'Total Interns',
-                    value: '$totalInterns',
-                    icon: Icons.groups_2_outlined,
-                    accent: const Color(0xFF326DE6),
-                    width: statCardWidth,
+                  Wrap(
+                    spacing: 18,
+                    runSpacing: 18,
+                    children: [
+                      _buildStatCard(
+                        title: 'Total Interns',
+                        value: '$totalInterns',
+                        icon: Icons.groups_2_outlined,
+                        accent: const Color(0xFF326DE6),
+                        width: statCardWidth,
+                      ),
+                      _buildStatCard(
+                        title: 'On Track',
+                        value: '$onTrack',
+                        icon: Icons.trending_up_rounded,
+                        accent: const Color(0xFF00A63E),
+                        width: statCardWidth,
+                      ),
+                      _buildStatCard(
+                        title: 'Needs Attention',
+                        value: '$needsAttention',
+                        icon: Icons.warning_amber_rounded,
+                        accent: const Color(0xFFFF5B00),
+                        width: statCardWidth,
+                      ),
+                      _buildStatCard(
+                        title: 'Avg Progress',
+                        value: '$avgProgress%',
+                        icon: Icons.circle,
+                        accent: const Color(0xFF98A2B3),
+                        width: statCardWidth,
+                      ),
+                    ],
                   ),
-                  _buildStatCard(
-                    title: 'On Track',
-                    value: '$onTrack',
-                    icon: Icons.trending_up_rounded,
-                    accent: const Color(0xFF00A63E),
-                    width: statCardWidth,
-                  ),
-                  _buildStatCard(
-                    title: 'Needs Attention',
-                    value: '$needsAttention',
-                    icon: Icons.warning_amber_rounded,
-                    accent: const Color(0xFFFF5B00),
-                    width: statCardWidth,
-                  ),
-                  _buildStatCard(
-                    title: 'Avg Progress',
-                    value: '$avgProgress%',
-                    icon: Icons.circle,
-                    accent: const Color(0xFF98A2B3),
-                    width: statCardWidth,
-                  ),
+                  const SizedBox(height: 28),
+                  _buildAlertsPanel(alerts),
+                  const SizedBox(height: 30),
+                  _buildProgressPanel(),
                 ],
               ),
-              const SizedBox(height: 28),
-              _buildAlertsPanel(alerts),
-              const SizedBox(height: 30),
-              _buildProgressPanel(),
-            ],
+            ),
           );
         },
       ),
