@@ -58,4 +58,12 @@ class LogRejected extends Mailable
     {
         return [];
     }
+
+    public function build(): static
+    {
+        return $this
+            ->subject($this->envelope()->subject)
+            ->view('emails.log_rejected')
+            ->with($this->content()->with);
+    }
 }

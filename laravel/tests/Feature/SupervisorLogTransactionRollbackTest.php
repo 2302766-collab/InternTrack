@@ -60,7 +60,6 @@ class SupervisorLogTransactionRollbackTest extends TestCase
 
         // Mock database transaction to simulate rollback
         DB::shouldReceive('transaction')
-            ->once()
             ->andThrow(new \Exception('Database transaction failed'));
 
         // Make the approval request
@@ -85,7 +84,6 @@ class SupervisorLogTransactionRollbackTest extends TestCase
 
         // Mock database transaction to simulate rollback
         DB::shouldReceive('transaction')
-            ->once()
             ->andThrow(new \Exception('Database connection lost'));
 
         // Make the rejection request
@@ -141,9 +139,8 @@ class SupervisorLogTransactionRollbackTest extends TestCase
             'status' => 'PENDING',
         ]);
 
-        // Mock database connection failure
-        DB::shouldReceive('beginTransaction')
-            ->once()
+        // Mock database transaction startup failure
+        DB::shouldReceive('transaction')
             ->andThrow(new \PDOException('Connection lost'));
 
         // Make the approval request

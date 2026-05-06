@@ -12,6 +12,7 @@ use App\Services\AttachmentFileService;
 use App\Services\LogPayloadService;
 use App\Services\NotificationMailService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class SupervisorLogController extends Controller
@@ -41,7 +42,7 @@ class SupervisorLogController extends Controller
         // Eager load all needed relations to prevent N+1 queries
         // This reduces queries from N+1 to ~3 total: 1 for logs, 1 for profiles+students, 1 for attachments count
         $logs = LogEntry::query()
-            ->with(['internshipProfile.student', 'attachments', 'logActions.supervisor'])
+            ->with(['internshipProfile.student'])
             ->withCount('attachments')
             ->whereIn('internship_profile_id', $profileIds)
             ->where('status', 'PENDING')
@@ -260,27 +261,51 @@ class SupervisorLogController extends Controller
 
         $comment = $validated['comment'] ?? null;
 
-        $log->update([
-            'status' => $targetStatus,
-        ]);
+        try {
+            $log = DB::transaction(function () use (
+                $comment,
+                $log,
+                $request,
+                $supervisorId,
+                $targetStatus,
+            ) {
+                $log->update([
+                    'status' => $targetStatus,
+                ]);
 
-        LogAction::create([
-            'log_entry_id' => $log->id,
-            'supervisor_id' => $supervisorId,
-            'action' => $targetStatus,
-            'comment' => $comment !== '' ? $comment : null,
-            'acted_at' => now(),
-        ]);
+                LogAction::create([
+                    'log_entry_id' => $log->id,
+                    'supervisor_id' => $supervisorId,
+                    'action' => $targetStatus,
+                    'comment' => $comment !== '' ? $comment : null,
+                    'acted_at' => now(),
+                ]);
 
-        $log->refresh()->load(['attachments', 'internshipProfile.student', 'logActions.supervisor']);
+                $log->refresh()->load(['attachments', 'internshipProfile.student', 'logActions.supervisor']);
 
-        $this->notifyStudentOfReview($log, $targetStatus, $request->user()->name, $comment);
+                $this->notifyStudentOfReview($log, $targetStatus, $request->user()->name, $comment);
+
+                return $log;
+            });
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected server error occurred.',
+                'data' => null,
+            ], 500);
+        }
 
         // Dispatch email notification to student
-        if ($targetStatus === 'APPROVED') {
-            $this->notificationMailService->sendLogApprovedEmail($log, $request->user()->name);
-        } else {
-            $this->notificationMailService->sendLogRejectedEmail($log, $request->user()->name, $comment);
+        try {
+            if ($targetStatus === 'APPROVED') {
+                $this->notificationMailService->sendLogApprovedEmail($log, $request->user()->name);
+            } else {
+                $this->notificationMailService->sendLogRejectedEmail($log, $request->user()->name, $comment);
+            }
+        } catch (\Throwable $exception) {
+            report($exception);
         }
 
         return response()->json([

@@ -30,10 +30,10 @@ class NotificationMailServiceTest extends TestCase
      */
     public function test_send_log_pending_approval_email_queues_mail(): void
     {
-        $supervisor = $this->createSupervisor();
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
-        $log = $this->createLogEntryFor($profile, 'PENDING');
+        $supervisor = $this->helperSupervisor();
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
+        $log = $this->helperLogEntryFor($profile, 'PENDING');
 
         $this->service->sendLogPendingApprovalEmail($log, $supervisor);
 
@@ -47,10 +47,10 @@ class NotificationMailServiceTest extends TestCase
      */
     public function test_send_log_approved_email_queues_mail(): void
     {
-        $supervisor = $this->createSupervisor();
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
-        $log = $this->createLogEntryFor($profile, 'APPROVED');
+        $supervisor = $this->helperSupervisor();
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
+        $log = $this->helperLogEntryFor($profile, 'APPROVED');
 
         $this->service->sendLogApprovedEmail($log, $supervisor->name);
 
@@ -64,10 +64,10 @@ class NotificationMailServiceTest extends TestCase
      */
     public function test_send_log_rejected_email_queues_mail(): void
     {
-        $supervisor = $this->createSupervisor();
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
-        $log = $this->createLogEntryFor($profile, 'REJECTED');
+        $supervisor = $this->helperSupervisor();
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
+        $log = $this->helperLogEntryFor($profile, 'REJECTED');
         $comment = 'Please add more details to the task description.';
 
         $this->service->sendLogRejectedEmail($log, $supervisor->name, $comment);
@@ -82,10 +82,10 @@ class NotificationMailServiceTest extends TestCase
      */
     public function test_send_log_rejected_email_with_null_comment(): void
     {
-        $supervisor = $this->createSupervisor();
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
-        $log = $this->createLogEntryFor($profile, 'REJECTED');
+        $supervisor = $this->helperSupervisor();
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
+        $log = $this->helperLogEntryFor($profile, 'REJECTED');
 
         $this->service->sendLogRejectedEmail($log, $supervisor->name, null);
 
@@ -99,7 +99,7 @@ class NotificationMailServiceTest extends TestCase
      */
     public function test_send_log_pending_approval_email_handles_missing_student_gracefully(): void
     {
-        $supervisor = $this->createSupervisor();
+        $supervisor = $this->helperSupervisor();
         
         // Create a log entry with no student
         $log = new LogEntry([
@@ -162,10 +162,10 @@ class NotificationMailServiceTest extends TestCase
      */
     public function test_log_pending_approval_email_has_correct_subject(): void
     {
-        $supervisor = $this->createSupervisor();
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
-        $log = $this->createLogEntryFor($profile, 'PENDING');
+        $supervisor = $this->helperSupervisor();
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
+        $log = $this->helperLogEntryFor($profile, 'PENDING');
 
         $this->service->sendLogPendingApprovalEmail($log, $supervisor);
 
@@ -180,12 +180,12 @@ class NotificationMailServiceTest extends TestCase
      */
     public function test_multiple_notification_emails_can_be_queued(): void
     {
-        $supervisor = $this->createSupervisor();
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
+        $supervisor = $this->helperSupervisor();
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
         
-        $log1 = $this->createLogEntryFor($profile, 'PENDING', now()->toDateString());
-        $log2 = $this->createLogEntryFor($profile, 'APPROVED', now()->subDay()->toDateString());
+        $log1 = $this->helperLogEntryFor($profile, 'PENDING', now()->toDateString());
+        $log2 = $this->helperLogEntryFor($profile, 'APPROVED', now()->subDay()->toDateString());
 
         $this->service->sendLogPendingApprovalEmail($log1, $supervisor);
         $this->service->sendLogApprovedEmail($log2, $supervisor->name);

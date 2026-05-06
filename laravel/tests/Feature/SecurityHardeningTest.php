@@ -24,15 +24,15 @@ class SecurityHardeningTest extends TestCase
     {
         Storage::fake('local');
 
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student);
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student);
         
         Sanctum::actingAs($student);
 
         // Create 10 logs
         $logs = [];
         for ($i = 0; $i < 10; $i++) {
-            $log = $this->createLogEntryFor($profile, 'PENDING', now()->subDays($i)->toDateString());
+            $log = $this->helperLogEntryFor($profile, 'PENDING', now()->subDays($i)->toDateString());
             $logs[] = $log;
         }
 
@@ -50,7 +50,7 @@ class SecurityHardeningTest extends TestCase
         }
 
         // 11th upload should be rate limited (429 Too Many Requests)
-        $eleventhLog = $this->createLogEntryFor($profile, 'PENDING', now()->subDays(10)->toDateString());
+        $eleventhLog = $this->helperLogEntryFor($profile, 'PENDING', now()->subDays(10)->toDateString());
         $file = UploadedFile::fake()->create('proof_11.jpg', 100, 'image/jpeg');
         
         $response = $this->withHeader('Accept', 'application/json')
@@ -70,9 +70,9 @@ class SecurityHardeningTest extends TestCase
     {
         Storage::fake('local');
 
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student);
-        $log = $this->createLogEntryFor($profile, 'PENDING');
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student);
+        $log = $this->helperLogEntryFor($profile, 'PENDING');
 
         Sanctum::actingAs($student);
 
@@ -112,10 +112,10 @@ class SecurityHardeningTest extends TestCase
      */
     public function test_supervisor_can_reject_log_with_max_2000_character_comment(): void
     {
-        $supervisor = $this->createSupervisor();
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
-        $log = $this->createLogEntryFor($profile, 'PENDING');
+        $supervisor = $this->helperSupervisor();
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
+        $log = $this->helperLogEntryFor($profile, 'PENDING');
 
         Sanctum::actingAs($supervisor);
 
@@ -147,10 +147,10 @@ class SecurityHardeningTest extends TestCase
      */
     public function test_supervisor_cannot_reject_log_with_comment_exceeding_2000_characters(): void
     {
-        $supervisor = $this->createSupervisor();
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
-        $log = $this->createLogEntryFor($profile, 'PENDING');
+        $supervisor = $this->helperSupervisor();
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
+        $log = $this->helperLogEntryFor($profile, 'PENDING');
 
         Sanctum::actingAs($supervisor);
 
@@ -178,10 +178,10 @@ class SecurityHardeningTest extends TestCase
      */
     public function test_supervisor_can_approve_log_with_optional_2000_character_comment(): void
     {
-        $supervisor = $this->createSupervisor();
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
-        $log = $this->createLogEntryFor($profile, 'PENDING');
+        $supervisor = $this->helperSupervisor();
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
+        $log = $this->helperLogEntryFor($profile, 'PENDING');
 
         Sanctum::actingAs($supervisor);
 
@@ -216,9 +216,9 @@ class SecurityHardeningTest extends TestCase
     {
         Storage::fake('local');
 
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student);
-        $log = $this->createLogEntryFor($profile, 'PENDING');
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student);
+        $log = $this->helperLogEntryFor($profile, 'PENDING');
 
         // Pre-create an attachment for this log with the same file_path pattern
         Attachment::create([

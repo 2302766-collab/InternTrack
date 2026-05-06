@@ -6,6 +6,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -28,13 +29,18 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $isApiRequest = static fn (Request $request): bool => $request->is('api/*') || $request->expectsJson();
+        $secureApiResponse = static function (Request $request, array $payload, int $status): JsonResponse {
+            $response = response()->json($payload, $status);
 
-        $exceptions->render(function (ValidationException $exception, Request $request) use ($isApiRequest) {
+            return \App\Http\Middleware\SecurityHeadersMiddleware::applyHeaders($response, $request);
+        };
+
+        $exceptions->render(function (ValidationException $exception, Request $request) use ($isApiRequest, $secureApiResponse) {
             if (! $isApiRequest($request)) {
                 return null;
             }
 
-            return response()->json([
+            return $secureApiResponse($request, [
                 'success' => false,
                 'message' => 'Validation failed.',
                 'data' => [
@@ -43,31 +49,31 @@ return Application::configure(basePath: dirname(__DIR__))
             ], 422);
         });
 
-        $exceptions->render(function (AuthenticationException $exception, Request $request) use ($isApiRequest) {
+        $exceptions->render(function (AuthenticationException $exception, Request $request) use ($isApiRequest, $secureApiResponse) {
             if (! $isApiRequest($request)) {
                 return null;
             }
 
-            return response()->json([
+            return $secureApiResponse($request, [
                 'success' => false,
                 'message' => 'Unauthenticated.',
                 'data' => null,
             ], 401);
         });
 
-        $exceptions->render(function (NotFoundHttpException $exception, Request $request) use ($isApiRequest) {
+        $exceptions->render(function (NotFoundHttpException $exception, Request $request) use ($isApiRequest, $secureApiResponse) {
             if (! $isApiRequest($request)) {
                 return null;
             }
 
-            return response()->json([
+            return $secureApiResponse($request, [
                 'success' => false,
                 'message' => 'Resource not found.',
                 'data' => null,
             ], 404);
         });
 
-        $exceptions->render(function (\Throwable $exception, Request $request) use ($isApiRequest) {
+        $exceptions->render(function (\Throwable $exception, Request $request) use ($isApiRequest, $secureApiResponse) {
             if (! $isApiRequest($request)) {
                 return null;
             }
@@ -83,7 +89,7 @@ return Application::configure(basePath: dirname(__DIR__))
             $status = $exception instanceof HttpExceptionInterface ? $exception->getStatusCode() : 500;
             $status = ($status >= 400 && $status < 600) ? $status : 500;
 
-            return response()->json([
+            return $secureApiResponse($request, [
                 'success' => false,
                 'message' => $status >= 500
                     ? 'An unexpected server error occurred.'

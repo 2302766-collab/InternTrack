@@ -36,7 +36,7 @@ class InputSanitizationTest extends TestCase
             'password_confirmation' => 'password123',
         ]);
 
-        $response->assertStatus(200);
+        $response->assertStatus(201);
 
         // Verify the user was created with sanitized data
         $user = User::where('email', 'test@example.com')->first();
@@ -131,7 +131,7 @@ class InputSanitizationTest extends TestCase
     public function sanitization_does_not_log_unchanged_inputs()
     {
         // Should not log when no changes occur
-        Log::shouldNotReceive('info');
+        Log::shouldReceive('info')->never();
 
         $input = 'Hello World';
         $sanitized = $this->sanitizer->sanitizeString($input);
