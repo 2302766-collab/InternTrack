@@ -8,6 +8,7 @@ import 'core/interceptors/logging_interceptor.dart';
 import 'core/interceptors/token_refresh_interceptor.dart';
 import 'core/retry/retry_interceptor.dart';
 import 'core/retry/retry_policy.dart';
+import 'core/services/admin_dashboard_service.dart';
 import 'core/services/admin_student_service.dart';
 import 'core/services/api_client.dart';
 import 'core/services/auth_service.dart';
@@ -124,6 +125,10 @@ class InternTrackApp extends StatelessWidget {
         ),
         ProxyProvider<ApiClient, AdminStudentService>(
           update: (context, apiClient, previous) => AdminStudentService(apiClient),
+        ),
+        ProxyProvider<ApiClient, AdminDashboardService>(
+          update: (context, apiClient, previous) =>
+              AdminDashboardService(apiClient),
         ),
         ProxyProvider<ApiClient, InternshipService>(
           update: (context, apiClient, previous) => InternshipService(apiClient),
