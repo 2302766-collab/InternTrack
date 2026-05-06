@@ -21,22 +21,21 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   late final AdminStudentService _studentService;
-  final ScrollController _scrollController = ScrollController();
+  static const int _itemsPerPage = 10;
 
   final List<AdminStudentSummary> _students = <AdminStudentSummary>[];
 
   bool _isInitialLoading = true;
-  bool _isLoadingMore = false;
-  bool _hasMorePages = true;
+  bool _isPageLoading = false;
   String? _errorMessage;
-  int _currentPage = 0;
+  int _currentPage = 1;
+  int _lastPage = 1;
   int _totalStudents = 0;
 
   @override
   void initState() {
     super.initState();
     _studentService = context.read<AdminStudentService>();
-    _scrollController.addListener(_handleScroll);
   }
 
   @override
@@ -49,80 +48,66 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   void dispose() {
-    _scrollController
-      ..removeListener(_handleScroll)
-      ..dispose();
     super.dispose();
   }
 
-  void _handleScroll() {
-    if (!_scrollController.hasClients || _isLoadingMore || !_hasMorePages) {
+  Future<void> _refreshStudents() async {
+    await _loadStudents(page: 1);
+  }
+
+  Future<void> _goToPage(int page) async {
+    if (page < 1 || page > _lastPage || page == _currentPage) {
       return;
     }
 
-    final position = _scrollController.position;
-    if (position.pixels >= position.maxScrollExtent - 240) {
-      _loadNextPage();
-    }
+    await _loadStudents(page: page);
   }
 
-  Future<void> _refreshStudents() async {
-    await _loadStudents(reset: true);
-  }
-
-  Future<void> _loadNextPage() async {
-    await _loadStudents();
-  }
-
-  Future<void> _loadStudents({bool reset = false}) async {
+  Future<void> _loadStudents({required int page}) async {
     final token = context.read<AuthProvider>().token ?? '';
     if (token.isEmpty) {
       setState(() {
         _isInitialLoading = false;
-        _isLoadingMore = false;
+        _isPageLoading = false;
         _errorMessage = 'Missing authentication token. Please log in again.';
       });
       return;
     }
 
-    if (reset) {
+    final isInitialRequest = _students.isEmpty && !_isPageLoading;
+
+    if (isInitialRequest) {
       setState(() {
         _isInitialLoading = true;
         _errorMessage = null;
       });
     } else {
-      if (_isLoadingMore || !_hasMorePages) {
+      if (_isPageLoading) {
         return;
       }
 
       setState(() {
-        _isLoadingMore = true;
+        _isPageLoading = true;
+        _errorMessage = null;
       });
     }
 
     try {
-      final nextPage = reset ? 1 : _currentPage + 1;
-      final page = await _studentService.fetchStudents(
-        page: nextPage,
+      final studentsPage = await _studentService.fetchStudents(
+        page: page,
+        perPage: _itemsPerPage,
       );
 
       if (!mounted) return;
 
-      final updatedStudents = reset
-          ? page.students
-          : <AdminStudentSummary>[
-              ..._students,
-              ...page.students,
-            ];
-
       setState(() {
-        _currentPage = page.currentPage;
-        _hasMorePages = page.hasMorePages;
-        _totalStudents = page.total;
+        _currentPage = studentsPage.currentPage;
+        _lastPage = studentsPage.lastPage == 0 ? 1 : studentsPage.lastPage;
+        _totalStudents = studentsPage.total;
         _errorMessage = null;
         _students
           ..clear()
-          ..addAll(updatedStudents);
+          ..addAll(studentsPage.students);
       });
     } catch (e) {
       if (!mounted) return;
@@ -134,7 +119,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (mounted) {
         setState(() {
           _isInitialLoading = false;
-          _isLoadingMore = false;
+          _isPageLoading = false;
         });
       }
     }
@@ -372,6 +357,173 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+  List<int> _visiblePages(bool isCompact) {
+    if (_lastPage <= 1) {
+      return const <int>[1];
+    }
+
+    if (isCompact) {
+      final pages = <int>{_currentPage};
+      if (_currentPage > 1) {
+        pages.add(_currentPage - 1);
+      }
+      if (_currentPage < _lastPage) {
+        pages.add(_currentPage + 1);
+      }
+      final sorted = pages.toList()..sort();
+      return sorted;
+    }
+
+    final start = (_currentPage - 2).clamp(1, _lastPage);
+    final end = (_currentPage + 2).clamp(1, _lastPage);
+    final pages = <int>[];
+    for (var page = start; page <= end; page++) {
+      pages.add(page);
+    }
+    return pages;
+  }
+
+  Widget _buildPageButton({
+    required int page,
+    required bool selected,
+    required bool compact,
+  }) {
+    final size = compact ? 40.0 : 42.0;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: InkWell(
+        onTap: _isPageLoading ? null : () => _goToPage(page),
+        borderRadius: BorderRadius.circular(size / 2),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF1976D2) : Colors.transparent,
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            '$page',
+            style: TextStyle(
+              fontSize: compact ? 16 : 18,
+              fontWeight: FontWeight.w700,
+              color: selected ? Colors.white : const Color(0xFF344054),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildArrowButton({
+    required IconData icon,
+    required VoidCallback? onPressed,
+    bool compact = false,
+  }) {
+    return IconButton(
+      tooltip: compact ? null : 'Pagination',
+      onPressed: _isPageLoading ? null : onPressed,
+      icon: Icon(
+        icon,
+        color: onPressed == null ? const Color(0xFF98A2B3) : const Color(0xFF101828),
+      ),
+    );
+  }
+
+  Widget _buildPaginationControls(BoxConstraints constraints) {
+    if (_students.isEmpty && _totalStudents == 0) {
+      return const SizedBox.shrink();
+    }
+
+    final isCompact = constraints.maxWidth < 600;
+    final visiblePages = _visiblePages(isCompact);
+    final startItem = _totalStudents == 0 ? 0 : ((_currentPage - 1) * _itemsPerPage) + 1;
+    final endItem = (_currentPage * _itemsPerPage).clamp(0, _totalStudents);
+
+    if (isCompact) {
+      return Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildArrowButton(
+                icon: Icons.chevron_left_rounded,
+                compact: true,
+                onPressed: _currentPage > 1 ? () => _goToPage(_currentPage - 1) : null,
+              ),
+              ...visiblePages.map(
+                (page) => _buildPageButton(
+                  page: page,
+                  selected: page == _currentPage,
+                  compact: true,
+                ),
+              ),
+              _buildArrowButton(
+                icon: Icons.chevron_right_rounded,
+                compact: true,
+                onPressed: _currentPage < _lastPage
+                    ? () => _goToPage(_currentPage + 1)
+                    : null,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '$startItem-$endItem of $_totalStudents items',
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF667085),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 4,
+      runSpacing: 10,
+      children: [
+        _buildArrowButton(
+          icon: Icons.keyboard_double_arrow_left_rounded,
+          onPressed: _currentPage > 1 ? () => _goToPage(1) : null,
+        ),
+        _buildArrowButton(
+          icon: Icons.chevron_left_rounded,
+          onPressed: _currentPage > 1 ? () => _goToPage(_currentPage - 1) : null,
+        ),
+        ...visiblePages.map(
+          (page) => _buildPageButton(
+            page: page,
+            selected: page == _currentPage,
+            compact: false,
+          ),
+        ),
+        _buildArrowButton(
+          icon: Icons.chevron_right_rounded,
+          onPressed: _currentPage < _lastPage
+              ? () => _goToPage(_currentPage + 1)
+              : null,
+        ),
+        _buildArrowButton(
+          icon: Icons.keyboard_double_arrow_right_rounded,
+          onPressed: _currentPage < _lastPage ? () => _goToPage(_lastPage) : null,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$startItem-$endItem of $_totalStudents items',
+          style: const TextStyle(
+            fontSize: 16,
+            color: Color(0xFF667085),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildBody() {
     if (_isInitialLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -402,79 +554,74 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     return RefreshIndicator(
       onRefresh: _refreshStudents,
-      child: ListView(
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(22, 24, 22, 30),
-        children: [
-          _buildStatsCard(),
-          const SizedBox(height: 22),
-          const Text(
-            'Students',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF102A56),
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Track progress across all active interns.',
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF667085),
-            ),
-          ),
-          const SizedBox(height: 18),
-          if (_students.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 36),
-              child: Text(
-                'No students found yet.',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Color(0xFF667085),
-                ),
-              ),
-            )
-          else
-            ..._students.map(_buildStudentCard),
-          if (_errorMessage != null && _students.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8, bottom: 12),
-              child: Center(
-                child: Column(
-                  children: [
-                    Text(
-                      _errorMessage!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Color(0xFFB42318)),
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: _loadNextPage,
-                      child: const Text('Try loading again'),
-                    ),
-                  ],
-                ),
+      child: LayoutBuilder(
+        builder: (context, constraints) => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(22, 24, 22, 30),
+          children: [
+            _buildStatsCard(),
+            const SizedBox(height: 22),
+            const Text(
+              'Students',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF102A56),
               ),
             ),
-          if (_isLoadingMore)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 18),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_hasMorePages)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Center(
+            const SizedBox(height: 6),
+            const Text(
+              'Track progress across all active interns.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF667085),
+              ),
+            ),
+            const SizedBox(height: 18),
+            if (_students.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 36),
                 child: Text(
-                  'Scroll to load more students',
-                  style: TextStyle(color: Color(0xFF667085)),
+                  'No students found yet.',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Color(0xFF667085),
+                  ),
+                ),
+              )
+            else
+              ..._students.map(_buildStudentCard),
+            if (_errorMessage != null && _students.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 12),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Text(
+                        _errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Color(0xFFB42318)),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () => _loadStudents(page: _currentPage),
+                        child: const Text('Try loading again'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-        ],
+            if (_isPageLoading)
+              const Padding(
+                padding: EdgeInsets.only(top: 8, bottom: 18),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            if (_students.isNotEmpty || _totalStudents > 0) ...[
+              const SizedBox(height: 12),
+              _buildPaginationControls(constraints),
+            ],
+          ],
+        ),
       ),
     );
   }
