@@ -5,6 +5,7 @@ import 'package:intern_track_app/core/services/api_client.dart';
 import 'package:intern_track_app/core/services/intern_list_service.dart';
 import 'package:intern_track_app/features/supervisor/presentation/screens/intern_list_screen.dart';
 import 'package:intern_track_app/shared/models/intern_list_item.dart';
+import 'package:intern_track_app/shared/models/intern_list_page.dart';
 
 void main() {
   group('InternListScreen pagination', () {
@@ -16,8 +17,22 @@ void main() {
             total: 3,
             hasMore: true,
             interns: [
-              _intern(id: 1, studentName: 'John Doe'),
-              _intern(id: 2, studentName: 'Ana Cruz'),
+              _intern(
+                id: 1,
+                studentName: 'John Doe',
+                requiredHours: 100,
+                completedHours: 80,
+                approvedLogs: 8,
+                pendingLogs: 1,
+              ),
+              _intern(
+                id: 2,
+                studentName: 'Ana Cruz',
+                requiredHours: 100,
+                completedHours: 40,
+                approvedLogs: 4,
+                pendingLogs: 2,
+              ),
             ],
           );
         }
@@ -27,7 +42,13 @@ void main() {
           total: 3,
           hasMore: false,
           interns: [
-            _intern(id: 3, studentName: 'Ben Santos'),
+            _intern(
+              id: 3,
+              studentName: 'Ben Santos',
+              requiredHours: 100,
+              completedHours: 95,
+              approvedLogs: 9,
+            ),
           ],
         );
       });
@@ -38,16 +59,22 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('John Doe'), findsOneWidget);
       expect(find.text('Ana Cruz'), findsOneWidget);
+      expect(find.text('80%'), findsOneWidget);
+      expect(find.text('40%'), findsOneWidget);
+      expect(find.text('Approved 80 of 100 hours'), findsOneWidget);
       expect(find.text('Showing 2 of 3 interns'), findsOneWidget);
-      expect(find.text('Load more'), findsOneWidget);
+      expect(find.text('Load More'), findsOneWidget);
+      expect(service.requests.first.perPage, 20);
 
-      await tester.tap(find.text('Load more'));
+      await tester.tap(find.text('Load More'));
       await tester.pumpAndSettle();
 
       expect(find.text('Ben Santos'), findsOneWidget);
+      expect(find.text('95%'), findsOneWidget);
       expect(find.text('Showing 3 of 3 interns'), findsOneWidget);
       expect(find.text('All interns loaded.'), findsOneWidget);
       expect(service.requests.map((request) => request.page), [1, 2]);
+      expect(service.requests.map((request) => request.perPage), [20, 20]);
     });
 
     testWidgets('sends search to API and resets to the first page', (
@@ -85,6 +112,7 @@ void main() {
       expect(find.text('John Doe'), findsNothing);
       expect(service.requests.last.search, 'Ana');
       expect(service.requests.last.page, 1);
+      expect(service.requests.last.perPage, 20);
     });
 
     testWidgets('shows empty state when no interns are returned', (
@@ -129,6 +157,52 @@ void main() {
       expect(find.text('John Doe'), findsOneWidget);
       expect(service.requests.length, 2);
     });
+
+    testWidgets('shows inline retry when load more fails', (tester) async {
+      var shouldFailLoadMore = true;
+      final service = _FakeInternListService((request) async {
+        if (request.page == 2 && shouldFailLoadMore) {
+          shouldFailLoadMore = false;
+          throw Exception('Unable to load more interns.');
+        }
+
+        if (request.page == 1) {
+          return _page(
+            page: 1,
+            total: 3,
+            hasMore: true,
+            interns: [
+              _intern(id: 1, studentName: 'John Doe'),
+              _intern(id: 2, studentName: 'Ana Cruz'),
+            ],
+          );
+        }
+
+        return _page(
+          page: 2,
+          total: 3,
+          hasMore: false,
+          interns: [
+            _intern(id: 3, studentName: 'Ben Santos'),
+          ],
+        );
+      });
+
+      await tester.pumpWidget(_buildTestApp(service));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Load More'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Unable to load more interns.'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ben Santos'), findsOneWidget);
+      expect(find.text('All interns loaded.'), findsOneWidget);
+    });
   });
 }
 
@@ -152,7 +226,7 @@ InternListPage _page({
     interns: interns,
     currentPage: page,
     lastPage: hasMore ? page + 1 : page,
-    perPage: 10,
+    perPage: 20,
     total: total,
     hasMorePages: hasMore,
   );
@@ -161,13 +235,23 @@ InternListPage _page({
 InternListItem _intern({
   required int id,
   required String studentName,
+  int requiredHours = 486,
+  int completedHours = 0,
+  int approvedLogs = 0,
+  int pendingLogs = 0,
+  int rejectedLogs = 0,
 }) {
   return InternListItem(
     id: id,
     studentId: id,
     studentName: studentName,
     companyName: 'Acme Corp',
-    requiredHours: 486,
+    requiredHours: requiredHours,
+    completedHours: completedHours,
+    approvedLogs: approvedLogs,
+    pendingLogs: pendingLogs,
+    rejectedLogs: rejectedLogs,
+    totalLogs: approvedLogs + pendingLogs + rejectedLogs,
   );
 }
 
@@ -198,7 +282,7 @@ class _FakeInternListService extends InternListService {
   Future<InternListPage> getInternPage({
     required String role,
     int page = 1,
-    int perPage = 10,
+    int perPage = 20,
     String search = '',
   }) async {
     final request = _InternPageRequest(

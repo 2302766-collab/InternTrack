@@ -60,5 +60,20 @@ void main() {
       expect(intern.supervisorId, 4);
       expect(intern.adviserId, 5);
     });
+
+    test('calculates progress metrics from summary fields', () {
+      final intern = InternListItem.fromJson({
+        'id': 1,
+        'student_id': 7,
+        'student_name': 'Ana Cruz',
+        'company_name': 'Acme Corp',
+        'required_hours': 160,
+        'completed_hours': 40,
+      });
+
+      expect(intern.progressFraction, 0.25);
+      expect(intern.progressPercentage, 25);
+      expect(intern.remainingHours, 120);
+    });
   });
 }
