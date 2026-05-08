@@ -5,7 +5,6 @@ import 'package:intern_track_app/core/services/auth_service.dart';
 import 'package:intern_track_app/core/services/token_service.dart';
 import 'package:intern_track_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:intern_track_app/core/services/api_client.dart';
-import 'package:dio/dio.dart';
 import 'package:provider/provider.dart';
 
 void main() {
@@ -118,8 +117,6 @@ void main() {
 
       final emailField = find.byType(TextFormField).first;
       final passwordField = find.byType(TextFormField).at(1);
-      final submitButton = find.text('Login');
-
       // Enter valid credentials
       await tester.enterText(emailField, 'test@example.com');
       await tester.enterText(passwordField, 'password123');
