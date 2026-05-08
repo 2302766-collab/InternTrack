@@ -6,13 +6,14 @@ import 'package:intern_track_app/shared/models/student_adviser_assignment.dart';
 
 class AdviserManagementProvider extends ChangeNotifier {
   AdviserManagementProvider({AdviserManagementService? service})
-      : _service = service ?? AdviserManagementService();
+    : _service = service ?? AdviserManagementService();
 
-  final AdviserManagementService _service;
+  AdviserManagementService _service;
 
   // State
   List<AdviserInfo> _advisers = [];
-  Map<int, StudentAdviserAssignment> _studentAssignments = {};
+  final Map<int, StudentAdviserAssignment> _studentAssignments =
+      <int, StudentAdviserAssignment>{};
   bool _isLoading = false;
   bool _isAssigning = false;
   String? _errorMessage;
@@ -27,6 +28,10 @@ class AdviserManagementProvider extends ChangeNotifier {
 
   StudentAdviserAssignment? getStudentAssignment(int studentId) =>
       _studentAssignments[studentId];
+
+  void updateService(AdviserManagementService service) {
+    _service = service;
+  }
 
   /// Clear error and success messages
   void clearMessages() {
@@ -74,10 +79,7 @@ class AdviserManagementProvider extends ChangeNotifier {
   }
 
   /// Assign or update adviser for a student
-  Future<bool> assignAdviser({
-    required int studentId,
-    int? adviserId,
-  }) async {
+  Future<bool> assignAdviser({required int studentId, int? adviserId}) async {
     _isAssigning = true;
     _errorMessage = null;
     _successMessage = null;

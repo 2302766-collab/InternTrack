@@ -10,6 +10,7 @@ import 'core/retry/retry_interceptor.dart';
 import 'core/retry/retry_policy.dart';
 import 'core/services/admin_dashboard_service.dart';
 import 'core/services/admin_student_service.dart';
+import 'core/services/adviser_management_service.dart';
 import 'core/services/api_client.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/internship_service.dart';
@@ -107,40 +108,52 @@ class InternTrackApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<TokenService>(create: (_) => const TokenService()),
-        Provider<ApiClient>(create: (context) {
-          final apiClient = ApiClient();
-          final tokenService = context.read<TokenService>();
+        Provider<ApiClient>(
+          create: (context) {
+            final apiClient = ApiClient();
+            final tokenService = context.read<TokenService>();
 
-          // Register interceptors in order
-          // Request flow: Auth → Logging → Retry → (request)
-          // Error flow: TokenRefresh → Retry → Logging → Auth
-          apiClient.addInterceptor(AuthInterceptor(tokenService));
-          apiClient.addInterceptor(LoggingInterceptor());
-          apiClient.addInterceptor(RetryInterceptor(apiClient.client, RetryPolicies.standard));
+            // Register interceptors in order
+            // Request flow: Auth → Logging → Retry → (request)
+            // Error flow: TokenRefresh → Retry → Logging → Auth
+            apiClient.addInterceptor(AuthInterceptor(tokenService));
+            apiClient.addInterceptor(LoggingInterceptor());
+            apiClient.addInterceptor(
+              RetryInterceptor(apiClient.client, RetryPolicies.standard),
+            );
 
-          return apiClient;
-        }),
+            return apiClient;
+          },
+        ),
         ProxyProvider<ApiClient, AuthService>(
           update: (context, apiClient, previous) => AuthService(apiClient),
         ),
         ProxyProvider<ApiClient, AdminStudentService>(
-          update: (context, apiClient, previous) => AdminStudentService(apiClient),
+          update: (context, apiClient, previous) =>
+              AdminStudentService(apiClient),
         ),
         ProxyProvider<ApiClient, AdminDashboardService>(
           update: (context, apiClient, previous) =>
               AdminDashboardService(apiClient),
         ),
+        ProxyProvider<ApiClient, AdviserManagementService>(
+          update: (context, apiClient, previous) =>
+              AdviserManagementService(apiClient),
+        ),
         ProxyProvider<ApiClient, InternshipService>(
-          update: (context, apiClient, previous) => InternshipService(apiClient),
+          update: (context, apiClient, previous) =>
+              InternshipService(apiClient),
         ),
         ProxyProvider<ApiClient, LogbookService>(
           update: (context, apiClient, previous) => LogbookService(apiClient),
         ),
         ProxyProvider<ApiClient, NotificationService>(
-          update: (context, apiClient, previous) => NotificationService(apiClient),
+          update: (context, apiClient, previous) =>
+              NotificationService(apiClient),
         ),
         ProxyProvider<ApiClient, StudentReportService>(
-          update: (context, apiClient, previous) => StudentReportService(apiClient),
+          update: (context, apiClient, previous) =>
+              StudentReportService(apiClient),
         ),
         ChangeNotifierProvider(
           create: (context) {
@@ -158,8 +171,19 @@ class InternTrackApp extends StatelessWidget {
             return authProvider..initialize();
           },
         ),
-        ChangeNotifierProvider(
-          create: (context) => AdviserManagementProvider(),
+        ChangeNotifierProxyProvider<
+          AdviserManagementService,
+          AdviserManagementProvider
+        >(
+          create: (context) => AdviserManagementProvider(
+            service: context.read<AdviserManagementService>(),
+          ),
+          update: (context, adviserService, provider) {
+            final notifier =
+                provider ?? AdviserManagementProvider(service: adviserService);
+            notifier.updateService(adviserService);
+            return notifier;
+          },
         ),
       ],
       child: Consumer<AuthProvider>(
