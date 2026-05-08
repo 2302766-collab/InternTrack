@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 class InternListItem {
   final int id;
   final int studentId;
@@ -43,6 +45,18 @@ class InternListItem {
 
   bool get hasActiveAlert => alertStatus.toUpperCase() != 'ON_TRACK';
 
+  double get progressFraction {
+    if (requiredHours <= 0) {
+      return 0;
+    }
+
+    return (completedHours / requiredHours).clamp(0, 1).toDouble();
+  }
+
+  int get progressPercentage => (progressFraction * 100).round();
+
+  int get remainingHours => math.max(0, requiredHours - completedHours);
+
   factory InternListItem.fromJson(Map<String, dynamic> json) {
     final alert = json['alert'] is Map
         ? Map<String, dynamic>.from(json['alert'] as Map)
@@ -85,50 +99,5 @@ class InternListItem {
   static int? _parseNullableInt(Object? value) {
     if (value is num) return value.toInt();
     return int.tryParse(value?.toString() ?? '');
-  }
-}
-
-class InternListPage {
-  final List<InternListItem> interns;
-  final int currentPage;
-  final int lastPage;
-  final int perPage;
-  final int total;
-  final bool hasMorePages;
-
-  const InternListPage({
-    required this.interns,
-    required this.currentPage,
-    required this.lastPage,
-    required this.perPage,
-    required this.total,
-    required this.hasMorePages,
-  });
-
-  factory InternListPage.fromJson(
-    Map<String, dynamic> json, {
-    required int fallbackPage,
-    required int fallbackPerPage,
-  }) {
-    final rawData = json['data'];
-    final interns = rawData is List
-        ? rawData
-              .whereType<Map<String, dynamic>>()
-              .map(InternListItem.fromJson)
-              .toList()
-        : <InternListItem>[];
-
-    final meta = json['meta'] is Map<String, dynamic>
-        ? json['meta'] as Map<String, dynamic>
-        : const <String, dynamic>{};
-
-    return InternListPage(
-      interns: interns,
-      currentPage: (meta['current_page'] as num?)?.toInt() ?? fallbackPage,
-      lastPage: (meta['last_page'] as num?)?.toInt() ?? 1,
-      perPage: (meta['per_page'] as num?)?.toInt() ?? fallbackPerPage,
-      total: (meta['total'] as num?)?.toInt() ?? interns.length,
-      hasMorePages: meta['has_more_pages'] == true,
-    );
   }
 }

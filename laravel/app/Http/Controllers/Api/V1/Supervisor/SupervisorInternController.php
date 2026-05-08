@@ -43,16 +43,38 @@ class SupervisorInternController extends Controller
             ->orderBy('id')
             ->paginate($perPage);
 
-        $formattedProfiles = $profiles->getCollection()->map(function ($profile) {
+        $summaries = LogEntry::query()
+            ->whereIn('internship_profile_id', $profiles->getCollection()->pluck('id'))
+            ->selectRaw('internship_profile_id')
+            ->selectRaw('COUNT(*) as total_logs')
+            ->selectRaw("SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) as pending_logs")
+            ->selectRaw("SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) as approved_logs")
+            ->selectRaw("SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END) as rejected_logs")
+            ->selectRaw("SUM(CASE WHEN status = 'APPROVED' THEN hours_rendered ELSE 0 END) as completed_hours")
+            ->selectRaw('MAX(date) as last_log_date')
+            ->groupBy('internship_profile_id')
+            ->get()
+            ->keyBy('internship_profile_id');
+
+        $formattedProfiles = $profiles->getCollection()->map(function ($profile) use ($summaries) {
+            $summary = $summaries->get($profile->id);
+
             return [
                 'id' => $profile->id,
                 'student_name' => $profile->student?->name,
+                'student_id' => $profile->student?->id,
                 'company_name' => $profile->company_name,
                 'required_hours' => $profile->required_hours,
                 'supervisor_id' => $profile->supervisor_id,
                 'adviser_id' => $profile->adviser_id,
                 'start_date' => $profile->start_date,
                 'end_date' => $profile->end_date,
+                'completed_hours' => (int) ($summary?->completed_hours ?? 0),
+                'total_logs' => (int) ($summary?->total_logs ?? 0),
+                'pending_logs' => (int) ($summary?->pending_logs ?? 0),
+                'approved_logs' => (int) ($summary?->approved_logs ?? 0),
+                'rejected_logs' => (int) ($summary?->rejected_logs ?? 0),
+                'last_log_date' => $summary?->last_log_date,
             ];
         })->values();
 

@@ -1,5 +1,6 @@
 import '../../shared/models/intern_detail.dart';
 import '../../shared/models/intern_list_item.dart';
+import '../../shared/models/intern_list_page.dart';
 import '../exceptions/api_exception.dart';
 import '../services/api_client.dart';
 import '../services/base_service.dart';
@@ -64,7 +65,7 @@ class InternListService extends BaseService {
   Future<InternListPage> getInternPage({
     required String role,
     int page = 1,
-    int perPage = 10,
+    int perPage = 20,
     String search = '',
   }) async {
     try {

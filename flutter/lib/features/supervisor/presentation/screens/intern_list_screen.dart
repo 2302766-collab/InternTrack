@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/intern_list_service.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../shared/models/intern_list_item.dart';
 import 'intern_detail_screen.dart';
 
@@ -28,7 +29,7 @@ class _InternListScreenState extends State<InternListScreen> {
   late final InternListService _service;
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
-  static const int _perPage = 10;
+  static const int _perPage = 20;
 
   bool _isLoading = true;
   bool _isLoadingMore = false;
@@ -204,40 +205,32 @@ class _InternListScreenState extends State<InternListScreen> {
 
   Widget _buildListView() {
     return ListView.separated(
-      itemCount: _interns.length,
+      key: const PageStorageKey<String>('intern-list-scroll'),
+      padding: const EdgeInsets.only(bottom: 12),
+      itemCount: _interns.length + 1,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
+        if (index == _interns.length) {
+          return _buildPaginationFooter();
+        }
+
         final intern = _interns[index];
 
-        return Card(
-          child: ListTile(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => InternDetailScreen(
-                    token: widget.token,
-                    role: widget.role,
-                    profileId: intern.id,
-                    initialIntern: intern,
-                  ),
+        return _InternProgressCard(
+          intern: intern,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => InternDetailScreen(
+                  token: widget.token,
+                  role: widget.role,
+                  profileId: intern.id,
+                  initialIntern: intern,
                 ),
-              );
-            },
-            title: Text(intern.studentName),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 4),
-                Text('Company: ${intern.companyName}'),
-                Text('Required Hours: ${intern.requiredHours}'),
-                if ((intern.startDate ?? '').isNotEmpty &&
-                    (intern.endDate ?? '').isNotEmpty)
-                  Text('Schedule: ${intern.startDate} to ${intern.endDate}'),
-              ],
-            ),
-            trailing: const Icon(Icons.chevron_right),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -251,7 +244,7 @@ class _InternListScreenState extends State<InternListScreen> {
         : 'Showing ${_interns.length} interns';
 
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.only(top: 4),
       child: Column(
         children: [
           Text(
@@ -281,10 +274,10 @@ class _InternListScreenState extends State<InternListScreen> {
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                       child: CircularProgressIndicator(strokeWidth: 2),
+                     )
                   : const Icon(Icons.expand_more),
-              label: Text(_isLoadingMore ? 'Loading...' : 'Load more'),
+              label: Text(_isLoadingMore ? 'Loading...' : 'Load More'),
             ),
           ] else if (_lastPage > 1) ...[
             const SizedBox(height: 8),
@@ -321,9 +314,237 @@ class _InternListScreenState extends State<InternListScreen> {
                         ? _buildEmptyState()
                         : _buildListView(),
                   ),
-                  _buildPaginationFooter(),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+class _InternProgressCard extends StatelessWidget {
+  final InternListItem intern;
+  final VoidCallback onTap;
+
+  const _InternProgressCard({
+    required this.intern,
+    required this.onTap,
+  });
+
+  Color get _progressColor {
+    if (intern.progressFraction >= 1) {
+      return const Color(0xFF039855);
+    }
+
+    if (intern.progressFraction >= 0.6) {
+      return const Color(0xFF2563EB);
+    }
+
+    return const Color(0xFFB54708);
+  }
+
+  Color get _alertColor {
+    switch (intern.alertSeverity.toLowerCase()) {
+      case 'error':
+      case 'danger':
+        return const Color(0xFFB42318);
+      case 'warning':
+        return const Color(0xFFB54708);
+      default:
+        return const Color(0xFF2563EB);
+    }
+  }
+
+  String? get _scheduleLabel {
+    final startDate = (intern.startDate ?? '').trim();
+    final endDate = (intern.endDate ?? '').trim();
+    if (startDate.isEmpty || endDate.isEmpty) {
+      return null;
+    }
+
+    return '${DateFormatter.formatApiDate(startDate)} to ${DateFormatter.formatApiDate(endDate)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: Color(0xFFE4E7EC)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          intern.studentName,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: const Color(0xFF16354D),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Company: ${intern.companyName}',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: const Color(0xFF526072),
+                          ),
+                        ),
+                        if (_scheduleLabel != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'Schedule: $_scheduleLabel',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: const Color(0xFF667085),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _progressColor.withAlpha(20),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '${intern.progressPercentage}%',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: _progressColor,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: LinearProgressIndicator(
+                  minHeight: 12,
+                  value: intern.progressFraction,
+                  backgroundColor: const Color(0xFFE4E7EC),
+                  valueColor: AlwaysStoppedAnimation<Color>(_progressColor),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Approved ${intern.completedHours} of ${intern.requiredHours} hours',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF344054),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    '${intern.remainingHours}h remaining',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: const Color(0xFF667085),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _InternStatChip(
+                    label: 'Approved',
+                    value: intern.approvedLogs.toString(),
+                    textColor: const Color(0xFF027A48),
+                    backgroundColor: const Color(0xFFE8F7EE),
+                  ),
+                  _InternStatChip(
+                    label: 'Pending',
+                    value: intern.pendingLogs.toString(),
+                    textColor: const Color(0xFFB54708),
+                    backgroundColor: const Color(0xFFFFF4E5),
+                  ),
+                  _InternStatChip(
+                    label: 'Rejected',
+                    value: intern.rejectedLogs.toString(),
+                    textColor: const Color(0xFFB42318),
+                    backgroundColor: const Color(0xFFFEECEE),
+                  ),
+                ],
+              ),
+              if (intern.hasActiveAlert) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _alertColor.withAlpha(14),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _alertColor.withAlpha(36)),
+                  ),
+                  child: Text(
+                    intern.alertMessage,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: _alertColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InternStatChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color textColor;
+  final Color backgroundColor;
+
+  const _InternStatChip({
+    required this.label,
+    required this.value,
+    required this.textColor,
+    required this.backgroundColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$label: $value',
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: textColor,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
