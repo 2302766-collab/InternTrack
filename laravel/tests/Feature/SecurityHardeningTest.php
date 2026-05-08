@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Attachment;
 use App\Models\InternshipProfile;
 use App\Models\LogEntry;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -249,5 +250,51 @@ class SecurityHardeningTest extends TestCase
         $this->assertIsString($response->json('message'));
         $this->assertStringNotContainsString('Exception', json_encode($response->json()),
             'Response should not contain exception class names');
+    }
+
+    private function createRole(string $name): Role
+    {
+        return Role::query()->firstOrCreate(['name' => $name]);
+    }
+
+    private function createSupervisor(array $overrides = []): User
+    {
+        return User::factory()->create(array_merge([
+            'role_id' => $this->createRole('Supervisor')->id,
+        ], $overrides));
+    }
+
+    private function createStudent(array $overrides = []): User
+    {
+        return User::factory()->create(array_merge([
+            'role_id' => $this->createRole('Student')->id,
+        ], $overrides));
+    }
+
+    private function createInternshipProfileFor(User $student, ?User $supervisor = null): InternshipProfile
+    {
+        return InternshipProfile::create([
+            'student_id' => $student->id,
+            'supervisor_id' => $supervisor?->id,
+            'company_name' => 'Test Company',
+            'company_address' => '123 Main St',
+            'required_hours' => 486,
+            'start_date' => now()->subDays(7)->toDateString(),
+            'end_date' => now()->addMonths(3)->toDateString(),
+        ]);
+    }
+
+    private function createLogEntryFor(
+        InternshipProfile $profile,
+        string $status = 'PENDING',
+        ?string $date = null
+    ): LogEntry {
+        return LogEntry::create([
+            'internship_profile_id' => $profile->id,
+            'date' => $date ?? now()->toDateString(),
+            'hours_rendered' => 8,
+            'task_description' => 'Completed assigned tasks',
+            'status' => $status,
+        ]);
     }
 }

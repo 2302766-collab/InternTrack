@@ -2,18 +2,14 @@ import 'package:dio/dio.dart';
 
 import '../../features/auth/presentation/providers/auth_provider.dart';
 
-/// Handles 401 token expiration errors and attempts token refresh
-/// 
-/// When a 401 response is received:
-/// 1. Logs out the user (clears token)
-/// 2. Lets the error propagate as a DioException with UNAUTHORIZED info
-/// 3. UI layer should detect this and redirect to login
-/// 
-/// Future versions could implement actual token refresh mechanism
-/// if the backend supports refresh tokens
+/// Surfaces 401 responses without force-logging out the user mid-request.
+///
+/// The app already validates stored tokens during bootstrap in [AuthProvider].
+/// Clearing the session inside a global interceptor can bounce the user back to
+/// the login screen if an early dashboard request races with token persistence
+/// on web. Individual screens can still decide to redirect on 401 when needed.
 class TokenRefreshInterceptor extends QueuedInterceptor {
   final AuthProvider _authProvider;
-  bool _isRefreshing = false;
 
   TokenRefreshInterceptor(this._authProvider);
 
@@ -22,26 +18,17 @@ class TokenRefreshInterceptor extends QueuedInterceptor {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
-    // Handle 401 Unauthorized - token expired
+    final requestPath = err.requestOptions.path;
+
     if (err.response?.statusCode == 401) {
-      if (!_isRefreshing) {
-        _isRefreshing = true;
+      final hasSessionToken = (_authProvider.token ?? '').isNotEmpty;
 
-        try {
-          // Attempt to logout user
-          await _authProvider.logout();
-        } catch (_) {
-          // Error during logout, continue anyway
-        } finally {
-          _isRefreshing = false;
-        }
+      // Let callers decide whether to show an error, retry, or redirect.
+      if (hasSessionToken && !requestPath.startsWith('/auth/')) {
+        return handler.next(err);
       }
-
-      // Return the error for ApiErrorMapper to convert to ApiException
-      return handler.next(err);
     }
 
-    // For other errors, pass through
     return handler.next(err);
   }
 }

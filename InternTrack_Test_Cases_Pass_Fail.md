@@ -494,6 +494,58 @@ Expected Result: Both requests are rejected with HTTP `403`.
 Actual Result: Admin-only routes rejected non-admin access with role-specific authorization messages.
 Test Status: Passed
 
+### Feature: Admin Student Adviser Assignment
+
+### TC-ADM-04 - Admin Can Load Adviser Directory for Assignment
+Description: Verify that the admin adviser-assignment flow can load available adviser options.
+Precondition: Adviser accounts exist.
+Test Data: `GET /api/v1/admin/advisers`
+Test Steps:
+1. Authenticate as an admin.
+2. Open `Manage Student Advisers`.
+3. Inspect adviser options in the dropdown.
+Expected Result: The adviser dropdown should load properly and show adviser accounts only.
+Actual Result: Could not complete this flow because the request failed with HTTP `500`. The backend error points to internship profile creation: `SQLSTATE[HY000]: Field 'company_address' doesn't have a default value`.
+Test Status: Failed
+
+### TC-ADM-05 - Admin Can Assign or Change Adviser for a Student
+Description: Verify that admin can assign a new adviser and later reassign to a different adviser.
+Precondition: Student internship profile exists and at least two advisers exist.
+Test Data: `PATCH /api/v1/admin/students/{studentId}/assign-adviser` with valid `adviser_id`
+Test Steps:
+1. Authenticate as an admin.
+2. Open `Manage Student Advisers`.
+3. Select a student and assign Adviser A.
+4. Re-open and change assignment to Adviser B.
+Expected Result: Both updates should save successfully, and the student should show the most recent adviser assignment.
+Actual Result: The test did not reach assignment validation because it failed earlier with HTTP `500` while creating required profile data (`company_address` has no default value).
+Test Status: Failed
+
+### TC-ADM-06 - Admin Can Remove Adviser Assignment
+Description: Verify that admin can remove an existing adviser assignment from a student.
+Precondition: Student currently has an assigned adviser.
+Test Data: `PATCH /api/v1/admin/students/{studentId}/assign-adviser` with `adviser_id: null`
+Test Steps:
+1. Authenticate as an admin.
+2. Open `Manage Student Advisers`.
+3. Select `None (Remove adviser)` and save.
+Expected Result: The adviser link should be removed, and the student record should show no assigned adviser.
+Actual Result: Removal flow could not be verified. The API returned HTTP `500` before the assignment step due to the same profile creation issue (`company_address` missing default).
+Test Status: Failed
+
+### TC-ADM-07 - Non-Admin Access to Adviser Assignment Endpoints Is Denied
+Description: Verify that non-admin users cannot load advisers or assign/remove student advisers through admin endpoints.
+Precondition: Authenticated Student, Supervisor, or Adviser account exists.
+Test Data: Non-admin token
+Test Steps:
+1. Authenticate as a non-admin user.
+2. Call `GET /api/v1/admin/advisers`.
+3. Call `GET /api/v1/admin/students/{studentId}/adviser`.
+4. Call `PATCH /api/v1/admin/students/{studentId}/assign-adviser`.
+Expected Result: Each request should be blocked with HTTP `403` for non-admin users.
+Actual Result: Authorization checks were only partially validated. The suite stopped early because setup hit a SQL error during profile creation (`company_address` missing default), so full endpoint coverage was not completed.
+Test Status: Failed
+
 ## MODULE 10 - API FOUNDATION
 ### Feature: Health Check and Standardized Errors
 
