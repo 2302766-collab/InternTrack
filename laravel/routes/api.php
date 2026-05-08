@@ -86,9 +86,9 @@ Route::prefix('v1')->group(function () {
             ->middleware('role:Supervisor');
         Route::get('/logs/{id}/attachments/{attachmentId}', [SupervisorLogController::class, 'downloadAttachment'])
             ->middleware('role:Supervisor');
-        Route::post('/logs/{id}/approve', [SupervisorLogController::class, 'approve'])
+        Route::match(['post', 'patch'], '/logs/{id}/approve', [SupervisorLogController::class, 'approve'])
             ->middleware('role:Supervisor,Only supervisors can approve logs.');
-        Route::post('/logs/{id}/reject', [SupervisorLogController::class, 'reject'])
+        Route::match(['post', 'patch'], '/logs/{id}/reject', [SupervisorLogController::class, 'reject'])
             ->middleware('role:Supervisor,Only supervisors can reject logs.');
         Route::get('/students/{id}/dtr/export/pdf', [DailyTimeRecordExportController::class, 'supervisorPdf'])
             ->middleware('role:Supervisor');

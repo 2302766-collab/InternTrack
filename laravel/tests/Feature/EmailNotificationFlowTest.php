@@ -26,9 +26,9 @@ class EmailNotificationFlowTest extends TestCase
      */
     public function test_supervisor_receives_email_when_student_submits_log(): void
     {
-        $supervisor = $this->createSupervisor();
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
+        $supervisor = $this->helperSupervisor();
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
 
         Sanctum::actingAs($student);
 
@@ -51,10 +51,10 @@ class EmailNotificationFlowTest extends TestCase
      */
     public function test_student_receives_email_when_log_is_approved(): void
     {
-        $supervisor = $this->createSupervisor();
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
-        $log = $this->createLogEntryFor($profile, 'PENDING');
+        $supervisor = $this->helperSupervisor();
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
+        $log = $this->helperLogEntryFor($profile, 'PENDING');
 
         Sanctum::actingAs($supervisor);
 
@@ -73,10 +73,10 @@ class EmailNotificationFlowTest extends TestCase
      */
     public function test_student_receives_email_when_log_is_rejected(): void
     {
-        $supervisor = $this->createSupervisor();
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
-        $log = $this->createLogEntryFor($profile, 'PENDING');
+        $supervisor = $this->helperSupervisor();
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
+        $log = $this->helperLogEntryFor($profile, 'PENDING');
 
         Sanctum::actingAs($supervisor);
 
@@ -100,10 +100,10 @@ class EmailNotificationFlowTest extends TestCase
      */
     public function test_approval_email_contains_student_name(): void
     {
-        $supervisor = $this->createSupervisor();
-        $student = $this->createStudent(['name' => 'John Doe']);
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
-        $log = $this->createLogEntryFor($profile, 'PENDING');
+        $supervisor = $this->helperSupervisor();
+        $student = $this->helperStudent(['name' => 'John Doe']);
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
+        $log = $this->helperLogEntryFor($profile, 'PENDING');
 
         Sanctum::actingAs($supervisor);
 
@@ -121,10 +121,10 @@ class EmailNotificationFlowTest extends TestCase
      */
     public function test_rejection_email_contains_supervisor_name(): void
     {
-        $supervisor = $this->createSupervisor(['name' => 'Jane Smith']);
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
-        $log = $this->createLogEntryFor($profile, 'PENDING');
+        $supervisor = $this->helperSupervisor(['name' => 'Jane Smith']);
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
+        $log = $this->helperLogEntryFor($profile, 'PENDING');
 
         Sanctum::actingAs($supervisor);
 
@@ -144,10 +144,10 @@ class EmailNotificationFlowTest extends TestCase
      */
     public function test_rejection_email_contains_supervisor_comment(): void
     {
-        $supervisor = $this->createSupervisor();
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
-        $log = $this->createLogEntryFor($profile, 'PENDING');
+        $supervisor = $this->helperSupervisor();
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
+        $log = $this->helperLogEntryFor($profile, 'PENDING');
 
         Sanctum::actingAs($supervisor);
 
@@ -169,11 +169,11 @@ class EmailNotificationFlowTest extends TestCase
      */
     public function test_approval_email_contains_log_date(): void
     {
-        $supervisor = $this->createSupervisor();
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
+        $supervisor = $this->helperSupervisor();
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
         $logDate = '2026-05-01';
-        $log = $this->createLogEntryFor($profile, 'PENDING', $logDate);
+        $log = $this->helperLogEntryFor($profile, 'PENDING', $logDate);
 
         Sanctum::actingAs($supervisor);
 
@@ -193,10 +193,10 @@ class EmailNotificationFlowTest extends TestCase
      */
     public function test_email_queuing_is_resilient_to_errors(): void
     {
-        $supervisor = $this->createSupervisor();
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
-        $log = $this->createLogEntryFor($profile, 'PENDING');
+        $supervisor = $this->helperSupervisor();
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
+        $log = $this->helperLogEntryFor($profile, 'PENDING');
 
         // Even though we faked Mail, the approval should still succeed
         Sanctum::actingAs($supervisor);
@@ -217,10 +217,10 @@ class EmailNotificationFlowTest extends TestCase
      */
     public function test_rejection_email_handles_empty_comment(): void
     {
-        $supervisor = $this->createSupervisor();
-        $student = $this->createStudent();
-        $profile = $this->createInternshipProfileFor($student, $supervisor);
-        $log = $this->createLogEntryFor($profile, 'PENDING');
+        $supervisor = $this->helperSupervisor();
+        $student = $this->helperStudent();
+        $profile = $this->helperInternshipProfileFor($student, $supervisor);
+        $log = $this->helperLogEntryFor($profile, 'PENDING');
 
         Sanctum::actingAs($supervisor);
 

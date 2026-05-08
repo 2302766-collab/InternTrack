@@ -62,6 +62,10 @@ class SupervisorLogTransactionRollbackTest extends TestCase
             'status' => 'PENDING',
         ]);
 
+        // Mock database transaction to simulate rollback
+        DB::shouldReceive('transaction')
+            ->andThrow(new \Exception('Database transaction failed'));
+
         // Make the approval request
         $response = $this->actingAs($this->supervisor, 'sanctum')
             ->postJson("/api/v1/supervisor/logs/{$log->id}/approve");
@@ -78,6 +82,10 @@ class SupervisorLogTransactionRollbackTest extends TestCase
             'internship_profile_id' => $this->profile->id,
             'status' => 'PENDING',
         ]);
+
+        // Mock database transaction to simulate rollback
+        DB::shouldReceive('transaction')
+            ->andThrow(new \Exception('Database connection lost'));
 
         // Make the rejection request
         $response = $this->actingAs($this->supervisor, 'sanctum')
@@ -128,6 +136,10 @@ class SupervisorLogTransactionRollbackTest extends TestCase
             'internship_profile_id' => $this->profile->id,
             'status' => 'PENDING',
         ]);
+
+        // Mock database transaction startup failure
+        DB::shouldReceive('transaction')
+            ->andThrow(new \PDOException('Connection lost'));
 
         // Make the approval request
         $response = $this->actingAs($this->supervisor, 'sanctum')

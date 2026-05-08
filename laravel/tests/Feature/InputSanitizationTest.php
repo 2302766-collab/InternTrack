@@ -131,6 +131,8 @@ class InputSanitizationTest extends TestCase
     #[Test]
     public function sanitization_does_not_log_unchanged_inputs()
     {
+        // Should not log when no changes occur
+        Log::shouldReceive('info')->never();
         Log::spy();
 
         $input = 'Hello World';

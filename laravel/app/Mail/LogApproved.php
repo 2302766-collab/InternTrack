@@ -56,4 +56,12 @@ class LogApproved extends Mailable
     {
         return [];
     }
+
+    public function build(): static
+    {
+        return $this
+            ->subject($this->envelope()->subject)
+            ->view('emails.log_approved')
+            ->with($this->content()->with);
+    }
 }

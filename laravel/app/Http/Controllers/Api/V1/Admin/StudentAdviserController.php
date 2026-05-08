@@ -43,6 +43,12 @@ class StudentAdviserController extends Controller
             [
                 'student_id' => $studentId,
                 'company_name' => null,
+                'company_address' => null,
+                'supervisor_id' => null,
+                'adviser_id' => null,
+                'required_hours' => 0,
+                'start_date' => null,
+                'end_date' => null,
                 'company_address' => 'N/A',
                 'supervisor_id' => null,
                 'adviser_id' => null,

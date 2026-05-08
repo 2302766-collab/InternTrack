@@ -4,9 +4,8 @@ namespace App\Services;
 
 use App\Models\LogEntry;
 use App\Models\User;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Mail\Mailable;
+use Illuminate\Support\Facades\Mail;
 
 class NotificationMailService
 {
@@ -25,11 +24,15 @@ class NotificationMailService
                 return;
             }
 
+            $mailable = (new \App\Mail\LogPendingApproval($log, $supervisor))
             $mailable = new \App\Mail\LogPendingApproval($log, $supervisor);
             
             Mail::to($supervisor->email)->queue($mailable)
                 ->onConnection('database')
                 ->onQueue('default');
+
+            $mailable->build();
+            Mail::to($supervisor->email)->queue($mailable);
 
             Log::info('Log pending approval email queued', [
                 'log_id' => $log->id,
@@ -60,11 +63,15 @@ class NotificationMailService
                 return;
             }
 
+            $mailable = (new \App\Mail\LogApproved($log, $supervisorName))
             $mailable = new \App\Mail\LogApproved($log, $supervisorName);
             
             Mail::to($student->email)->queue($mailable)
                 ->onConnection('database')
                 ->onQueue('default');
+
+            $mailable->build();
+            Mail::to($student->email)->queue($mailable);
 
             Log::info('Log approved email queued', [
                 'log_id' => $log->id,
@@ -94,11 +101,15 @@ class NotificationMailService
                 return;
             }
 
+            $mailable = (new \App\Mail\LogRejected($log, $supervisorName, $comment))
             $mailable = new \App\Mail\LogRejected($log, $supervisorName, $comment);
             
             Mail::to($student->email)->queue($mailable)
                 ->onConnection('database')
                 ->onQueue('default');
+
+            $mailable->build();
+            Mail::to($student->email)->queue($mailable);
 
             Log::info('Log rejected email queued', [
                 'log_id' => $log->id,

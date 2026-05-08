@@ -57,4 +57,12 @@ class LogPendingApproval extends Mailable
     {
         return [];
     }
+
+    public function build(): static
+    {
+        return $this
+            ->subject($this->envelope()->subject)
+            ->view('emails.log_pending_approval')
+            ->with($this->content()->with);
+    }
 }
