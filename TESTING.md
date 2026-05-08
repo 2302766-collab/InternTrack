@@ -16,6 +16,17 @@ Non-blocking note:
 
 - The Laravel suite still prints PHPUnit metadata deprecation warnings for `/** @test */` doc-comments. The suite passes today, but those tests should be migrated to attributes before PHPUnit 12.
 
+## Performance Baseline
+
+Source-based performance baselines are documented in `PERFORMANCE_BASELINE.md`.
+
+Performance profiling could not be executed live in this workspace on **May 7, 2026** because:
+
+- `laravel/vendor/` is empty, so the Laravel app cannot be bootstrapped for an in-process query probe.
+- `flutter` and `dart` are not on `PATH`, so Flutter profile-mode frame capture cannot run locally.
+
+Use the baseline report to track current query counts, dashboard request fan-out, and render-side bottleneck candidates until the local toolchains are restored.
+
 ## Local
 
 Run the full automated suite from the repo root:

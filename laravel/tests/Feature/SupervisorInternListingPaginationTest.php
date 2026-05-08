@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\InternshipProfile;
+use App\Models\LogEntry;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -34,6 +35,9 @@ class SupervisorInternListingPaginationTest extends TestCase
             );
         }
 
+        $this->createLogEntryFor($profiles[0], 'APPROVED', 80, '2026-04-01');
+        $this->createLogEntryFor($profiles[0], 'PENDING', 8, '2026-04-05');
+
         $unassignedStudent = $this->createUserWithRole('Student');
         $unassignedProfile = $this->createInternshipProfileFor(
             student: $unassignedStudent,
@@ -45,14 +49,20 @@ class SupervisorInternListingPaginationTest extends TestCase
         Sanctum::actingAs($supervisor);
 
         $this->withHeader('Accept', 'application/json')
-            ->get('/api/v1/supervisor/interns?page=2&per_page=10')
+            ->get('/api/v1/supervisor/interns?page=1&per_page=20')
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonCount(10, 'data')
-            ->assertJsonPath('data.0.id', $profiles[10]->id)
-            ->assertJsonPath('meta.current_page', 2)
-            ->assertJsonPath('meta.last_page', 3)
-            ->assertJsonPath('meta.per_page', 10)
+            ->assertJsonCount(20, 'data')
+            ->assertJsonPath('data.0.id', $profiles[0]->id)
+            ->assertJsonPath('data.0.completed_hours', 80)
+            ->assertJsonPath('data.0.total_logs', 2)
+            ->assertJsonPath('data.0.pending_logs', 1)
+            ->assertJsonPath('data.0.approved_logs', 1)
+            ->assertJsonPath('data.0.rejected_logs', 0)
+            ->assertJsonPath('data.0.last_log_date', '2026-04-05')
+            ->assertJsonPath('meta.current_page', 1)
+            ->assertJsonPath('meta.last_page', 2)
+            ->assertJsonPath('meta.per_page', 20)
             ->assertJsonPath('meta.total', 25)
             ->assertJsonPath('meta.has_more_pages', true)
             ->assertJsonMissing(['id' => $unassignedProfile->id]);
@@ -153,6 +163,22 @@ class SupervisorInternListingPaginationTest extends TestCase
             'required_hours' => 486,
             'start_date' => now()->subDays(10)->toDateString(),
             'end_date' => now()->addDays(30)->toDateString(),
+        ]);
+    }
+
+    private function createLogEntryFor(
+        InternshipProfile $profile,
+        string $status,
+        int $hoursRendered,
+        string $date
+    ): LogEntry {
+        return LogEntry::create([
+            'internship_profile_id' => $profile->id,
+            'date' => $date,
+            'hours_rendered' => $hoursRendered,
+            'task_description' => "Tasks for {$status}",
+            'status' => $status,
+            'submitted_at' => now(),
         ]);
     }
 }

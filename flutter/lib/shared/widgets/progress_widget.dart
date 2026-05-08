@@ -111,7 +111,6 @@ class _ProgressWidgetState extends State<ProgressWidget> {
       debugPrint('ProgressWidget: ApiException - ${e.message} (statusCode: ${e.statusCode})');
 
       setState(() {
-        final statusCode = e.statusCode;
         _errorMessage = e.statusCode == 404
             ? 'Create your internship profile first to see progress.'
             : 'Unable to load progress.';

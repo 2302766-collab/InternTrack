@@ -721,6 +721,74 @@ Test Status: Not Run
 
 ## MODULE 9 - API FOUNDATION AND ERROR HANDLING
 
+### Feature: Admin Student Adviser Assignment
+
+### TC-ADM-01 - Admin Can Load Adviser Directory for Assignment
+Description: Verify that the admin adviser-assignment screen can load available adviser options before assigning.
+Precondition: Adviser accounts exist.
+Test Data: `GET /api/v1/admin/advisers`
+Test Steps:
+1. Log in as an Admin user.
+2. Open `Manage Student Advisers`.
+3. Observe adviser dropdown options or call the advisers endpoint directly.
+Expected Result: The adviser list should load normally and include adviser accounts only.
+Actual Result: This could not be completed because the API returned HTTP `500`. Error from backend setup: `SQLSTATE[HY000]: Field 'company_address' doesn't have a default value`.
+Test Status: Failed
+
+### TC-ADM-02 - Admin Can View Current Adviser for a Student
+Description: Verify that admin can retrieve the currently assigned adviser for a selected student.
+Precondition: Student has an internship profile with adviser assignment.
+Test Data: `GET /api/v1/admin/students/{studentId}/adviser`
+Test Steps:
+1. Log in as an Admin user.
+2. Open `Manage Student Advisers`.
+3. Select a student with existing adviser assignment.
+Expected Result: The screen/API should return the student's current adviser name and ID correctly.
+Actual Result: The check failed before adviser lookup. Test setup hit HTTP `500` while creating profile data because `company_address` has no default value.
+Test Status: Failed
+
+### TC-ADM-03 - Admin Can Assign or Change Adviser for a Student
+Description: Verify that admin can assign a new adviser or reassign to a different adviser for a student.
+Precondition: At least two adviser accounts exist and a student profile exists.
+Test Data: `PATCH /api/v1/admin/students/{studentId}/assign-adviser` with valid `adviser_id`
+Test Steps:
+1. Log in as an Admin user.
+2. Open `Manage Student Advisers`.
+3. Choose a student and select an adviser.
+4. Save assignment, then repeat with a different adviser.
+Expected Result: Adviser assignment should save successfully, persist in the database, and return success feedback.
+Actual Result: Assignment flow was blocked by an earlier HTTP `500` during setup. Backend failed on profile insert due to missing default for `company_address`.
+Test Status: Failed
+
+### TC-ADM-04 - Admin Can Remove Adviser Assignment
+Description: Verify that admin can remove an existing adviser assignment from a student.
+Precondition: Student currently has an assigned adviser.
+Test Data: `PATCH /api/v1/admin/students/{studentId}/assign-adviser` with `adviser_id: null`
+Test Steps:
+1. Log in as an Admin user.
+2. Open `Manage Student Advisers`.
+3. Select `None (Remove adviser)` and save.
+Expected Result: Existing adviser assignment should be removed and the student should appear as unassigned.
+Actual Result: Could not validate removal because the request path failed upstream with HTTP `500` while preparing profile data (`company_address` default issue).
+Test Status: Failed
+
+### TC-ADM-05 - Non-Admin Cannot Use Adviser Assignment Endpoints
+Description: Verify that adviser-assignment endpoints are protected from non-admin roles.
+Precondition: Authenticated Student, Supervisor, or Adviser account exists.
+Test Data: Student/Supervisor/Adviser token
+Test Steps:
+1. Authenticate as a non-admin user.
+2. Call `GET /api/v1/admin/advisers`.
+3. Call `GET /api/v1/admin/students/{studentId}/adviser`.
+4. Call `PATCH /api/v1/admin/students/{studentId}/assign-adviser`.
+Expected Result: Non-admin requests should be denied consistently with HTTP `403`.
+Actual Result: Validation was incomplete. The suite encountered a setup SQL error (`company_address` missing default) before all authorization scenarios could run.
+Test Status: Failed
+
+---
+
+## MODULE 10 - API FOUNDATION AND ERROR HANDLING
+
 ### TC-API-01 - Health Endpoint Returns Expected Payload
 Description: Verify that the API health endpoint returns a successful response and timestamp.
 Precondition: Backend API is running.

@@ -51,6 +51,9 @@ class AdminStudentController extends Controller
                 'users.name',
                 'internship_profiles.company_name as company',
             ])
+            ->selectRaw('CASE WHEN internship_profiles.id IS NULL THEN false ELSE true END as has_internship_profile')
+            ->selectRaw('CASE WHEN internship_profiles.supervisor_id IS NULL THEN false ELSE true END as has_supervisor')
+            ->selectRaw('CASE WHEN internship_profiles.adviser_id IS NULL THEN false ELSE true END as has_adviser')
             ->selectRaw('COALESCE(approved_log_hours.approved_hours, 0) as approved_hours')
             ->selectRaw('COALESCE(internship_profiles.required_hours, 0) as required_hours')
             ->selectRaw('
@@ -75,6 +78,9 @@ class AdminStudentController extends Controller
                     'approved_hours' => (int) $student->approved_hours,
                     'required_hours' => (int) $student->required_hours,
                     'completion_percentage' => (float) $student->completion_percentage,
+                    'has_internship_profile' => (bool) $student->has_internship_profile,
+                    'has_supervisor' => (bool) $student->has_supervisor,
+                    'has_adviser' => (bool) $student->has_adviser,
                 ];
             })->values(),
             'meta' => [
