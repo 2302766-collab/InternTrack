@@ -1,11 +1,12 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'token_service_browser.dart'
-    if (dart.library.html) 'token_service_browser_web.dart' as browser_storage;
+    if (dart.library.html) 'token_service_browser_web.dart'
+    as browser_storage;
 
 class TokenService {
   const TokenService({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   static const String _tokenKey = 'auth_token';
   static String? _cachedToken;
