@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SupervisorLogQueryOptimizationTest extends TestCase
@@ -43,10 +44,14 @@ class SupervisorLogQueryOptimizationTest extends TestCase
             'student_id' => $this->student->id,
             'supervisor_id' => $this->supervisor->id,
             'company_name' => 'Test Company',
+            'company_address' => '123 Main St',
+            'required_hours' => 486,
+            'start_date' => now()->subDays(7)->toDateString(),
+            'end_date' => now()->addMonths(3)->toDateString(),
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function supervisor_log_listing_uses_eager_loading_to_prevent_n_plus_one_queries()
     {
         LogEntry::factory()
@@ -73,6 +78,10 @@ class SupervisorLogQueryOptimizationTest extends TestCase
             5,
             $queryCount,
             "Query count should stay <=5, but was {$queryCount}. Queries: " . implode(', ', array_column($queries, 'query'))
+        // Verify query count is reasonable and constant (no N+1 growth).
+        $this->assertLessThanOrEqual(7, $queryCount, 
+            "Query count should be ≤7, but was {$queryCount}. Queries: " . 
+            implode(', ', array_column($queries, 'query'))
         );
 
         $response->assertJsonStructure([
@@ -95,7 +104,7 @@ class SupervisorLogQueryOptimizationTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function supervisor_log_show_uses_eager_loading_to_prevent_n_plus_one_queries()
     {
         $log = LogEntry::factory()->create([
@@ -119,10 +128,14 @@ class SupervisorLogQueryOptimizationTest extends TestCase
             6,
             $queryCount,
             "Query count should stay <=6, but was {$queryCount}. Queries: " . implode(', ', array_column($queries, 'query'))
+        // Verify query count is reasonable and constant (no N+1 growth).
+        $this->assertLessThanOrEqual(6, $queryCount, 
+            "Query count should be ≤6, but was {$queryCount}. Queries: " . 
+            implode(', ', array_column($queries, 'query'))
         );
     }
 
-    /** @test */
+    #[Test]
     public function empty_log_list_uses_minimal_queries()
     {
         DB::enableQueryLog();
@@ -142,10 +155,13 @@ class SupervisorLogQueryOptimizationTest extends TestCase
             3,
             $queryCount,
             "Empty list should use <=3 queries, but was {$queryCount}"
+        // Should use minimal queries for empty result
+        $this->assertLessThanOrEqual(3, $queryCount, 
+            "Empty list should use ≤3 queries, but was {$queryCount}"
         );
     }
 
-    /** @test */
+    #[Test]
     public function large_dataset_performance_test()
     {
         LogEntry::factory()
@@ -172,6 +188,9 @@ class SupervisorLogQueryOptimizationTest extends TestCase
             5,
             $queryCount,
             "Query count should stay <=5 even with 50 logs, but was {$queryCount}"
+        // Query count should remain constant regardless of dataset size.
+        $this->assertLessThanOrEqual(7, $queryCount, 
+            "Query count should be ≤7 even with 50 logs, but was {$queryCount}"
         );
     }
 }

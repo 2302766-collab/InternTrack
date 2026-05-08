@@ -3,3 +3,7 @@
 /laravel/node_modules
 /laravel/public/build
 /laravel/public/hot
+
+# Local SDK artifacts
+flutter-sdk/
+flutter_linux_*.tar.xz

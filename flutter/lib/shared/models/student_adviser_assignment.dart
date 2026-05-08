@@ -1,5 +1,3 @@
-import 'adviser_info.dart';
-
 class StudentAdviserAssignment {
   final int studentId;
   final String studentName;

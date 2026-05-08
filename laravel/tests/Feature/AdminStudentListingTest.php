@@ -18,6 +18,7 @@ class AdminStudentListingTest extends TestCase
     {
         $admin = $this->createUserWithRole('Admin');
         $supervisor = $this->createUserWithRole('Supervisor');
+        $adviser = $this->createUserWithRole('Adviser');
 
         $studentOne = $this->createUserWithRole('Student', 'Student One');
         $studentTwo = $this->createUserWithRole('Student', 'Student Two');
@@ -26,6 +27,9 @@ class AdminStudentListingTest extends TestCase
 
         $profileOne = $this->createInternshipProfileFor($studentOne, $supervisor, 40, 'Acme Corp');
         $profileTwo = $this->createInternshipProfileFor($studentTwo, $supervisor, 20, 'Beta LLC');
+        $profileTwo->update([
+            'adviser_id' => $adviser->id,
+        ]);
 
         $this->createLogEntryFor($profileOne, 'APPROVED', 8, '2026-03-01');
         $this->createLogEntryFor($profileOne, 'APPROVED', 8, '2026-03-02');
@@ -56,6 +60,9 @@ class AdminStudentListingTest extends TestCase
                 'approved_hours' => 16,
                 'required_hours' => 40,
                 'completion_percentage' => 40,
+                'has_internship_profile' => true,
+                'has_supervisor' => true,
+                'has_adviser' => false,
             ],
             [
                 'student_id' => $studentTwo->id,
@@ -64,6 +71,9 @@ class AdminStudentListingTest extends TestCase
                 'approved_hours' => 10,
                 'required_hours' => 20,
                 'completion_percentage' => 50,
+                'has_internship_profile' => true,
+                'has_supervisor' => true,
+                'has_adviser' => true,
             ],
             [
                 'student_id' => $studentThree->id,
@@ -72,6 +82,9 @@ class AdminStudentListingTest extends TestCase
                 'approved_hours' => 0,
                 'required_hours' => 0,
                 'completion_percentage' => 0,
+                'has_internship_profile' => false,
+                'has_supervisor' => false,
+                'has_adviser' => false,
             ],
         ], $response->json('data'));
     }
