@@ -43,11 +43,13 @@ void main() {
     });
 
     testWidgets('form UI validation test', (tester) async {
+      final formKey = GlobalKey<FormState>();
+
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: Form(
-              key: GlobalKey<FormState>(),
+              key: formKey,
               autovalidateMode: AutovalidateMode.onUserInteraction,
               child: Column(
                 children: [
@@ -87,7 +89,7 @@ void main() {
                   ElevatedButton(
                     key: Key('submit_button'),
                     onPressed: () {
-                      // This would trigger form validation
+                      formKey.currentState!.validate();
                     },
                     child: Text('Submit'),
                   ),
@@ -103,6 +105,8 @@ void main() {
       final submitButton = find.byKey(Key('submit_button'));
 
       // Test empty email validation
+      await tester.enterText(emailField, 'temp@example.com');
+      await tester.pumpAndSettle();
       await tester.enterText(emailField, '');
       await tester.pumpAndSettle();
       await tester.tap(submitButton);
@@ -118,6 +122,8 @@ void main() {
 
       // Test empty password validation
       await tester.enterText(emailField, 'test@example.com');
+      await tester.enterText(passwordField, 'password123');
+      await tester.pumpAndSettle();
       await tester.enterText(passwordField, '');
       await tester.pumpAndSettle();
       await tester.tap(submitButton);

@@ -1,16 +1,38 @@
-# intern_track_app
+# InternTrack Flutter Client
 
-A new Flutter project.
+## Current Validation Baseline
 
-## Getting Started
+Validated on **May 6, 2026** with:
 
-This project is a starting point for a Flutter application.
+```powershell
+flutter test
+```
 
-A few resources to get you started if this is your first Flutter project:
+Result: **78 tests passed**.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## Package
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Package name: `intern_track_app`
+- Flutter: `3.38.7`
+- Dart: `3.10.7`
+
+## Common Commands
+
+Run the frontend test suite:
+
+```powershell
+flutter test
+```
+
+Run a single test file:
+
+```powershell
+flutter test test/login_form_validation_test.dart
+```
+
+## Notes From The Latest Validation Pass
+
+- Fixed the admin adviser provider imports so the provider test can compile against the current project structure.
+- Reworked the adviser provider test to use a lightweight fake service instead of an unavailable mocking package.
+- Updated the login validation tests to match the current UX:
+  the submit button stays disabled while the form is invalid, and field-level validation appears through user interaction.

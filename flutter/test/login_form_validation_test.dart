@@ -29,19 +29,12 @@ void main() {
       // Submit button should be disabled initially
       expect(tester.widget<ElevatedButton>(submitButton).onPressed, isNull);
 
-      // Try to manually trigger validation by tapping the field and then submit
-      await tester.tap(emailField);
+      // Interact with the field and clear it so autovalidation can surface the error.
+      await tester.enterText(emailField, 'temp@example.com');
       await tester.pumpAndSettle();
-      
-      // Focus on the field and then unfocus to trigger validation
-      await tester.tap(find.byType(Scaffold)); // Tap outside to unfocus
+      await tester.enterText(emailField, '');
       await tester.pumpAndSettle();
 
-      // Now try to submit
-      await tester.tap(submitButton);
-      await tester.pumpAndSettle();
-
-      // Check if validation error appears
       expect(find.text('Email is required'), findsOneWidget);
     });
 
@@ -67,15 +60,14 @@ void main() {
 
       // Enter valid email but empty password
       final emailField = find.byType(TextFormField).first;
-      final submitButton = find.text('Login');
+      final passwordField = find.byType(TextFormField).at(1);
 
       await tester.enterText(emailField, 'test@example.com');
+      await tester.enterText(passwordField, 'password123');
+      await tester.pumpAndSettle();
+      await tester.enterText(passwordField, '');
       await tester.pumpAndSettle();
 
-      await tester.tap(submitButton);
-      await tester.pumpAndSettle();
-
-      // Should show password required error
       expect(find.text('Password is required'), findsOneWidget);
     });
 

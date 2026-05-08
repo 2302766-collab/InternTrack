@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class SecurityHeadersMiddleware
 {
@@ -18,7 +19,11 @@ class SecurityHeadersMiddleware
     {
         $response = $next($request);
 
-        // Add security headers to all API responses
+        return self::applyHeaders($response, $request);
+    }
+
+    public static function applyHeaders(Response $response, Request $request): Response
+    {
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'DENY');
         $response->headers->set('X-XSS-Protection', '1; mode=block');

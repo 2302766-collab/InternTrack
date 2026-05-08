@@ -3,6 +3,11 @@ set -eu
 
 cd /var/www
 
+if [ ! -f .env ]; then
+    echo "Environment file missing; copying from .env.example..."
+    cp .env.example .env
+fi
+
 db_host="${DB_HOST:-mysql}"
 db_port="${DB_PORT:-3306}"
 db_name="${DB_DATABASE:-interntrack}"
