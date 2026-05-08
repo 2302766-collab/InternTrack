@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_routes.dart';
+import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/internship_service.dart';
 import '../../../../core/services/logbook_service.dart';
 import '../../../../core/services/student_report_service.dart';
@@ -48,6 +49,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   bool _isLoading = true;
   bool _didLoadDashboard = false;
+  String? _dashboardError;
   String? _profileError;
   String? _reportError;
   String? _logsError;
@@ -58,7 +60,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     _internshipService =
         widget.internshipService ?? context.read<InternshipService>();
     _logbookService = widget.logbookService ?? context.read<LogbookService>();
-    _reportService = widget.reportService ?? context.read<StudentReportService>();
+    _reportService =
+        widget.reportService ?? context.read<StudentReportService>();
   }
 
   @override
@@ -74,13 +77,15 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     if (token.isEmpty) {
       setState(() {
         _isLoading = false;
-        _profileError = 'Unable to load student dashboard.';
+        _dashboardError = 'Your session has expired. Please log in again.';
+        _profileError = null;
       });
       return;
     }
 
     setState(() {
       _isLoading = true;
+      _dashboardError = null;
       _profileError = null;
       _reportError = null;
       _logsError = null;
@@ -96,34 +101,47 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     try {
       profile = await _internshipService.getInternshipProfile();
     } catch (e) {
-      profileError = e.toString().replaceFirst('Exception: ', '');
+      profileError = _readErrorMessage(e);
     }
 
     if (profile != null) {
       try {
         report = await _reportService.getReport();
       } catch (e) {
-        reportError = e.toString().replaceFirst('Exception: ', '');
+        reportError = _readErrorMessage(e);
       }
 
       try {
         logs = await _logbookService.getLogs();
       } catch (e) {
-        logsError = e.toString().replaceFirst('Exception: ', '');
+        logsError = _readErrorMessage(e);
       }
     }
 
     if (!mounted) return;
 
+    final dashboardError = profile == null && profileError != null
+        ? profileError
+        : null;
+
     setState(() {
       _profile = profile;
       _report = report;
       _logs = logs;
+      _dashboardError = dashboardError;
       _profileError = profileError;
       _reportError = reportError;
       _logsError = logsError;
       _isLoading = false;
     });
+  }
+
+  String _readErrorMessage(Object error) {
+    if (error is ApiException) {
+      return error.message;
+    }
+
+    return error.toString().replaceFirst('Exception: ', '');
   }
 
   int get _approvedHours => _report?.summary.approvedHours ?? 0;
@@ -139,13 +157,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       .where((log) => log.status.toUpperCase() == 'PENDING')
       .fold(0, (sum, log) => sum + log.hoursRendered);
 
-  int get _rejectedLogsCount => _logs
-      .where((log) => log.status.toUpperCase() == 'REJECTED')
-      .length;
+  int get _rejectedLogsCount =>
+      _logs.where((log) => log.status.toUpperCase() == 'REJECTED').length;
 
-  int get _pendingLogsCount => _logs
-      .where((log) => log.status.toUpperCase() == 'PENDING')
-      .length;
+  int get _pendingLogsCount =>
+      _logs.where((log) => log.status.toUpperCase() == 'PENDING').length;
 
   bool get _hasTodayLog {
     final today = _formatApiDate(_today);
@@ -641,7 +657,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     final profile = _profile!;
     final supervisorAssigned =
-        profile.supervisorName?.trim().isNotEmpty == true || profile.supervisorId != null;
+        profile.supervisorName?.trim().isNotEmpty == true ||
+        profile.supervisorId != null;
     final adviserAssigned = profile.adviserId != null;
 
     return Column(
@@ -659,7 +676,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             ),
             _SummaryChip(
               icon: Icons.person_pin_circle_outlined,
-              label: supervisorAssigned ? 'Supervisor Assigned' : 'No Supervisor',
+              label: supervisorAssigned
+                  ? 'Supervisor Assigned'
+                  : 'No Supervisor',
               color: supervisorAssigned
                   ? const Color(0xFF027A48)
                   : const Color(0xFFB54708),
@@ -709,8 +728,14 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         : 0.0;
 
     final progressBadgeTone = switch (_paceDeltaAfterPending) {
-      int value when value < 0 => (const Color(0xFFFFF4E5), const Color(0xFFB54708)),
-      int value when value > 0 => (const Color(0xFFE8F7EE), const Color(0xFF027A48)),
+      int value when value < 0 => (
+        const Color(0xFFFFF4E5),
+        const Color(0xFFB54708),
+      ),
+      int value when value > 0 => (
+        const Color(0xFFE8F7EE),
+        const Color(0xFF027A48),
+      ),
       _ => (const Color(0xFFEAF2FF), const Color(0xFF325EA8)),
     };
 
@@ -864,8 +889,81 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 ),
               ],
             ],
+<<<<<<< HEAD
           );
         },
+=======
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              minHeight: 12,
+              value: progressRatio,
+              backgroundColor: const Color(0xFFD8E2EC),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Color(0xFF0F4C5C),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _PaceTile(
+                label: 'Expected by Today',
+                value: _expectedHoursByToday != null
+                    ? '${_expectedHoursByToday!} h'
+                    : 'N/A',
+              ),
+              _PaceTile(label: 'Approved', value: '$_approvedHours h'),
+              _PaceTile(label: 'Pending Review', value: '$_pendingHours h'),
+              _PaceTile(
+                label: 'Pace After Pending',
+                value: () {
+                  final paceDelta = _paceDeltaAfterPending;
+                  if (paceDelta == null) return 'N/A';
+                  if (paceDelta < 0) return 'Behind by ${paceDelta.abs()} h';
+                  if (paceDelta > 0) return 'Ahead by $paceDelta h';
+                  return 'On pace';
+                }(),
+              ),
+            ],
+          ),
+          if (_reportError != null) ...[
+            const SizedBox(height: 14),
+            Text(
+              _reportError!,
+              style: const TextStyle(color: Color(0xFFB42318)),
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
+            Text(() {
+              if (_requiredHours <= 0) {
+                return 'Progress tracking will improve once required hours are available.';
+              }
+
+              final approvedDelta = _paceDelta;
+              final pendingDelta = _paceDeltaAfterPending;
+              if (approvedDelta != null &&
+                  pendingDelta != null &&
+                  approvedDelta < 0 &&
+                  _pendingHours > 0) {
+                final pendingStatus = pendingDelta < 0
+                    ? 'behind by ${pendingDelta.abs()} hours'
+                    : pendingDelta > 0
+                    ? 'ahead by $pendingDelta hours'
+                    : 'on pace';
+
+                return 'You are ${approvedDelta.abs()} approved hours behind today. Pending review ($_pendingHours h) could move you to $pendingStatus once reviewed.';
+              }
+
+              return 'Remaining: ${math.max(0, _requiredHours - _approvedHours)} hours';
+            }(), style: const TextStyle(color: Color(0xFF4A6480), fontSize: 16)),
+          ],
+        ],
+>>>>>>> b399481542d8197646b57ad199b7e5030298c80f
       ),
     );
   }
@@ -877,10 +975,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (_logsError != null)
-            Text(
-              _logsError!,
-              style: const TextStyle(color: Color(0xFFB42318)),
-            )
+            Text(_logsError!, style: const TextStyle(color: Color(0xFFB42318)))
           else if (_recentLogs.isEmpty)
             const Text(
               'No logs submitted yet. Start with today\'s entry so your dashboard can reflect current activity.',
@@ -1039,6 +1134,51 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
+  Widget _buildDashboardErrorState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4F4),
+        border: Border.all(color: const Color(0xFFFBCACA)),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.error_outline, color: Color(0xFFB42318)),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Unable to load student dashboard',
+                  style: TextStyle(
+                    color: Color(0xFF102A56),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _dashboardError ??
+                'An unexpected error occurred. Please try again.',
+            style: const TextStyle(color: Color(0xFFB42318), height: 1.4),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: _loadDashboard,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final token = context.watch<AuthProvider>().token ?? '';
@@ -1065,6 +1205,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _loadDashboard,
+<<<<<<< HEAD
         child: LayoutBuilder(
           builder: (context, constraints) {
             final horizontalPadding = constraints.maxWidth < 640 ? 12.0 : 16.0;
@@ -1099,6 +1240,38 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       ],
                     ),
                   ),
+=======
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1220),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(context),
+                    const SizedBox(height: 20),
+                    if (_isLoading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 32),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (_dashboardError != null)
+                      _buildDashboardErrorState()
+                    else ...[
+                      _buildNextActionSection(),
+                      const SizedBox(height: 16),
+                      _buildSummaryAndMetricsSection(),
+                      const SizedBox(height: 16),
+                      _buildProgressAndPaceSection(),
+                      const SizedBox(height: 16),
+                      _buildRecentLogsSection(),
+                      const SizedBox(height: 16),
+                      _buildQuickActionsSection(),
+                    ],
+                  ],
+>>>>>>> b399481542d8197646b57ad199b7e5030298c80f
                 ),
               ],
             );
@@ -1110,10 +1283,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({
-    required this.label,
-    required this.value,
-  });
+  const _SummaryRow({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -1261,11 +1431,15 @@ class _SummaryChip extends StatelessWidget {
 }
 
 class _PaceTile extends StatelessWidget {
+<<<<<<< HEAD
   const _PaceTile({
     required this.width,
     required this.label,
     required this.value,
   });
+=======
+  const _PaceTile({required this.label, required this.value});
+>>>>>>> b399481542d8197646b57ad199b7e5030298c80f
 
   final double width;
   final String label;
@@ -1308,9 +1482,7 @@ class _PaceTile extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.status,
-  });
+  const _StatusBadge({required this.status});
 
   final String status;
 
