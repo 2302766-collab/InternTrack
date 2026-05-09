@@ -267,6 +267,17 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     }
   }
 
+  String _statusLabel(String status) {
+    final normalized = status.trim();
+    if (normalized.isEmpty) {
+      return 'Unknown';
+    }
+    if (normalized.length == 1) {
+      return normalized.toUpperCase();
+    }
+    return normalized[0].toUpperCase() + normalized.substring(1).toLowerCase();
+  }
+
   Widget _buildHeader(AuthProvider authProvider) {
     final theme = Theme.of(context);
     final surfaceColor = theme.colorScheme.surface;
@@ -620,8 +631,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  log.status[0].toUpperCase() +
-                      log.status.substring(1).toLowerCase(),
+                  _statusLabel(log.status),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -786,8 +796,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  log.status[0].toUpperCase() +
-                      log.status.substring(1).toLowerCase(),
+                  _statusLabel(log.status),
                   style: TextStyle(
                     color: _statusFg(log.status),
                     fontWeight: FontWeight.w600,
