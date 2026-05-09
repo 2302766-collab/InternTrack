@@ -1140,7 +1140,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 child: OutlinedButton.icon(
                   onPressed: () => _openRoute(AppRoutes.internshipProfile),
                   icon: const Icon(Icons.business_center_outlined),
-                  label: const Text('Update Profile'),
+                  label: const Text('View Profile'),
                 ),
               ),
             ],

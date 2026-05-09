@@ -103,6 +103,8 @@ void main() {
       expect(find.text('Completed daily development tasks.'), findsOneWidget);
       expect(find.text('Fixed UI issues and tested forms.'), findsOneWidget);
       expect(find.text('Edit in Logbook'), findsOneWidget);
+      expect(find.text('View Profile'), findsOneWidget);
+      expect(find.text('Update Profile'), findsNothing);
 
       final newerLogY = tester
           .getTopLeft(find.text('Completed daily development tasks.'))
