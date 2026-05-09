@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/constants/app_routes.dart';
+import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/intern_list_service.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../shared/models/intern_list_item.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import 'intern_detail_screen.dart';
 
 class InternListScreen extends StatefulWidget {
@@ -56,6 +59,24 @@ class _InternListScreenState extends State<InternListScreen> {
     super.dispose();
   }
 
+  Future<void> _handleExpiredSession() async {
+    final authProvider = Provider.of<AuthProvider?>(context, listen: false);
+    await authProvider?.logout();
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Your session has expired. Please log in again.'),
+      ),
+    );
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.login,
+      (route) => false,
+    );
+  }
+
   Future<void> _loadInterns({bool reset = true}) async {
     if (!reset && (_isLoadingMore || !_hasMorePages)) return;
 
@@ -102,6 +123,21 @@ class _InternListScreenState extends State<InternListScreen> {
           _lastPage = page.lastPage;
           _total = page.total;
           _hasMorePages = page.hasMorePages;
+        });
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+          await _handleExpiredSession();
+          return;
+        }
+
+        setState(() {
+          if (reset) {
+            _errorMessage = e.message;
+          } else {
+            _loadMoreError = e.message;
+          }
         });
       }
     } catch (e) {

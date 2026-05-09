@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/constants/app_routes.dart';
+import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/intern_reporting_service.dart';
 import '../../../../core/utils/file_download_stub.dart'
@@ -16,6 +18,7 @@ import '../../../../shared/models/supervisor_log_item.dart';
 import '../../../../shared/widgets/dashboard_info_card.dart';
 import '../../../../shared/widgets/dtr_export_dialog.dart';
 import '../../../../shared/widgets/progress_widget.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import 'intern_report_screen.dart';
 import 'supervisor_log_detail_screen.dart';
 
@@ -87,6 +90,24 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
     _loadIntern();
   }
 
+  Future<void> _handleExpiredSession() async {
+    final authProvider = Provider.of<AuthProvider?>(context, listen: false);
+    await authProvider?.logout();
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Your session has expired. Please log in again.'),
+      ),
+    );
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.login,
+      (route) => false,
+    );
+  }
+
   Future<void> _loadIntern() async {
     setState(() {
       _isLoading = true;
@@ -103,6 +124,16 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
 
       setState(() {
         _intern = intern;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+        await _handleExpiredSession();
+        return;
+      }
+
+      setState(() {
+        _errorMessage = e.message;
       });
     } catch (e) {
       if (!mounted) return;
@@ -220,6 +251,16 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
                 : 'Export is ready, but direct file actions are only available on web in this build.',
           ),
         ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+        await _handleExpiredSession();
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
       );
     } catch (e) {
       if (!mounted) return;

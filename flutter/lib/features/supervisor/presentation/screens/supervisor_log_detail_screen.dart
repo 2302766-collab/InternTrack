@@ -2,7 +2,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/constants/app_routes.dart';
 import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/supervisor_log_service.dart';
 import '../../../../core/utils/date_formatter.dart';
@@ -12,6 +14,7 @@ import '../../../../core/utils/file_download_stub.dart'
 import '../../../../shared/models/log_attachment.dart';
 import '../../../../shared/models/log_review_action.dart';
 import '../../../../shared/models/supervisor_log_item.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 enum _ActiveAction { approve, reject }
 
@@ -81,6 +84,24 @@ class _SupervisorLogDetailScreenState extends State<SupervisorLogDetailScreen> {
     super.dispose();
   }
 
+  Future<void> _handleExpiredSession() async {
+    final authProvider = Provider.of<AuthProvider?>(context, listen: false);
+    await authProvider?.logout();
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Your session has expired. Please log in again.'),
+      ),
+    );
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.login,
+      (route) => false,
+    );
+  }
+
   Future<void> _load() async {
     setState(() {
       _isLoading = true;
@@ -95,6 +116,16 @@ class _SupervisorLogDetailScreenState extends State<SupervisorLogDetailScreen> {
         _log = log;
       });
       _prefetchImageAttachments();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+        await _handleExpiredSession();
+        return;
+      }
+
+      setState(() {
+        _errorMessage = _readErrorMessage(e);
+      });
     } catch (e) {
       if (!mounted) return;
 
@@ -147,6 +178,25 @@ class _SupervisorLogDetailScreenState extends State<SupervisorLogDetailScreen> {
       });
 
       return file;
+    } on ApiException catch (e) {
+      if (!mounted) return null;
+      if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+        await _handleExpiredSession();
+        return null;
+      }
+
+      final resolvedMessage = _readErrorMessage(e);
+      setState(() {
+        _attachmentErrors[attachment.id] = resolvedMessage;
+      });
+
+      if (!silent) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(resolvedMessage)));
+      }
+
+      return null;
     } catch (e) {
       if (!mounted) return null;
 
@@ -241,6 +291,10 @@ class _SupervisorLogDetailScreenState extends State<SupervisorLogDetailScreen> {
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (!mounted) return;
+      if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+        await _handleExpiredSession();
+        return;
+      }
 
       final commentErrors = _fieldErrorsFor(e, 'comment');
       if (commentErrors != null && commentErrors.isNotEmpty) {

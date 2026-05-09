@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/constants/app_routes.dart';
+import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/intern_reporting_service.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../shared/models/student_report.dart';
 import '../../../../shared/widgets/dashboard_info_card.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 class InternReportScreen extends StatefulWidget {
   final String token;
@@ -36,14 +40,46 @@ class _InternReportScreenState extends State<InternReportScreen> {
     _loadReport();
   }
 
+  Future<void> _handleExpiredSession() async {
+    final authProvider = Provider.of<AuthProvider?>(context, listen: false);
+    await authProvider?.logout();
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Your session has expired. Please log in again.'),
+      ),
+    );
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.login,
+      (route) => false,
+    );
+  }
+
   void _loadReport() {
+    final reportFuture = _reportService
+        .getReport(
+          role: widget.role,
+          studentId: widget.studentId,
+          startDate: _toApiDate(_startDate),
+          endDate: _toApiDate(_endDate),
+        )
+        .then<StudentReportData>(
+          (value) => value,
+          onError: (error) {
+            if (error is ApiException &&
+                (error.statusCode == 401 ||
+                    error.errorType == ApiErrorType.unauthorized)) {
+              _handleExpiredSession();
+            }
+            throw error;
+          },
+        );
+
     setState(() {
-      _reportFuture = _reportService.getReport(
-        role: widget.role,
-        studentId: widget.studentId,
-        startDate: _toApiDate(_startDate),
-        endDate: _toApiDate(_endDate),
-      );
+      _reportFuture = reportFuture;
     });
   }
 
