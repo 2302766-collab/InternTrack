@@ -31,6 +31,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
   bool _isLoading = true;
   String? _errorMessage;
+  String? _pendingLogsError;
+  String? _summaryError;
   List<SupervisorLogItem> _pendingLogs = <SupervisorLogItem>[];
   SupervisorDashboardSummary? _dashboardSummary;
 
@@ -68,6 +70,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       setState(() {
         _isLoading = false;
         _errorMessage = 'Missing authentication token. Please log in again.';
+        _pendingLogsError = null;
+        _summaryError = null;
       });
       return;
     }
@@ -75,46 +79,78 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _pendingLogsError = null;
+      _summaryError = null;
     });
 
-    try {
-      final results = await Future.wait<dynamic>([
-        _logService.getPendingLogs(),
-        _dashboardService.getSummary(),
-      ]);
+    List<SupervisorLogItem>? pendingLogs;
+    SupervisorDashboardSummary? dashboardSummary;
+    String? pendingLogsError;
+    String? summaryError;
+    var shouldLogout = false;
 
-      if (!mounted) return;
-
-      final pendingLogs = List<SupervisorLogItem>.from(results[0] as List);
-      final dashboardSummary = results[1] as SupervisorDashboardSummary;
-
-      setState(() {
-        _pendingLogs = pendingLogs;
-        _dashboardSummary = dashboardSummary;
-      });
-    } on ApiException catch (e) {
-      if (!mounted) return;
-
-      if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
-        await _handleExpiredSession();
-        return;
-      }
-
-      setState(() {
-        _errorMessage = e.message;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+    Future<void> loadPendingLogs() async {
+      try {
+        pendingLogs = await _logService.getPendingLogs();
+      } on ApiException catch (e) {
+        if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+          shouldLogout = true;
+          return;
+        }
+        pendingLogsError = e.message;
+      } catch (e) {
+        pendingLogsError = e.toString().replaceFirst('Exception: ', '');
       }
     }
+
+    Future<void> loadSummary() async {
+      try {
+        dashboardSummary = await _dashboardService.getSummary();
+      } on ApiException catch (e) {
+        if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+          shouldLogout = true;
+          return;
+        }
+        summaryError = e.message;
+      } catch (e) {
+        summaryError = e.toString().replaceFirst('Exception: ', '');
+      }
+    }
+
+    await Future.wait<void>([
+      loadPendingLogs(),
+      loadSummary(),
+    ]);
+
+    if (!mounted) return;
+
+    if (shouldLogout) {
+      await _handleExpiredSession();
+      return;
+    }
+
+    final hasPendingData = pendingLogs != null || _pendingLogs.isNotEmpty;
+    final hasSummaryData = dashboardSummary != null || _dashboardSummary != null;
+    final shouldShowFatalError =
+        pendingLogsError != null &&
+        summaryError != null &&
+        !hasPendingData &&
+        !hasSummaryData;
+
+    setState(() {
+      if (pendingLogs != null) {
+        _pendingLogs = pendingLogs!;
+      }
+      if (dashboardSummary != null) {
+        _dashboardSummary = dashboardSummary;
+      }
+      _pendingLogsError = pendingLogsError;
+      _summaryError = summaryError;
+      _errorMessage = shouldShowFatalError
+          ? 'Unable to load supervisor dashboard right now. Please try again.'
+          : null;
+      _isLoading = false;
+    });
   }
 
   Future<void> _openPendingQueue() async {
@@ -826,6 +862,19 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   ],
                 ),
               ),
+              if (_pendingLogsError != null)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    isNarrow ? 0 : 28,
+                    0,
+                    isNarrow ? 0 : 28,
+                    12,
+                  ),
+                  child: Text(
+                    _pendingLogsError!,
+                    style: const TextStyle(color: Color(0xFFB42318)),
+                  ),
+                ),
               if (!isNarrow) const Divider(height: 1, color: Color(0xFFE7EBF0)),
               if (!isNarrow) _buildTableHeader(),
               if (_pendingLogs.isEmpty)
@@ -834,9 +883,11 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     horizontal: isNarrow ? 0 : 28,
                     vertical: 36,
                   ),
-                  child: const Text(
-                    'No pending student logs to review right now.',
-                    style: TextStyle(fontSize: 15, color: Color(0xFF68768A)),
+                  child: Text(
+                    _pendingLogsError == null
+                        ? 'No pending student logs to review right now.'
+                        : 'Unable to refresh pending logs. You can retry or open the queue.',
+                    style: const TextStyle(fontSize: 15, color: Color(0xFF68768A)),
                   ),
                 )
               else if (isNarrow)
@@ -904,6 +955,26 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   isNarrow ? 20 : 30,
                 ),
                 children: [
+                  if (_summaryError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF4F4),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFFBCACA)),
+                        ),
+                        child: Text(
+                          _summaryError!,
+                          style: const TextStyle(color: Color(0xFFB42318)),
+                        ),
+                      ),
+                    ),
                   Wrap(
                     spacing: 12,
                     runSpacing: 12,
