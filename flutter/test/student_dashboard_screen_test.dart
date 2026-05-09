@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
+import 'package:intern_track_app/core/exceptions/api_exception.dart';
 import 'package:intern_track_app/core/services/api_client.dart';
 import 'package:intern_track_app/core/services/auth_service.dart';
 import 'package:intern_track_app/core/services/internship_service.dart';
@@ -20,29 +23,219 @@ import 'package:intern_track_app/shared/models/notification_page.dart';
 import 'package:intern_track_app/shared/models/student_report.dart';
 
 void main() {
-  testWidgets('student dashboard highlights missing today log and recent activity', (
+  testWidgets(
+    'student dashboard highlights missing today log and recent activity',
+    (tester) async {
+      final authProvider = await _buildAuthProvider();
+      final today = DateTime.now();
+      final yesterday = DateTime(today.year, today.month, today.day - 1);
+
+      await tester.pumpWidget(
+        _buildApp(
+          authProvider: authProvider,
+          internshipService: _FakeInternshipService(
+            profile: InternshipProfile(
+              id: 1,
+              studentId: 2,
+              companyName: 'Acme Innovations',
+              companyAddress: '123 Main Street',
+              requiredHours: 486,
+              startDate: '2026-04-09',
+              endDate: '2026-07-19',
+              supervisorId: 3,
+              adviserId: 4,
+              supervisorName: 'Sample Supervisor',
+            ),
+          ),
+          reportService: _FakeStudentReportService(
+            report: StudentReportData(
+              student: const StudentReportPerson(
+                id: 2,
+                name: 'Sample Student',
+                email: 'student@example.com',
+              ),
+              supervisor: const StudentReportPerson(
+                id: 3,
+                name: 'Sample Supervisor',
+                email: 'supervisor@example.com',
+              ),
+              dateRange: const StudentReportDateRange(),
+              logs: const <LogEntryItem>[],
+              summary: const StudentReportSummary(
+                approvedHours: 15,
+                totalApprovedHours: 15,
+                requiredHours: 486,
+                completionPercentage: 3,
+              ),
+            ),
+          ),
+          logbookService: _FakeLogbookService(
+            logs: <LogEntryItem>[
+              _buildLog(
+                id: 11,
+                date: _formatApiDate(yesterday),
+                hoursRendered: 8,
+                status: 'PENDING',
+                taskDescription: 'Completed daily development tasks.',
+              ),
+              _buildLog(
+                id: 10,
+                date: '2026-04-18',
+                hoursRendered: 7,
+                status: 'APPROVED',
+                taskDescription: 'Fixed UI issues and tested forms.',
+              ),
+            ],
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Next Action'), findsOneWidget);
+      expect(find.text('Add today\'s log entry'), findsOneWidget);
+      expect(find.text('Add Today\'s Log'), findsNWidgets(2));
+      expect(find.text('Internship Status'), findsOneWidget);
+      expect(find.text('Pending Hours'), findsOneWidget);
+      expect(find.text('8 h'), findsWidgets);
+      expect(find.text('Pace After Pending'), findsOneWidget);
+      expect(find.text('Recent Logs'), findsOneWidget);
+      expect(find.text('Completed daily development tasks.'), findsOneWidget);
+      expect(find.text('Edit in Logbook'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'student dashboard pushes profile completion when profile is missing',
+    (tester) async {
+      final authProvider = await _buildAuthProvider();
+
+      await tester.pumpWidget(
+        _buildApp(
+          authProvider: authProvider,
+          internshipService: _FakeInternshipService(profile: null),
+          reportService: _FakeStudentReportService(report: null),
+          logbookService: _FakeLogbookService(logs: const <LogEntryItem>[]),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Complete your internship profile'), findsOneWidget);
+      expect(find.text('Complete Internship Profile'), findsOneWidget);
+      expect(
+        find.textContaining('No internship profile is active yet'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('student dashboard shows loading state during API calls', (
     tester,
   ) async {
     final authProvider = await _buildAuthProvider();
-    final today = DateTime.now();
-    final yesterday = DateTime(today.year, today.month, today.day - 1);
+    final completer = Completer<InternshipProfile?>();
+
+    await tester.pumpWidget(
+      _buildApp(
+        authProvider: authProvider,
+        internshipService: _FakeInternshipService(completer: completer),
+        reportService: _FakeStudentReportService(
+          report: StudentReportData(
+            student: const StudentReportPerson(
+              id: 2,
+              name: 'Sample Student',
+              email: 'student@example.com',
+            ),
+            supervisor: const StudentReportPerson(
+              id: 3,
+              name: 'Sample Supervisor',
+              email: 'supervisor@example.com',
+            ),
+            dateRange: const StudentReportDateRange(),
+            logs: const <LogEntryItem>[],
+            summary: const StudentReportSummary(
+              approvedHours: 15,
+              totalApprovedHours: 15,
+              requiredHours: 486,
+              completionPercentage: 3,
+            ),
+          ),
+        ),
+        logbookService: _FakeLogbookService(logs: const <LogEntryItem>[]),
+      ),
+    );
+
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+    completer.complete(
+      InternshipProfile(
+        id: 1,
+        studentId: 2,
+        companyName: 'Acme Innovations',
+        companyAddress: '123 Main Street',
+        requiredHours: 486,
+        startDate: '2026-04-09',
+        endDate: '2026-07-19',
+        supervisorId: 3,
+        adviserId: 4,
+        supervisorName: 'Sample Supervisor',
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Next Action'), findsOneWidget);
+  });
+
+  testWidgets('student dashboard shows specific timeout error with retry', (
+    tester,
+  ) async {
+    final authProvider = await _buildAuthProvider();
 
     await tester.pumpWidget(
       _buildApp(
         authProvider: authProvider,
         internshipService: _FakeInternshipService(
-          profile: InternshipProfile(
-            id: 1,
-            studentId: 2,
-            companyName: 'Acme Innovations',
-            companyAddress: '123 Main Street',
-            requiredHours: 486,
-            startDate: '2026-04-09',
-            endDate: '2026-07-19',
-            supervisorId: 3,
-            adviserId: 4,
-            supervisorName: 'Sample Supervisor',
+          error: ApiException(
+            message: 'Network timeout. Please try again.',
+            errorType: ApiErrorType.timeout,
           ),
+        ),
+        reportService: _FakeStudentReportService(report: null),
+        logbookService: _FakeLogbookService(logs: const <LogEntryItem>[]),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Unable to load student dashboard'), findsOneWidget);
+    expect(find.text('Network timeout. Please try again.'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+  });
+
+  testWidgets('student dashboard retry button reloads data after failure', (
+    tester,
+  ) async {
+    final authProvider = await _buildAuthProvider();
+    var callCount = 0;
+    final retryCompleter = Completer<InternshipProfile?>();
+
+    await tester.pumpWidget(
+      _buildApp(
+        authProvider: authProvider,
+        internshipService: _FakeInternshipService(
+          onCall: () => callCount++,
+          handler: () async {
+            if (callCount == 1) {
+              throw ApiException(
+                message: 'Server unavailable. Please try again later.',
+                errorType: ApiErrorType.serverError,
+              );
+            }
+
+            return retryCompleter.future;
+          },
         ),
         reportService: _FakeStudentReportService(
           report: StudentReportData(
@@ -66,63 +259,42 @@ void main() {
             ),
           ),
         ),
-        logbookService: _FakeLogbookService(
-          logs: <LogEntryItem>[
-            _buildLog(
-              id: 11,
-              date: _formatApiDate(yesterday),
-              hoursRendered: 8,
-              status: 'PENDING',
-              taskDescription: 'Completed daily development tasks.',
-            ),
-            _buildLog(
-              id: 10,
-              date: '2026-04-18',
-              hoursRendered: 7,
-              status: 'APPROVED',
-              taskDescription: 'Fixed UI issues and tested forms.',
-            ),
-          ],
-        ),
-      ),
-    );
-
-    await tester.pumpAndSettle();
-
-    expect(find.text('Next Action'), findsOneWidget);
-    expect(find.text('Add today\'s log entry'), findsOneWidget);
-    expect(find.text('Add Today\'s Log'), findsNWidgets(2));
-    expect(find.text('Internship Status'), findsOneWidget);
-    expect(find.text('Pending Hours'), findsOneWidget);
-    expect(find.text('8 h'), findsWidgets);
-    expect(find.text('Pace After Pending'), findsOneWidget);
-    expect(find.text('Recent Logs'), findsOneWidget);
-    expect(find.text('Completed daily development tasks.'), findsOneWidget);
-    expect(find.text('Edit in Logbook'), findsOneWidget);
-  });
-
-  testWidgets('student dashboard pushes profile completion when profile is missing', (
-    tester,
-  ) async {
-    final authProvider = await _buildAuthProvider();
-
-    await tester.pumpWidget(
-      _buildApp(
-        authProvider: authProvider,
-        internshipService: _FakeInternshipService(profile: null),
-        reportService: _FakeStudentReportService(report: null),
         logbookService: _FakeLogbookService(logs: const <LogEntryItem>[]),
       ),
     );
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Complete your internship profile'), findsOneWidget);
-    expect(find.text('Complete Internship Profile'), findsOneWidget);
     expect(
-      find.textContaining('No internship profile is active yet'),
+      find.text('Server unavailable. Please try again later.'),
       findsOneWidget,
     );
+    expect(callCount, equals(1));
+
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+    retryCompleter.complete(
+      InternshipProfile(
+        id: 1,
+        studentId: 2,
+        companyName: 'Acme Innovations',
+        companyAddress: '123 Main Street',
+        requiredHours: 486,
+        startDate: '2026-04-09',
+        endDate: '2026-07-19',
+        supervisorId: 3,
+        adviserId: 4,
+        supervisorName: 'Sample Supervisor',
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Next Action'), findsOneWidget);
+    expect(callCount, equals(2));
   });
 }
 
@@ -218,12 +390,38 @@ class _FakeAuthService extends AuthService {
 }
 
 class _FakeInternshipService extends InternshipService {
-  _FakeInternshipService({required this.profile});
+  _FakeInternshipService({
+    this.profile,
+    this.error,
+    this.completer,
+    this.onCall,
+    this.handler,
+  });
 
   final InternshipProfile? profile;
+  final Object? error;
+  final Completer<InternshipProfile?>? completer;
+  final VoidCallback? onCall;
+  final Future<InternshipProfile?> Function()? handler;
 
   @override
-  Future<InternshipProfile?> getInternshipProfile() async => profile;
+  Future<InternshipProfile?> getInternshipProfile() async {
+    onCall?.call();
+
+    if (handler != null) {
+      return handler!();
+    }
+
+    if (error != null) {
+      throw error!;
+    }
+
+    if (completer != null) {
+      return completer!.future;
+    }
+
+    return profile;
+  }
 }
 
 class _FakeStudentReportService extends StudentReportService {
@@ -232,7 +430,10 @@ class _FakeStudentReportService extends StudentReportService {
   final StudentReportData? report;
 
   @override
-  Future<StudentReportData> getReport({String? startDate, String? endDate}) async {
+  Future<StudentReportData> getReport({
+    String? startDate,
+    String? endDate,
+  }) async {
     return report!;
   }
 }

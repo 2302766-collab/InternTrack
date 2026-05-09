@@ -7,7 +7,9 @@ import 'core/interceptors/logging_interceptor.dart';
 import 'core/interceptors/token_refresh_interceptor.dart';
 import 'core/retry/retry_interceptor.dart';
 import 'core/retry/retry_policy.dart';
+import 'core/services/admin_dashboard_service.dart';
 import 'core/services/admin_student_service.dart';
+import 'core/services/adviser_management_service.dart';
 import 'core/services/api_client.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/internship_service.dart';
@@ -126,6 +128,14 @@ class InternTrackApp extends StatelessWidget {
           update: (context, apiClient, previous) =>
               AdminStudentService(apiClient),
         ),
+        ProxyProvider<ApiClient, AdminDashboardService>(
+          update: (context, apiClient, previous) =>
+              AdminDashboardService(apiClient),
+        ),
+        ProxyProvider<ApiClient, AdviserManagementService>(
+          update: (context, apiClient, previous) =>
+              AdviserManagementService(apiClient),
+        ),
         ProxyProvider<ApiClient, InternshipService>(
           update: (context, apiClient, previous) =>
               InternshipService(apiClient),
@@ -157,8 +167,19 @@ class InternTrackApp extends StatelessWidget {
             return authProvider..initialize();
           },
         ),
-        ChangeNotifierProvider(
-          create: (context) => AdviserManagementProvider(),
+        ChangeNotifierProxyProvider<
+          AdviserManagementService,
+          AdviserManagementProvider
+        >(
+          create: (context) => AdviserManagementProvider(
+            service: context.read<AdviserManagementService>(),
+          ),
+          update: (context, adviserService, provider) {
+            final notifier =
+                provider ?? AdviserManagementProvider(service: adviserService);
+            notifier.updateService(adviserService);
+            return notifier;
+          },
         ),
       ],
       child: Consumer2<AuthProvider, ThemeController>(
