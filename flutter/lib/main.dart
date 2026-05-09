@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'core/constants/app_routes.dart';
@@ -16,6 +15,8 @@ import 'core/services/logbook_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/student_report_service.dart';
 import 'core/services/token_service.dart';
+import 'core/theme/app_theme.dart';
+import 'core/theme/theme_controller.dart';
 import 'features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'features/admin/presentation/screens/student_adviser_assignment_screen.dart';
 import 'features/admin/presentation/providers/adviser_management_provider.dart';
@@ -26,17 +27,22 @@ import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/register_screen.dart';
 import 'features/internship/presentation/screens/internship_profile_screen.dart';
 import 'features/logbook/presentation/screens/logbook_screen.dart';
+import 'features/settings/presentation/screens/settings_screen.dart';
 import 'features/student/presentation/screens/student_dashboard_screen.dart';
 import 'features/student/presentation/screens/student_dtr_screen.dart';
 import 'features/student/presentation/screens/student_report_screen.dart';
 import 'features/supervisor/presentation/screens/supervisor_dashboard_screen.dart';
 
-void main() {
-  runApp(const InternTrackApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final themeController = await ThemeController.create();
+  runApp(InternTrackApp(themeController: themeController));
 }
 
 class InternTrackApp extends StatelessWidget {
-  const InternTrackApp({super.key});
+  const InternTrackApp({super.key, required this.themeController});
+
+  final ThemeController themeController;
 
   Widget _dashboardFor(AuthProvider authProvider) {
     final userName = authProvider.user?.name.isNotEmpty == true
@@ -92,50 +98,48 @@ class InternTrackApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const brandColor = Color(0xFF0F4C5C);
-    const brandBlue = Color(0xFF326DE6);
-    const appBackground = Color(0xFFF6F7FB);
-    const textPrimary = Color(0xFF102A56);
-    const textSecondary = Color(0xFF4A6480);
-    const borderColor = Color(0xFFD8E2EC);
-    final textTheme = GoogleFonts.manropeTextTheme().apply(
-      bodyColor: textPrimary,
-      displayColor: textPrimary,
-    );
-
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider<ThemeController>.value(value: themeController),
         Provider<TokenService>(create: (_) => const TokenService()),
-        Provider<ApiClient>(create: (context) {
-          final apiClient = ApiClient();
-          final tokenService = context.read<TokenService>();
+        Provider<ApiClient>(
+          create: (context) {
+            final apiClient = ApiClient();
+            final tokenService = context.read<TokenService>();
 
-          // Register interceptors in order
-          // Request flow: Auth → Logging → Retry → (request)
-          // Error flow: TokenRefresh → Retry → Logging → Auth
-          apiClient.addInterceptor(AuthInterceptor(tokenService));
-          apiClient.addInterceptor(LoggingInterceptor());
-          apiClient.addInterceptor(RetryInterceptor(apiClient.client, RetryPolicies.standard));
+            // Register interceptors in order
+            // Request flow: Auth → Logging → Retry → (request)
+            // Error flow: TokenRefresh → Retry → Logging → Auth
+            apiClient.addInterceptor(AuthInterceptor(tokenService));
+            apiClient.addInterceptor(LoggingInterceptor());
+            apiClient.addInterceptor(
+              RetryInterceptor(apiClient.client, RetryPolicies.standard),
+            );
 
-          return apiClient;
-        }),
+            return apiClient;
+          },
+        ),
         ProxyProvider<ApiClient, AuthService>(
           update: (context, apiClient, previous) => AuthService(apiClient),
         ),
         ProxyProvider<ApiClient, AdminStudentService>(
-          update: (context, apiClient, previous) => AdminStudentService(apiClient),
+          update: (context, apiClient, previous) =>
+              AdminStudentService(apiClient),
         ),
         ProxyProvider<ApiClient, InternshipService>(
-          update: (context, apiClient, previous) => InternshipService(apiClient),
+          update: (context, apiClient, previous) =>
+              InternshipService(apiClient),
         ),
         ProxyProvider<ApiClient, LogbookService>(
           update: (context, apiClient, previous) => LogbookService(apiClient),
         ),
         ProxyProvider<ApiClient, NotificationService>(
-          update: (context, apiClient, previous) => NotificationService(apiClient),
+          update: (context, apiClient, previous) =>
+              NotificationService(apiClient),
         ),
         ProxyProvider<ApiClient, StudentReportService>(
-          update: (context, apiClient, previous) => StudentReportService(apiClient),
+          update: (context, apiClient, previous) =>
+              StudentReportService(apiClient),
         ),
         ChangeNotifierProvider(
           create: (context) {
@@ -157,8 +161,8 @@ class InternTrackApp extends StatelessWidget {
           create: (context) => AdviserManagementProvider(),
         ),
       ],
-      child: Consumer<AuthProvider>(
-        builder: (context, authProvider, _) {
+      child: Consumer2<AuthProvider, ThemeController>(
+        builder: (context, authProvider, themeController, _) {
           return MaterialApp(
             title: 'InternTrack',
             debugShowCheckedModeBanner: false,
@@ -264,243 +268,17 @@ class InternTrackApp extends StatelessWidget {
                   const StudentAdviserAssignmentScreen(),
                 );
               },
+
+              AppRoutes.settings: (_) {
+                return _guardProtectedRoute(
+                  authProvider,
+                  const SettingsScreen(),
+                );
+              },
             },
-            theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: brandColor,
-                surface: appBackground,
-                primary: brandColor,
-                secondary: brandBlue,
-                error: const Color(0xFFB42318),
-              ),
-              scaffoldBackgroundColor: appBackground,
-              textTheme: textTheme.copyWith(
-                headlineLarge: textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  height: 1.08,
-                ),
-                headlineMedium: textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  height: 1.1,
-                ),
-                headlineSmall: textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  height: 1.18,
-                ),
-                titleLarge: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  height: 1.2,
-                ),
-                titleMedium: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  height: 1.25,
-                ),
-                bodyLarge: textTheme.bodyLarge?.copyWith(
-                  height: 1.45,
-                  color: textSecondary,
-                ),
-                bodyMedium: textTheme.bodyMedium?.copyWith(
-                  height: 1.45,
-                  color: textSecondary,
-                ),
-                labelLarge: textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0,
-                ),
-              ),
-              useMaterial3: true,
-              visualDensity: VisualDensity.standard,
-              appBarTheme: AppBarTheme(
-                backgroundColor: Colors.white,
-                foregroundColor: textPrimary,
-                elevation: 0,
-                scrolledUnderElevation: 0,
-                centerTitle: false,
-                titleTextStyle: textTheme.titleLarge?.copyWith(
-                  color: textPrimary,
-                  fontWeight: FontWeight.w800,
-                ),
-                iconTheme: const IconThemeData(color: textPrimary),
-              ),
-              cardTheme: CardThemeData(
-                color: Colors.white,
-                surfaceTintColor: Colors.white,
-                elevation: 1.5,
-                margin: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                  side: const BorderSide(color: Color(0xFFE6EAF0)),
-                ),
-              ),
-              dividerTheme: const DividerThemeData(
-                color: Color(0xFFE7EBF0),
-                thickness: 1,
-                space: 1,
-              ),
-              inputDecorationTheme: InputDecorationTheme(
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: 15,
-                  horizontal: 16,
-                ),
-                hintStyle: const TextStyle(
-                  color: Color(0xFF8A98A8),
-                  fontWeight: FontWeight.w500,
-                ),
-                labelStyle: const TextStyle(
-                  color: textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-                floatingLabelStyle: const TextStyle(
-                  color: brandColor,
-                  fontWeight: FontWeight.w700,
-                ),
-                helperStyle: const TextStyle(
-                  color: Color(0xFF667085),
-                  height: 1.35,
-                ),
-                errorStyle: const TextStyle(
-                  color: Color(0xFFB42318),
-                  fontWeight: FontWeight.w600,
-                  height: 1.35,
-                ),
-                prefixIconColor: const Color(0xFF57707A),
-                suffixIconColor: const Color(0xFF57707A),
-                errorMaxLines: 3,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: borderColor),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: borderColor),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: brandColor, width: 1.6),
-                ),
-                errorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFF04438)),
-                ),
-                focusedErrorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFB42318),
-                    width: 1.6,
-                  ),
-                ),
-                disabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                ),
-              ),
-              elevatedButtonTheme: ElevatedButtonThemeData(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: brandColor,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: const Color(0xFF7FAAB5),
-                  disabledForegroundColor: Colors.white70,
-                  minimumSize: const Size(44, 48),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 14,
-                    horizontal: 18,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 1.5,
-                  shadowColor: const Color(0x330F4C5C),
-                  textStyle: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-              outlinedButtonTheme: OutlinedButtonThemeData(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: brandColor,
-                  minimumSize: const Size(44, 48),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 13,
-                    horizontal: 18,
-                  ),
-                  side: const BorderSide(color: Color(0xFFB8CAD3)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  textStyle: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-              filledButtonTheme: FilledButtonThemeData(
-                style: FilledButton.styleFrom(
-                  backgroundColor: brandColor,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(44, 48),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 14,
-                    horizontal: 18,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  textStyle: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-              textButtonTheme: TextButtonThemeData(
-                style: TextButton.styleFrom(
-                  foregroundColor: brandColor,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  textStyle: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0,
-                  ),
-                ),
-              ),
-              iconButtonTheme: IconButtonThemeData(
-                style: IconButton.styleFrom(
-                  foregroundColor: textPrimary,
-                  minimumSize: const Size(44, 44),
-                  tapTargetSize: MaterialTapTargetSize.padded,
-                ),
-              ),
-              snackBarTheme: SnackBarThemeData(
-                behavior: SnackBarBehavior.floating,
-                backgroundColor: textPrimary,
-                contentTextStyle: textTheme.bodyMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              progressIndicatorTheme: const ProgressIndicatorThemeData(
-                color: brandColor,
-                linearTrackColor: Color(0xFFDDE2EA),
-              ),
-              tooltipTheme: TooltipThemeData(
-                waitDuration: const Duration(milliseconds: 450),
-                decoration: BoxDecoration(
-                  color: textPrimary,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                textStyle: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
+            theme: AppTheme.lightTheme(),
+            darkTheme: AppTheme.darkTheme(),
+            themeMode: themeController.themeMode,
           );
         },
       ),

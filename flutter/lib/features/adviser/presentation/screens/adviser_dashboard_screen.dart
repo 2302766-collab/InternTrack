@@ -6,6 +6,7 @@ import '../../../../core/services/api_client.dart';
 import '../../../../core/services/intern_list_service.dart';
 import '../../../../shared/models/intern_list_item.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
+import '../../../../shared/widgets/settings_shortcut_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../supervisor/presentation/screens/intern_list_screen.dart';
 import '../../../supervisor/presentation/screens/intern_detail_screen.dart';
@@ -222,6 +223,14 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   }
 
   Widget _buildHeader(AuthProvider authProvider) {
+    final theme = Theme.of(context);
+    final surfaceColor = theme.colorScheme.surface;
+    final primaryTextColor = theme.colorScheme.onSurface;
+    final secondaryTextColor =
+        theme.textTheme.bodyMedium?.color ?? primaryTextColor;
+    final dividerColor =
+        theme.dividerTheme.color ?? theme.colorScheme.outlineVariant;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 900;
@@ -229,6 +238,8 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
         final profileSection = Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const SettingsShortcutButton(),
+            const SizedBox(width: 8),
             NotificationBellButton(token: authProvider.token ?? ''),
             const SizedBox(width: 8),
             Column(
@@ -236,16 +247,16 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
               children: [
                 Text(
                   widget.userName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF102A56),
+                    color: primaryTextColor,
                   ),
                 ),
                 const SizedBox(height: 2),
-                const Text(
+                Text(
                   'Academic Adviser',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF68768A)),
+                  style: TextStyle(fontSize: 13, color: secondaryTextColor),
                 ),
               ],
             ),
@@ -266,9 +277,9 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
 
         return Container(
           padding: const EdgeInsets.fromLTRB(28, 20, 28, 20),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            border: Border(bottom: BorderSide(color: Color(0xFFE6E8EC))),
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            border: Border(bottom: BorderSide(color: dividerColor)),
           ),
           child: isNarrow
               ? Column(
@@ -282,7 +293,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                           tooltip: 'Logout',
                         ),
                         const SizedBox(width: 8),
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -291,7 +302,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF102A56),
+                                  color: primaryTextColor,
                                 ),
                               ),
                               SizedBox(height: 4),
@@ -299,7 +310,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                 'Monitor student internship progress',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Color(0xFF4A6480),
+                                  color: secondaryTextColor,
                                 ),
                               ),
                             ],
@@ -323,7 +334,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                       tooltip: 'Logout',
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -332,7 +343,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF102A56),
+                              color: primaryTextColor,
                             ),
                           ),
                           SizedBox(height: 4),
@@ -340,7 +351,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                             'Monitor student internship progress',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Color(0xFF4A6480),
+                              color: secondaryTextColor,
                             ),
                           ),
                         ],

@@ -13,6 +13,7 @@ import '../../../../shared/models/log_entry.dart';
 import '../../../../shared/models/student_report.dart';
 import '../../../../shared/widgets/dashboard_info_card.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
+import '../../../../shared/widgets/settings_shortcut_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class StudentDashboardScreen extends StatefulWidget {
@@ -58,7 +59,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     _internshipService =
         widget.internshipService ?? context.read<InternshipService>();
     _logbookService = widget.logbookService ?? context.read<LogbookService>();
-    _reportService = widget.reportService ?? context.read<StudentReportService>();
+    _reportService =
+        widget.reportService ?? context.read<StudentReportService>();
   }
 
   @override
@@ -139,13 +141,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       .where((log) => log.status.toUpperCase() == 'PENDING')
       .fold(0, (sum, log) => sum + log.hoursRendered);
 
-  int get _rejectedLogsCount => _logs
-      .where((log) => log.status.toUpperCase() == 'REJECTED')
-      .length;
+  int get _rejectedLogsCount =>
+      _logs.where((log) => log.status.toUpperCase() == 'REJECTED').length;
 
-  int get _pendingLogsCount => _logs
-      .where((log) => log.status.toUpperCase() == 'PENDING')
-      .length;
+  int get _pendingLogsCount =>
+      _logs.where((log) => log.status.toUpperCase() == 'PENDING').length;
 
   bool get _hasTodayLog {
     final today = _formatApiDate(_today);
@@ -592,7 +592,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     final profile = _profile!;
     final supervisorAssigned =
-        profile.supervisorName?.trim().isNotEmpty == true || profile.supervisorId != null;
+        profile.supervisorName?.trim().isNotEmpty == true ||
+        profile.supervisorId != null;
     final adviserAssigned = profile.adviserId != null;
 
     return Column(
@@ -610,7 +611,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             ),
             _SummaryChip(
               icon: Icons.person_pin_circle_outlined,
-              label: supervisorAssigned ? 'Supervisor Assigned' : 'No Supervisor',
+              label: supervisorAssigned
+                  ? 'Supervisor Assigned'
+                  : 'No Supervisor',
               color: supervisorAssigned
                   ? const Color(0xFF027A48)
                   : const Color(0xFFB54708),
@@ -660,8 +663,14 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         : 0.0;
 
     final progressBadgeTone = switch (_paceDeltaAfterPending) {
-      int value when value < 0 => (const Color(0xFFFFF4E5), const Color(0xFFB54708)),
-      int value when value > 0 => (const Color(0xFFE8F7EE), const Color(0xFF027A48)),
+      int value when value < 0 => (
+        const Color(0xFFFFF4E5),
+        const Color(0xFFB54708),
+      ),
+      int value when value > 0 => (
+        const Color(0xFFE8F7EE),
+        const Color(0xFF027A48),
+      ),
       _ => (const Color(0xFFEAF2FF), const Color(0xFF325EA8)),
     };
 
@@ -727,14 +736,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     ? '${_expectedHoursByToday!} h'
                     : 'N/A',
               ),
-              _PaceTile(
-                label: 'Approved',
-                value: '$_approvedHours h',
-              ),
-              _PaceTile(
-                label: 'Pending Review',
-                value: '$_pendingHours h',
-              ),
+              _PaceTile(label: 'Approved', value: '$_approvedHours h'),
+              _PaceTile(label: 'Pending Review', value: '$_pendingHours h'),
               _PaceTile(
                 label: 'Pace After Pending',
                 value: () {
@@ -755,34 +758,28 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             ),
           ] else ...[
             const SizedBox(height: 12),
-            Text(
-              () {
-                if (_requiredHours <= 0) {
-                  return 'Progress tracking will improve once required hours are available.';
-                }
+            Text(() {
+              if (_requiredHours <= 0) {
+                return 'Progress tracking will improve once required hours are available.';
+              }
 
-                final approvedDelta = _paceDelta;
-                final pendingDelta = _paceDeltaAfterPending;
-                if (approvedDelta != null &&
-                    pendingDelta != null &&
-                    approvedDelta < 0 &&
-                    _pendingHours > 0) {
-                  final pendingStatus = pendingDelta < 0
-                      ? 'behind by ${pendingDelta.abs()} hours'
-                      : pendingDelta > 0
-                      ? 'ahead by $pendingDelta hours'
-                      : 'on pace';
+              final approvedDelta = _paceDelta;
+              final pendingDelta = _paceDeltaAfterPending;
+              if (approvedDelta != null &&
+                  pendingDelta != null &&
+                  approvedDelta < 0 &&
+                  _pendingHours > 0) {
+                final pendingStatus = pendingDelta < 0
+                    ? 'behind by ${pendingDelta.abs()} hours'
+                    : pendingDelta > 0
+                    ? 'ahead by $pendingDelta hours'
+                    : 'on pace';
 
-                  return 'You are ${approvedDelta.abs()} approved hours behind today. Pending review ($_pendingHours h) could move you to $pendingStatus once reviewed.';
-                }
+                return 'You are ${approvedDelta.abs()} approved hours behind today. Pending review ($_pendingHours h) could move you to $pendingStatus once reviewed.';
+              }
 
-                return 'Remaining: ${math.max(0, _requiredHours - _approvedHours)} hours';
-              }(),
-              style: const TextStyle(
-                color: Color(0xFF4A6480),
-                fontSize: 16,
-              ),
-            ),
+              return 'Remaining: ${math.max(0, _requiredHours - _approvedHours)} hours';
+            }(), style: const TextStyle(color: Color(0xFF4A6480), fontSize: 16)),
           ],
         ],
       ),
@@ -796,10 +793,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (_logsError != null)
-            Text(
-              _logsError!,
-              style: const TextStyle(color: Color(0xFFB42318)),
-            )
+            Text(_logsError!, style: const TextStyle(color: Color(0xFFB42318)))
           else if (_recentLogs.isEmpty)
             const Text(
               'No logs submitted yet. Start with today\'s entry so your dashboard can reflect current activity.',
@@ -922,6 +916,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       appBar: AppBar(
         title: const Text('InternTrack'),
         actions: [
+          const SettingsShortcutButton(),
           NotificationBellButton(token: token),
           IconButton(
             tooltip: 'Logout',
@@ -979,10 +974,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({
-    required this.label,
-    required this.value,
-  });
+  const _SummaryRow({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -1130,10 +1122,7 @@ class _SummaryChip extends StatelessWidget {
 }
 
 class _PaceTile extends StatelessWidget {
-  const _PaceTile({
-    required this.label,
-    required this.value,
-  });
+  const _PaceTile({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -1175,9 +1164,7 @@ class _PaceTile extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.status,
-  });
+  const _StatusBadge({required this.status});
 
   final String status;
 

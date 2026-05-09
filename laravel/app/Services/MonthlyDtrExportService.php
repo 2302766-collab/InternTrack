@@ -11,11 +11,23 @@ use Carbon\CarbonPeriod;
 
 class MonthlyDtrExportService
 {
-    public function buildMonthlyExportData(User $student, int $month, int $year): array
+    public function buildMonthlyExportData(
+        User $student,
+        int $month,
+        int $year,
+        ?string $startDate = null,
+        ?string $endDate = null,
+    ): array
     {
         $schedule = config('dtr.schedule');
         $monthStart = Carbon::create($year, $month, 1)->startOfMonth();
         $monthEnd = $monthStart->copy()->endOfMonth();
+        $filterStart = $startDate !== null
+            ? Carbon::parse($startDate)->startOfDay()
+            : $monthStart->copy()->startOfDay();
+        $filterEnd = $endDate !== null
+            ? Carbon::parse($endDate)->startOfDay()
+            : $monthEnd->copy()->startOfDay();
 
         $profile = InternshipProfile::query()
             ->where('student_id', $student->id)
@@ -23,10 +35,8 @@ class MonthlyDtrExportService
 
         $records = DailyTimeRecord::query()
             ->where('student_id', $student->id)
-            ->whereBetween('date', [
-                $monthStart->toDateString(),
-                $monthEnd->toDateString(),
-            ])
+            ->whereDate('date', '>=', $filterStart->toDateString())
+            ->whereDate('date', '<=', $filterEnd->toDateString())
             ->orderBy('date')
             ->get()
             ->keyBy(fn (DailyTimeRecord $record) => $record->date->toDateString());

@@ -6,14 +6,11 @@ import 'base_service.dart';
 
 class InternReportingService extends BaseService {
   InternReportingService([ApiClient? apiClient])
-      : _apiClient = apiClient ?? ApiClient();
+    : _apiClient = apiClient ?? ApiClient();
 
   final ApiClient _apiClient;
 
-  String _endpointForRole({
-    required String role,
-    required int studentId,
-  }) {
+  String _endpointForRole({required String role, required int studentId}) {
     final normalizedRole = role.toLowerCase();
 
     switch (normalizedRole) {
@@ -79,23 +76,31 @@ class InternReportingService extends BaseService {
   Future<DtrExportFile> exportDtr({
     required String role,
     required int studentId,
-    required int month,
-    required int year,
+    int? month,
+    int? year,
+    DateTime? startDate,
+    DateTime? endDate,
     required bool pdf,
   }) async {
+    final queryParameters = _buildExportQueryParameters(
+      month: month,
+      year: year,
+      startDate: startDate,
+      endDate: endDate,
+    );
+    final resolvedYear = year ?? startDate!.year;
+    final resolvedMonth = month ?? startDate!.month;
+
     try {
       final format = pdf ? 'pdf' : 'excel';
       final fallbackFilename =
-          'dtr_$year-${month.toString().padLeft(2, '0')}.${pdf ? 'pdf' : 'csv'}';
+          'dtr_$resolvedYear-${resolvedMonth.toString().padLeft(2, '0')}.${pdf ? 'pdf' : 'csv'}';
       final fallbackMimeType = pdf ? 'application/pdf' : 'text/csv';
 
       final response = await _apiClient.downloadResponse(
         path:
             '${_endpointForRole(role: role, studentId: studentId)}/dtr/export/$format',
-        queryParameters: <String, dynamic>{
-          'month': month,
-          'year': year,
-        },
+        queryParameters: queryParameters,
       );
 
       return DtrExportFile(
@@ -104,8 +109,7 @@ class InternReportingService extends BaseService {
           response.headers.value('content-disposition'),
           fallbackFilename,
         ),
-        mimeType:
-            response.headers.value('content-type') ?? fallbackMimeType,
+        mimeType: response.headers.value('content-type') ?? fallbackMimeType,
       );
     } on ApiException catch (e) {
       handleApiError(e);
@@ -113,14 +117,55 @@ class InternReportingService extends BaseService {
     }
   }
 
+  Map<String, dynamic> _buildExportQueryParameters({
+    int? month,
+    int? year,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) {
+    final hasDateRange = startDate != null || endDate != null;
+
+    if (hasDateRange) {
+      if (startDate == null || endDate == null) {
+        throw ApiException(
+          message:
+              'Both start and end dates are required for filtered exports.',
+          errorType: ApiErrorType.clientError,
+          isRecoverable: false,
+        );
+      }
+
+      return <String, dynamic>{
+        'start_date': _formatDate(startDate),
+        'end_date': _formatDate(endDate),
+      };
+    }
+
+    if (month == null || year == null) {
+      throw ApiException(
+        message: 'Month and year are required when no date range is provided.',
+        errorType: ApiErrorType.clientError,
+        isRecoverable: false,
+      );
+    }
+
+    return <String, dynamic>{'month': month, 'year': year};
+  }
+
   String _extractFilename(String? contentDisposition, String fallback) {
-    final match = RegExp(r'filename="([^"]+)"').firstMatch(
-      contentDisposition ?? '',
-    );
+    final match = RegExp(
+      r'filename="([^"]+)"',
+    ).firstMatch(contentDisposition ?? '');
     if (match != null) {
       return match.group(1) ?? fallback;
     }
 
     return fallback;
+  }
+
+  String _formatDate(DateTime value) {
+    return '${value.year.toString().padLeft(4, '0')}-'
+        '${value.month.toString().padLeft(2, '0')}-'
+        '${value.day.toString().padLeft(2, '0')}';
   }
 }

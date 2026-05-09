@@ -5,15 +5,13 @@ import '../../../../core/constants/app_routes.dart';
 import '../../../../core/services/admin_student_service.dart';
 import '../../../../shared/models/admin_student_summary.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
+import '../../../../shared/widgets/settings_shortcut_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   final String userName;
 
-  const AdminDashboardScreen({
-    super.key,
-    required this.userName,
-  });
+  const AdminDashboardScreen({super.key, required this.userName});
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -102,18 +100,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     try {
       final nextPage = reset ? 1 : _currentPage + 1;
-      final page = await _studentService.fetchStudents(
-        page: nextPage,
-      );
+      final page = await _studentService.fetchStudents(page: nextPage);
 
       if (!mounted) return;
 
       final updatedStudents = reset
           ? page.students
-          : <AdminStudentSummary>[
-              ..._students,
-              ...page.students,
-            ];
+          : <AdminStudentSummary>[..._students, ...page.students];
 
       setState(() {
         _currentPage = page.currentPage;
@@ -151,13 +144,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildHeader(AuthProvider authProvider) {
+    final theme = Theme.of(context);
+    final surfaceColor = theme.colorScheme.surface;
+    final primaryTextColor = theme.colorScheme.onSurface;
+    final secondaryTextColor =
+        theme.textTheme.bodyMedium?.color ?? primaryTextColor;
+    final dividerColor =
+        theme.dividerTheme.color ?? theme.colorScheme.outlineVariant;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 18, 24, 18),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFE6E8EC)),
-        ),
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        border: Border(bottom: BorderSide(color: dividerColor)),
       ),
       child: Row(
         children: [
@@ -171,12 +170,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Admin Dashboard',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF102A56),
+                    color: primaryTextColor,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -184,13 +183,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   'Monitor all students and internship progress at a glance.',
                   style: TextStyle(
                     fontSize: 14,
-                    color: const Color(0xFF4A6480).withValues(alpha: 0.95),
+                    color: secondaryTextColor.withValues(alpha: 0.95),
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 12),
+          const SettingsShortcutButton(),
+          const SizedBox(width: 8),
           NotificationBellButton(token: authProvider.token ?? ''),
           const SizedBox(width: 8),
           CircleAvatar(
@@ -228,10 +229,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: <Color>[
-            Color(0xFF0F4C5C),
-            Color(0xFF1B7A8C),
-          ],
+          colors: <Color>[Color(0xFF0F4C5C), Color(0xFF1B7A8C)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -270,10 +268,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 const SizedBox(height: 6),
                 const Text(
                   'Paginated internship progress overview',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFFE3F5F7),
-                  ),
+                  style: TextStyle(fontSize: 14, color: Color(0xFFE3F5F7)),
                 ),
               ],
             ),
@@ -354,18 +349,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 12),
           Text(
             'Company: ${student.company?.isNotEmpty == true ? student.company : 'Not assigned yet'}',
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF475467),
-            ),
+            style: const TextStyle(fontSize: 14, color: Color(0xFF475467)),
           ),
           const SizedBox(height: 8),
           Text(
             'Approved Hours: ${student.approvedHours} / ${student.requiredHours}',
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF667085),
-            ),
+            style: const TextStyle(fontSize: 14, color: Color(0xFF667085)),
           ),
         ],
       ),
@@ -420,10 +409,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 6),
           const Text(
             'Track progress across all active interns.',
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF667085),
-            ),
+            style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
           ),
           const SizedBox(height: 18),
           if (_students.isEmpty)
@@ -431,10 +417,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               padding: EdgeInsets.symmetric(vertical: 36),
               child: Text(
                 'No students found yet.',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Color(0xFF667085),
-                ),
+                style: TextStyle(fontSize: 15, color: Color(0xFF667085)),
               ),
             )
           else
