@@ -106,17 +106,23 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     }
 
     if (profile != null) {
-      try {
-        report = await _reportService.getReport();
-      } catch (e) {
-        reportError = _readErrorMessage(e);
-      }
+      final reportFuture = _reportService.getReport().then<StudentReportData?>(
+        (value) => value,
+        onError: (error) {
+          reportError = _readErrorMessage(error);
+          return null;
+        },
+      );
+      final logsFuture = _logbookService.getLogs().then<List<LogEntryItem>>(
+        (value) => value,
+        onError: (error) {
+          logsError = _readErrorMessage(error);
+          return <LogEntryItem>[];
+        },
+      );
 
-      try {
-        logs = await _logbookService.getLogs();
-      } catch (e) {
-        logsError = _readErrorMessage(e);
-      }
+      report = await reportFuture;
+      logs = await logsFuture;
     }
 
     if (!mounted) return;
