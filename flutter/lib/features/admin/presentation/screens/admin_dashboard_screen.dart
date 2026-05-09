@@ -100,19 +100,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
 
     try {
-      final nextPage = reset ? 1 : _currentPage + 1;
-      final page = await _studentService.fetchStudents(page: nextPage);
-
-      if (!mounted) return;
-
-      final updatedStudents = reset
-          ? page.students
-          : <AdminStudentSummary>[..._students, ...page.students];
       final results = await Future.wait<dynamic>([
-        _studentService.fetchStudents(
-          page: page,
-          perPage: _itemsPerPage,
-        ),
+        _studentService.fetchStudents(page: page, perPage: _itemsPerPage),
         _dashboardService.getSummary(),
       ]);
 
@@ -349,7 +338,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
               _buildHeroStatChip(
                 label: 'Average Completion',
-                value: '${summary.averageCompletionPercentage.toStringAsFixed(0)}%',
+                value:
+                    '${summary.averageCompletionPercentage.toStringAsFixed(0)}%',
               ),
               _buildHeroStatChip(
                 label: 'Approved Logs',
@@ -362,18 +352,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildHeroStatChip({
-    required String label,
-    required String value,
-  }) {
+  Widget _buildHeroStatChip({required String label, required String value}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.12),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -440,10 +425,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           runSpacing: 12,
           children: items
               .map(
-                (item) => SizedBox(
-                  width: itemWidth,
-                  child: _buildSummaryCard(item),
-                ),
+                (item) =>
+                    SizedBox(width: itemWidth, child: _buildSummaryCard(item)),
               )
               .toList(),
         );
@@ -474,10 +457,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               color: item.color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(
-              item.icon,
-              color: item.color,
-            ),
+            child: Icon(item.icon, color: item.color),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -498,15 +478,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                    color: Color(0xFF102A56),
                   ),
                 ),
                 const SizedBox(height: 6),
                 const Text(
                   'Paginated internship progress overview',
-                  style: TextStyle(fontSize: 14, color: Color(0xFFE3F5F7)),
-                    color: Color(0xFF102A56),
-                  ),
+                  style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
                 ),
               ],
             ),
@@ -544,10 +522,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 6),
           const Text(
             'Use the dashboard to fix setup issues, not just monitor users.',
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF667085),
-            ),
+            style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
           ),
           const SizedBox(height: 18),
           Container(
@@ -574,10 +549,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 const SizedBox(height: 8),
                 const Text(
                   'Open adviser management to assign, update, or remove advisers per student.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF4A6480),
-                  ),
+                  style: TextStyle(fontSize: 14, color: Color(0xFF4A6480)),
                 ),
                 const SizedBox(height: 14),
                 Wrap(
@@ -610,10 +582,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _buildFilterChips() {
     final filters = <_StudentFilter>[
-      const _StudentFilter(
-        key: _filterAll,
-        label: 'All Students',
-      ),
+      const _StudentFilter(key: _filterAll, label: 'All Students'),
       const _StudentFilter(
         key: _filterNeedsAttention,
         label: 'Needs Attention',
@@ -626,10 +595,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         key: _filterMissingSupervisor,
         label: 'No Supervisor',
       ),
-      const _StudentFilter(
-        key: _filterMissingAdviser,
-        label: 'No Adviser',
-      ),
+      const _StudentFilter(key: _filterMissingAdviser, label: 'No Adviser'),
     ];
 
     return Wrap(
@@ -730,11 +696,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: issues,
-                    ),
+                    Wrap(spacing: 8, runSpacing: 8, children: issues),
                   ],
                 ),
               ),
@@ -880,7 +842,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       onPressed: _isPageLoading ? null : onPressed,
       icon: Icon(
         icon,
-        color: onPressed == null ? const Color(0xFF98A2B3) : const Color(0xFF101828),
+        color: onPressed == null
+            ? const Color(0xFF98A2B3)
+            : const Color(0xFF101828),
       ),
     );
   }
@@ -892,7 +856,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     final isCompact = constraints.maxWidth < 600;
     final visiblePages = _visiblePages(isCompact);
-    final startItem = _totalStudents == 0 ? 0 : ((_currentPage - 1) * _itemsPerPage) + 1;
+    final startItem = _totalStudents == 0
+        ? 0
+        : ((_currentPage - 1) * _itemsPerPage) + 1;
     final endItem = (_currentPage * _itemsPerPage).clamp(0, _totalStudents);
 
     if (isCompact) {
@@ -904,7 +870,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               _buildArrowButton(
                 icon: Icons.chevron_left_rounded,
                 compact: true,
-                onPressed: _currentPage > 1 ? () => _goToPage(_currentPage - 1) : null,
+                onPressed: _currentPage > 1
+                    ? () => _goToPage(_currentPage - 1)
+                    : null,
               ),
               ...visiblePages.map(
                 (page) => _buildPageButton(
@@ -925,10 +893,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 8),
           Text(
             '$startItem-$endItem of $_totalStudents items',
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF667085),
-            ),
+            style: const TextStyle(fontSize: 14, color: Color(0xFF667085)),
           ),
         ],
       );
@@ -946,7 +911,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ),
         _buildArrowButton(
           icon: Icons.chevron_left_rounded,
-          onPressed: _currentPage > 1 ? () => _goToPage(_currentPage - 1) : null,
+          onPressed: _currentPage > 1
+              ? () => _goToPage(_currentPage - 1)
+              : null,
         ),
         ...visiblePages.map(
           (page) => _buildPageButton(
@@ -963,15 +930,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ),
         _buildArrowButton(
           icon: Icons.keyboard_double_arrow_right_rounded,
-          onPressed: _currentPage < _lastPage ? () => _goToPage(_lastPage) : null,
+          onPressed: _currentPage < _lastPage
+              ? () => _goToPage(_lastPage)
+              : null,
         ),
         const SizedBox(width: 8),
         Text(
           '$startItem-$endItem of $_totalStudents items',
-          style: const TextStyle(
-            fontSize: 16,
-            color: Color(0xFF667085),
-          ),
+          style: const TextStyle(fontSize: 16, color: Color(0xFF667085)),
         ),
       ],
     );
@@ -1011,112 +977,80 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final filteredStudents = _filteredStudents;
 
     return RefreshIndicator(
-      onRefresh: _refreshStudents,
-      child: ListView(
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(22, 24, 22, 30),
-        children: [
-          _buildStatsCard(),
-          const SizedBox(height: 22),
-          const Text(
-            'Students',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF102A56),
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Track progress across all active interns.',
-            style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
-          ),
-          const SizedBox(height: 18),
-          if (_students.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 36),
-              child: Text(
-                'No students found yet.',
-                style: TextStyle(fontSize: 15, color: Color(0xFF667085)),
       onRefresh: _refreshDashboard,
       child: LayoutBuilder(
-        builder: (context, constraints) => ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(22, 24, 22, 30),
-          children: [
-            if (summary != null) _buildHeroCard(summary),
-            if (summary != null) ...[
+        builder: (context, constraints) {
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(22, 24, 22, 30),
+            children: [
+              if (summary != null) _buildHeroCard(summary),
+              if (summary != null) ...[
+                const SizedBox(height: 22),
+                _buildSummaryGrid(summary),
+                const SizedBox(height: 22),
+                _buildActionPanel(summary),
+              ],
               const SizedBox(height: 22),
-              _buildSummaryGrid(summary),
-              const SizedBox(height: 22),
-              _buildActionPanel(summary),
-            ],
-            const SizedBox(height: 22),
-            const Text(
-              'Student Operations',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF102A56),
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Filter the current page to find missing setup and follow-up work quickly.',
-              style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFF667085),
-              ),
-            ),
-            const SizedBox(height: 18),
-            _buildFilterChips(),
-            const SizedBox(height: 18),
-            if (filteredStudents.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 36),
-                child: Text(
-                  'No students matched this filter on the current page.',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Color(0xFF667085),
-                  ),
-                ),
-              )
-            else
-              ...filteredStudents.map(_buildStudentCard),
-            if (_errorMessage != null &&
-                (_students.isNotEmpty || _dashboardSummary != null))
-              Padding(
-                padding: const EdgeInsets.only(top: 8, bottom: 12),
-                child: Center(
-                  child: Column(
-                    children: [
-                      Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Color(0xFFB42318)),
-                      ),
-                      const SizedBox(height: 8),
-                      TextButton(
-                        onPressed: () => _loadDashboard(page: _currentPage),
-                        child: const Text('Try loading again'),
-                      ),
-                    ],
-                  ),
+              const Text(
+                'Student Operations',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF102A56),
                 ),
               ),
-            if (_isPageLoading)
-              const Padding(
-                padding: EdgeInsets.only(top: 8, bottom: 18),
-                child: Center(child: CircularProgressIndicator()),
+              const SizedBox(height: 6),
+              const Text(
+                'Filter the current page to find missing setup and follow-up work quickly.',
+                style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
               ),
-            if (_students.isNotEmpty || _totalStudents > 0) ...[
-              const SizedBox(height: 12),
-              _buildPaginationControls(constraints),
+              const SizedBox(height: 18),
+              _buildFilterChips(),
+              const SizedBox(height: 18),
+              if (filteredStudents.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 36),
+                  child: Text(
+                    'No students matched this filter on the current page.',
+                    style: TextStyle(fontSize: 15, color: Color(0xFF667085)),
+                  ),
+                )
+              else
+                ...filteredStudents.map(_buildStudentCard),
+              if (_errorMessage != null &&
+                  (_students.isNotEmpty || _dashboardSummary != null))
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 12),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Color(0xFFB42318)),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () => _loadDashboard(page: _currentPage),
+                          child: const Text('Try loading again'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (_isPageLoading)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8, bottom: 18),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              if (_students.isNotEmpty || _totalStudents > 0) ...[
+                const SizedBox(height: 12),
+                _buildPaginationControls(constraints),
+              ],
             ],
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -1157,8 +1091,5 @@ class _StudentFilter {
   final String key;
   final String label;
 
-  const _StudentFilter({
-    required this.key,
-    required this.label,
-  });
+  const _StudentFilter({required this.key, required this.label});
 }

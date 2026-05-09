@@ -106,23 +106,17 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     }
 
     if (profile != null) {
-      final reportFuture = _reportService.getReport().then<StudentReportData?>(
-        (value) => value,
-        onError: (error) {
-          reportError = _readErrorMessage(error);
-          return null;
-        },
-      );
-      final logsFuture = _logbookService.getLogs().then<List<LogEntryItem>>(
-        (value) => value,
-        onError: (error) {
-          logsError = _readErrorMessage(error);
-          return <LogEntryItem>[];
-        },
-      );
+      try {
+        report = await _reportService.getReport();
+      } catch (e) {
+        reportError = _readErrorMessage(e);
+      }
 
-      report = await reportFuture;
-      logs = await logsFuture;
+      try {
+        logs = await _logbookService.getLogs();
+      } catch (e) {
+        logsError = _readErrorMessage(e);
+      }
     }
 
     if (!mounted) return;
@@ -433,10 +427,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           final isCompact = constraints.maxWidth < 640;
 
           final attentionChip = Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 4,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: _attentionChipColors.$1,
               borderRadius: BorderRadius.circular(999),
@@ -485,10 +476,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               const SizedBox(height: 6),
               Text(
                 _nextActionDescription,
-                style: const TextStyle(
-                  color: Color(0xFF4A6480),
-                  height: 1.4,
-                ),
+                style: const TextStyle(color: Color(0xFF4A6480), height: 1.4),
               ),
               const SizedBox(height: 14),
               SizedBox(
@@ -523,7 +511,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           color: _nextActionColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(_primaryActionIcon, color: _nextActionColor),
+                        child: Icon(
+                          _primaryActionIcon,
+                          color: _nextActionColor,
+                        ),
                       ),
                       const SizedBox(height: 14),
                       content,
@@ -539,7 +530,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           color: _nextActionColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(_primaryActionIcon, color: _nextActionColor),
+                        child: Icon(
+                          _primaryActionIcon,
+                          color: _nextActionColor,
+                        ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(child: content),
@@ -776,10 +770,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               : (constraints.maxWidth - 12) / 2;
 
           final progressBadge = Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: progressBadgeTone.$1,
               borderRadius: BorderRadius.circular(999),
@@ -841,42 +832,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              minHeight: 12,
-              value: progressRatio,
-              backgroundColor: const Color(0xFFD8E2EC),
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                Color(0xFF0F4C5C),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _PaceTile(
-                label: 'Expected by Today',
-                value: _expectedHoursByToday != null
-                    ? '${_expectedHoursByToday!} h'
-                    : 'N/A',
-              ),
-              _PaceTile(label: 'Approved', value: '$_approvedHours h'),
-              _PaceTile(label: 'Pending Review', value: '$_pendingHours h'),
-              _PaceTile(
-                label: 'Pace After Pending',
-                value: () {
-                  final paceDelta = _paceDeltaAfterPending;
-                  if (paceDelta == null) return 'N/A';
-                  if (paceDelta < 0) return 'Behind by ${paceDelta.abs()} h';
-                  if (paceDelta > 0) return 'Ahead by $paceDelta h';
-                  return 'On pace';
-                }(),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 12,
@@ -905,7 +860,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     value: () {
                       final paceDelta = _paceDeltaAfterPending;
                       if (paceDelta == null) return 'N/A';
-                      if (paceDelta < 0) return 'Behind by ${paceDelta.abs()} h';
+                      if (paceDelta < 0) {
+                        return 'Behind by ${paceDelta.abs()} h';
+                      }
                       if (paceDelta > 0) return 'Ahead by $paceDelta h';
                       return 'On pace';
                     }(),
@@ -920,73 +877,33 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 ),
               ] else ...[
                 const SizedBox(height: 12),
-                Text(
-                  () {
-                    if (_requiredHours <= 0) {
-                      return 'Progress tracking will improve once required hours are available.';
-                    }
+                Text(() {
+                  if (_requiredHours <= 0) {
+                    return 'Progress tracking will improve once required hours are available.';
+                  }
 
-                    final approvedDelta = _paceDelta;
-                    final pendingDelta = _paceDeltaAfterPending;
-                    if (approvedDelta != null &&
-                        pendingDelta != null &&
-                        approvedDelta < 0 &&
-                        _pendingHours > 0) {
-                      final pendingStatus = pendingDelta < 0
-                          ? 'behind by ${pendingDelta.abs()} hours'
-                          : pendingDelta > 0
-                          ? 'ahead by $pendingDelta hours'
-                          : 'on pace';
+                  final approvedDelta = _paceDelta;
+                  final pendingDelta = _paceDeltaAfterPending;
+                  if (approvedDelta != null &&
+                      pendingDelta != null &&
+                      approvedDelta < 0 &&
+                      _pendingHours > 0) {
+                    final pendingStatus = pendingDelta < 0
+                        ? 'behind by ${pendingDelta.abs()} hours'
+                        : pendingDelta > 0
+                        ? 'ahead by $pendingDelta hours'
+                        : 'on pace';
 
-                      return 'You are ${approvedDelta.abs()} approved hours behind today. Pending review ($_pendingHours h) could move you to $pendingStatus once reviewed.';
-                    }
+                    return 'You are ${approvedDelta.abs()} approved hours behind today. Pending review ($_pendingHours h) could move you to $pendingStatus once reviewed.';
+                  }
 
-                    return 'Remaining: ${math.max(0, _requiredHours - _approvedHours)} hours';
-                  }(),
-                  style: const TextStyle(
-                    color: Color(0xFF4A6480),
-                    fontSize: 16,
-                  ),
-                ),
+                  return 'Remaining: ${math.max(0, _requiredHours - _approvedHours)} hours';
+                }(), style: const TextStyle(color: Color(0xFF4A6480), fontSize: 16)),
               ],
             ],
-          ),
-          if (_reportError != null) ...[
-            const SizedBox(height: 14),
-            Text(
-              _reportError!,
-              style: const TextStyle(color: Color(0xFFB42318)),
-            ),
-          ] else ...[
-            const SizedBox(height: 12),
-            Text(() {
-              if (_requiredHours <= 0) {
-                return 'Progress tracking will improve once required hours are available.';
-              }
-
-              final approvedDelta = _paceDelta;
-              final pendingDelta = _paceDeltaAfterPending;
-              if (approvedDelta != null &&
-                  pendingDelta != null &&
-                  approvedDelta < 0 &&
-                  _pendingHours > 0) {
-                final pendingStatus = pendingDelta < 0
-                    ? 'behind by ${pendingDelta.abs()} hours'
-                    : pendingDelta > 0
-                    ? 'ahead by $pendingDelta hours'
-                    : 'on pace';
-
-                return 'You are ${approvedDelta.abs()} approved hours behind today. Pending review ($_pendingHours h) could move you to $pendingStatus once reviewed.';
-              }
-
-              return 'Remaining: ${math.max(0, _requiredHours - _approvedHours)} hours';
-            }(), style: const TextStyle(color: Color(0xFF4A6480), fontSize: 16)),
-          ],
-        ],
-      ),
           );
         },
-        ),
+      ),
     );
   }
 
@@ -1146,7 +1063,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 child: OutlinedButton.icon(
                   onPressed: () => _openRoute(AppRoutes.internshipProfile),
                   icon: const Icon(Icons.business_center_outlined),
-                  label: const Text('View Profile'),
+                  label: const Text('Update Profile'),
                 ),
               ),
             ],
@@ -1423,14 +1340,9 @@ class _SummaryChip extends StatelessWidget {
 }
 
 class _PaceTile extends StatelessWidget {
-  const _PaceTile({required this.label, required this.value});
-  const _PaceTile({
-    required this.width,
-    required this.label,
-    required this.value,
-  });
+  const _PaceTile({this.width, required this.label, required this.value});
 
-  final double width;
+  final double? width;
   final String label;
   final String value;
 

@@ -74,13 +74,10 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   }
 
   Future<void> _openIntern(InternListItem detail) async {
-    final token = context.read<AuthProvider>().token ?? '';
-
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => InternDetailScreen(
-          token: token,
           role: 'adviser',
           profileId: detail.id,
           initialIntern: detail,
@@ -94,7 +91,6 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   }
 
   Future<void> _openInternReports() async {
-    final token = context.read<AuthProvider>().token ?? '';
     if (_interns.length == 1) {
       await _openIntern(_interns.first);
       return;
@@ -103,7 +99,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => InternListScreen(token: token, role: 'adviser'),
+        builder: (_) => const InternListScreen(role: 'adviser'),
       ),
     );
 
@@ -241,23 +237,6 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
             const SizedBox(width: 8),
             NotificationBellButton(token: authProvider.token ?? ''),
             const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  widget.userName,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: primaryTextColor,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Academic Adviser',
-                  style: TextStyle(fontSize: 13, color: secondaryTextColor),
-                ),
-              ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -298,19 +277,15 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
         );
 
         return Container(
-          padding: const EdgeInsets.fromLTRB(28, 20, 28, 20),
-          decoration: BoxDecoration(
-            color: surfaceColor,
-            border: Border(bottom: BorderSide(color: dividerColor)),
           padding: EdgeInsets.fromLTRB(
             isNarrow ? 16 : 28,
             20,
             isNarrow ? 16 : 28,
             20,
           ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            border: Border(bottom: BorderSide(color: Color(0xFFE6E8EC))),
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            border: Border(bottom: BorderSide(color: dividerColor)),
           ),
           child: isNarrow
               ? Column(
@@ -336,7 +311,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                   color: primaryTextColor,
                                 ),
                               ),
-                              SizedBox(height: 4),
+                              const SizedBox(height: 4),
                               Text(
                                 'Monitor student internship progress',
                                 style: TextStyle(
@@ -380,7 +355,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                               color: primaryTextColor,
                             ),
                           ),
-                          SizedBox(height: 4),
+                          const SizedBox(height: 4),
                           Text(
                             'Monitor student internship progress',
                             style: TextStyle(
@@ -817,8 +792,9 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                       child: LinearProgressIndicator(
                                         minHeight: 16,
                                         value: progress,
-                                        backgroundColor:
-                                            const Color(0xFFDDE2EA),
+                                        backgroundColor: const Color(
+                                          0xFFDDE2EA,
+                                        ),
                                         valueColor:
                                             AlwaysStoppedAnimation<Color>(
                                               _progressColor(detail, index),
@@ -908,8 +884,9 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
       onRefresh: _loadDashboardData,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final contentWidth =
-              constraints.maxWidth.clamp(0.0, 1240.0).toDouble();
+          final contentWidth = constraints.maxWidth
+              .clamp(0.0, 1240.0)
+              .toDouble();
           final maxWidth = contentWidth;
           final statCardWidth = maxWidth >= 1280
               ? (maxWidth - 54) / 4
