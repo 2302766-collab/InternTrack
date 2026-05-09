@@ -10,6 +10,7 @@ import 'package:intern_track_app/shared/models/intern_list_page.dart';
 void main() {
   group('InternListScreen pagination', () {
     testWidgets('loads first page and appends more interns', (tester) async {
+      _setLargeSurfaceSize(tester);
       final service = _FakeInternListService((request) async {
         if (request.page == 1) {
           return _page(
@@ -66,7 +67,13 @@ void main() {
       expect(find.text('Load More'), findsOneWidget);
       expect(service.requests.first.perPage, 20);
 
-      await tester.tap(find.text('Load More'));
+      final loadMoreButton = find.text('Load More');
+      await tester.scrollUntilVisible(
+        loadMoreButton,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(loadMoreButton, warnIfMissed: false);
       await tester.pumpAndSettle();
 
       expect(find.text('Ben Santos'), findsOneWidget);
@@ -159,6 +166,7 @@ void main() {
     });
 
     testWidgets('shows inline retry when load more fails', (tester) async {
+      _setLargeSurfaceSize(tester);
       var shouldFailLoadMore = true;
       final service = _FakeInternListService((request) async {
         if (request.page == 2 && shouldFailLoadMore) {
@@ -191,7 +199,13 @@ void main() {
       await tester.pumpWidget(_buildTestApp(service));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Load More'));
+      final loadMoreButton = find.text('Load More');
+      await tester.scrollUntilVisible(
+        loadMoreButton,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(loadMoreButton, warnIfMissed: false);
       await tester.pumpAndSettle();
 
       expect(find.text('Unable to load more interns.'), findsOneWidget);
@@ -203,6 +217,15 @@ void main() {
       expect(find.text('Ben Santos'), findsOneWidget);
       expect(find.text('All interns loaded.'), findsOneWidget);
     });
+  });
+}
+
+void _setLargeSurfaceSize(WidgetTester tester) {
+  tester.view.physicalSize = const Size(1440, 2200);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
   });
 }
 

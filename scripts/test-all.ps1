@@ -1,6 +1,8 @@
 param(
     [switch]$BackendOnly,
-    [switch]$FlutterOnly
+    [switch]$FlutterOnly,
+    [string[]]$BackendFiles = @(),
+    [string[]]$FlutterFiles = @()
 )
 
 $ErrorActionPreference = 'Stop'
@@ -27,7 +29,12 @@ function Invoke-BackendTests {
 
         docker compose exec -T mysql mariadb -uroot -psecret -e "CREATE DATABASE IF NOT EXISTS interntrack_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON interntrack_test.* TO 'interntrack_user'@'%'; FLUSH PRIVILEGES;"
 
-        docker exec interntrack_app php artisan test
+        $backendCommand = @('exec', 'interntrack_app', 'php', 'artisan', 'test')
+        if ($BackendFiles.Count -gt 0) {
+            $backendCommand += $BackendFiles
+        }
+
+        & docker $backendCommand
     }
     finally {
         Pop-Location
@@ -40,7 +47,12 @@ function Invoke-FlutterTests {
 
     Push-Location (Join-Path $repoRoot 'flutter')
     try {
-        flutter test
+        $flutterCommand = @('test')
+        if ($FlutterFiles.Count -gt 0) {
+            $flutterCommand += $FlutterFiles
+        }
+
+        & flutter $flutterCommand
     }
     finally {
         Pop-Location

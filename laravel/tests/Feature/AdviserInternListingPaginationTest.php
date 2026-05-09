@@ -63,6 +63,8 @@ class AdviserInternListingPaginationTest extends TestCase
             ->assertJsonPath('meta.last_page', 2)
             ->assertJsonPath('meta.per_page', 10)
             ->assertJsonPath('meta.total', 12)
+            ->assertJsonPath('meta.from', 11)
+            ->assertJsonPath('meta.to', 12)
             ->assertJsonPath('meta.has_more_pages', false)
             ->assertJsonMissing(['id' => $unassignedProfile->id]);
     }
@@ -126,6 +128,24 @@ class AdviserInternListingPaginationTest extends TestCase
                 'data' => [
                     'errors' => [
                         'per_page',
+                    ],
+                ],
+            ]);
+    }
+
+    public function test_adviser_intern_list_rejects_invalid_page_number(): void
+    {
+        $adviser = $this->createUserWithRole('Adviser');
+        Sanctum::actingAs($adviser);
+
+        $this->withHeader('Accept', 'application/json')
+            ->get('/api/v1/adviser/interns?page=0')
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Validation failed.')
+            ->assertJsonStructure([
+                'data' => [
+                    'errors' => [
+                        'page',
                     ],
                 ],
             ]);
