@@ -216,13 +216,18 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     return (_approvedHours + _pendingHours) - expected;
   }
 
+  bool get _isBehindPace {
+    final deltaAfterPending = _paceDeltaAfterPending;
+    return deltaAfterPending != null && deltaAfterPending < 0;
+  }
+
   bool get _profileComplete => _profile != null;
 
   String get _attentionChipLabel {
     if (!_profileComplete) return 'Profile Incomplete';
     if (!_hasTodayLog) return 'Action Needed';
     if (_pendingLogsCount > 0) return 'For Review';
-    if ((_paceDelta ?? 0) < 0) return 'Needs Recovery';
+    if (_isBehindPace) return 'Needs Recovery';
     return 'On Track';
   }
 
@@ -289,8 +294,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       return;
     }
 
-    if ((_paceDelta ?? 0) < 0) {
-      _openRoute(AppRoutes.studentDtr);
+    if (_isBehindPace) {
+      _openRoute(AppRoutes.logbook);
       return;
     }
 
@@ -301,7 +306,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     if (_profile == null) return 'Complete Internship Profile';
     if (!_hasTodayLog) return 'Add Today\'s Log';
     if (_pendingLogsCount > 0) return 'Review Pending Logs';
-    if ((_paceDelta ?? 0) < 0) return 'Continue Daily Time Record';
+    if (_isBehindPace) return 'Catch Up in Logbook';
     return 'View Full Report';
   }
 
@@ -309,7 +314,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     if (_profile == null) return Icons.business_center_outlined;
     if (!_hasTodayLog) return Icons.edit_note;
     if (_pendingLogsCount > 0) return Icons.pending_actions_outlined;
-    if ((_paceDelta ?? 0) < 0) return Icons.punch_clock_rounded;
+    if (_isBehindPace) return Icons.edit_note;
     return Icons.assessment_outlined;
   }
 
@@ -324,7 +329,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       final noun = _pendingLogsCount == 1 ? 'log' : 'logs';
       return 'You have $_pendingLogsCount $noun pending review';
     }
-    if ((_paceDelta ?? 0) < 0) {
+    if (_isBehindPace) {
       return 'You are behind expected pace';
     }
     return 'You are on track';
@@ -340,9 +345,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     if (_pendingLogsCount > 0) {
       return 'Your recent submissions are waiting for supervisor review. You can still open the logbook to inspect them.';
     }
-    final paceDelta = _paceDelta;
+    final paceDelta = _paceDeltaAfterPending;
     if (paceDelta != null && paceDelta < 0) {
-      return 'You are ${paceDelta.abs()} hours behind the expected pace for this point in your internship schedule.';
+      return 'You are ${paceDelta.abs()} hours behind expected pace. Add or update logs so your approved hours can catch up.';
     }
     return 'No immediate action is blocking you. Keep your DTR and daily logs current.';
   }
@@ -354,7 +359,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     if (!_hasTodayLog) {
       return const Color(0xFFB54708);
     }
-    if (_pendingLogsCount > 0 || ((_paceDelta ?? 0) < 0)) {
+    if (_pendingLogsCount > 0 || _isBehindPace) {
       return const Color(0xFFB54708);
     }
     return const Color(0xFF027A48);
