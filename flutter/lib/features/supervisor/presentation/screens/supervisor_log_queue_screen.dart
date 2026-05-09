@@ -15,26 +15,22 @@ typedef SupervisorLogReviewScreenBuilder =
       BuildContext context,
       SupervisorLogItem log,
       SupervisorLogService service,
-      String token,
     );
 
 class SupervisorPendingLogsScreen extends SupervisorLogQueueScreen {
   const SupervisorPendingLogsScreen({
     super.key,
-    required super.token,
     super.service,
     super.reviewScreenBuilder,
   });
 }
 
 class SupervisorLogQueueScreen extends StatefulWidget {
-  final String token;
   final SupervisorLogService? service;
   final SupervisorLogReviewScreenBuilder? reviewScreenBuilder;
 
   const SupervisorLogQueueScreen({
     super.key,
-    required this.token,
     this.service,
     this.reviewScreenBuilder,
   });
@@ -142,7 +138,7 @@ class _SupervisorLogQueueScreenState extends State<SupervisorLogQueueScreen> {
       context,
       MaterialPageRoute(
         builder: (context) =>
-            reviewScreenBuilder(context, log, _service, widget.token),
+            reviewScreenBuilder(context, log, _service),
       ),
     );
 
@@ -319,10 +315,8 @@ class _SupervisorLogQueueScreenState extends State<SupervisorLogQueueScreen> {
     BuildContext context,
     SupervisorLogItem log,
     SupervisorLogService service,
-    String token,
   ) {
     return SupervisorLogDetailScreen(
-      token: token,
       logId: log.id,
       initialLog: log,
       service: service,

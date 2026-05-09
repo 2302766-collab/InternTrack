@@ -13,13 +13,11 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import 'intern_detail_screen.dart';
 
 class InternListScreen extends StatefulWidget {
-  final String token;
   final String role;
   final InternListService? service;
 
   const InternListScreen({
     super.key,
-    required this.token,
     required this.role,
     this.service,
   });
@@ -259,7 +257,6 @@ class _InternListScreenState extends State<InternListScreen> {
               context,
               MaterialPageRoute(
                 builder: (_) => InternDetailScreen(
-                  token: widget.token,
                   role: widget.role,
                   profileId: intern.id,
                   initialIntern: intern,

@@ -27,12 +27,10 @@ typedef RecentLogReviewScreenBuilder =
       BuildContext context,
       LogEntryItem log,
       SupervisorLogService service,
-      String token,
       InternDetailItem intern,
     );
 
 class InternDetailScreen extends StatefulWidget {
-  final String token;
   final String role;
   final int profileId;
   final InternListItem? initialIntern;
@@ -42,7 +40,6 @@ class InternDetailScreen extends StatefulWidget {
 
   const InternDetailScreen({
     super.key,
-    required this.token,
     required this.role,
     required this.profileId,
     this.initialIntern,
@@ -168,7 +165,6 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => InternReportScreen(
-          token: widget.token,
           role: widget.role,
           studentId: intern.studentId,
           studentName: intern.studentName,
@@ -188,7 +184,6 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
           context,
           log,
           _logService,
-          widget.token,
           intern,
         ),
       ),
@@ -531,11 +526,9 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
     BuildContext context,
     LogEntryItem log,
     SupervisorLogService service,
-    String token,
     InternDetailItem intern,
   ) {
     return SupervisorLogDetailScreen(
-      token: token,
       logId: log.id,
       readOnly: widget.role.toLowerCase() == 'adviser',
       title: widget.role.toLowerCase() == 'adviser' ? 'Log Details' : null,

@@ -19,7 +19,6 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 enum _ActiveAction { approve, reject }
 
 class SupervisorLogDetailScreen extends StatefulWidget {
-  final String token;
   final int logId;
   final SupervisorLogService service;
   final SupervisorLogItem? initialLog;
@@ -29,7 +28,6 @@ class SupervisorLogDetailScreen extends StatefulWidget {
 
   const SupervisorLogDetailScreen({
     super.key,
-    required this.token,
     required this.logId,
     required this.service,
     this.initialLog,

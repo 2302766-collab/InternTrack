@@ -39,7 +39,6 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           SupervisorPendingLogsScreen(
-            token: 'token',
             service: service,
           ),
         ),
@@ -67,7 +66,6 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           SupervisorPendingLogsScreen(
-            token: 'token',
             service: _FakeSupervisorLogService(pendingLogs: const []),
           ),
         ),
@@ -84,7 +82,6 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           SupervisorPendingLogsScreen(
-            token: 'token',
             service: _FakeSupervisorLogService(
               pendingLogs: const [],
               pendingLogsError: ApiException(
@@ -118,7 +115,6 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           SupervisorPendingLogsScreen(
-            token: 'token',
             service: service,
           ),
         ),
@@ -143,7 +139,6 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           SupervisorPendingLogsScreen(
-            token: 'token',
             service: _FakeSupervisorLogService(
               pendingLogs: [
                 _buildLog(
@@ -154,7 +149,7 @@ void main() {
                 ),
               ],
             ),
-            reviewScreenBuilder: (context, log, service, token) {
+            reviewScreenBuilder: (context, log, service) {
               return Scaffold(
                 appBar: AppBar(title: const Text('Review Screen')),
                 body: Text('Log ID: ${log.id}'),
@@ -189,7 +184,6 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           SupervisorPendingLogsScreen(
-            token: 'token',
             service: service,
           ),
         ),

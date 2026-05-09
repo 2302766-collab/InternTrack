@@ -118,11 +118,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Future<void> _openPendingQueue() async {
-    final token = context.read<AuthProvider>().token ?? '';
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => SupervisorPendingLogsScreen(token: token),
+        builder: (_) => const SupervisorPendingLogsScreen(),
       ),
     );
 
@@ -132,11 +131,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Future<void> _openAssignedInterns() async {
-    final token = context.read<AuthProvider>().token ?? '';
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => InternListScreen(token: token, role: 'supervisor'),
+        builder: (_) => const InternListScreen(role: 'supervisor'),
       ),
     );
 
@@ -146,13 +144,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Future<void> _openLogReview(SupervisorLogItem log) async {
-    final token = context.read<AuthProvider>().token ?? '';
-
     final updated = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => SupervisorLogDetailScreen(
-          token: token,
           logId: log.id,
           initialLog: log,
           service: _logService,
@@ -245,63 +240,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     final dividerColor =
         theme.dividerTheme.color ?? theme.colorScheme.outlineVariant;
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(28, 20, 28, 20),
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        border: Border(bottom: BorderSide(color: dividerColor)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          IconButton(
-            onPressed: () async {
-              await context.read<AuthProvider>().logout();
-              if (!mounted) return;
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                AppRoutes.login,
-                (route) => false,
-              );
-            },
-            icon: const Icon(Icons.arrow_back),
-            tooltip: 'Logout',
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Supervisor Dashboard',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    color: primaryTextColor,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Review and manage student logs',
-                  style: TextStyle(fontSize: 14, color: secondaryTextColor),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Row(
-            children: [
-              const SettingsShortcutButton(),
-              const SizedBox(width: 8),
-              NotificationBellButton(token: authProvider.token ?? ''),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    widget.userName,
-                    style: TextStyle(
-                      color: primaryTextColor,
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 900;
@@ -309,9 +247,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
         final profileSection = Row(
           children: [
-            NotificationBellButton(
-              token: authProvider.token ?? '',
-            ),
+            const SettingsShortcutButton(),
+            const SizedBox(width: 8),
+            NotificationBellButton(token: authProvider.token ?? ''),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -331,13 +269,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   const SizedBox(height: 2),
                   Text(
                     'Company Supervisor',
-                    style: TextStyle(fontSize: 13, color: secondaryTextColor),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF68768A),
-                    ),
+                    style: TextStyle(fontSize: 13, color: secondaryTextColor),
                   ),
                 ],
               ),
@@ -364,11 +298,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             isNarrow ? 16 : 28,
             20,
           ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            border: Border(
-              bottom: BorderSide(color: Color(0xFFE6E8EC)),
-            ),
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            border: Border(bottom: BorderSide(color: dividerColor)),
           ),
           child: isNarrow
               ? Column(
@@ -392,15 +324,15 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                 style: TextStyle(
                                   fontSize: isCompact ? 20 : 24,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF102A56),
+                                  color: primaryTextColor,
                                 ),
                               ),
-                              SizedBox(height: 4),
+                              const SizedBox(height: 4),
                               Text(
                                 'Review and manage student logs',
                                 style: TextStyle(
                                   fontSize: isCompact ? 13 : 14,
-                                  color: Color(0xFF4A6480),
+                                  color: secondaryTextColor,
                                 ),
                               ),
                             ],
@@ -424,7 +356,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       tooltip: 'Logout',
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -433,7 +365,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF102A56),
+                              color: primaryTextColor,
                             ),
                           ),
                           SizedBox(height: 4),
@@ -441,7 +373,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                             'Review and manage student logs',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Color(0xFF4A6480),
+                              color: secondaryTextColor,
                             ),
                           ),
                         ],
@@ -951,8 +883,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       onRefresh: _loadDashboardData,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final viewportWidth =
-              constraints.maxWidth.clamp(0.0, 1240.0).toDouble();
+          final viewportWidth = constraints.maxWidth
+              .clamp(0.0, 1240.0)
+              .toDouble();
           final isNarrow = viewportWidth < 900;
           final statCardWidth = viewportWidth >= 1080
               ? (viewportWidth - 24) / 3

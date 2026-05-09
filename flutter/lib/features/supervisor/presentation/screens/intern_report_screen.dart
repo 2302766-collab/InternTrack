@@ -12,14 +12,12 @@ import '../../../../shared/widgets/dashboard_info_card.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class InternReportScreen extends StatefulWidget {
-  final String token;
   final String role;
   final int studentId;
   final String studentName;
 
   const InternReportScreen({
     super.key,
-    required this.token,
     required this.role,
     required this.studentId,
     required this.studentName,
