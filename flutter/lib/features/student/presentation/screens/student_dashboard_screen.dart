@@ -889,82 +889,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 ),
               ],
             ],
-<<<<<<< HEAD
           );
         },
-=======
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              minHeight: 12,
-              value: progressRatio,
-              backgroundColor: const Color(0xFFD8E2EC),
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                Color(0xFF0F4C5C),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _PaceTile(
-                label: 'Expected by Today',
-                value: _expectedHoursByToday != null
-                    ? '${_expectedHoursByToday!} h'
-                    : 'N/A',
-              ),
-              _PaceTile(label: 'Approved', value: '$_approvedHours h'),
-              _PaceTile(label: 'Pending Review', value: '$_pendingHours h'),
-              _PaceTile(
-                label: 'Pace After Pending',
-                value: () {
-                  final paceDelta = _paceDeltaAfterPending;
-                  if (paceDelta == null) return 'N/A';
-                  if (paceDelta < 0) return 'Behind by ${paceDelta.abs()} h';
-                  if (paceDelta > 0) return 'Ahead by $paceDelta h';
-                  return 'On pace';
-                }(),
-              ),
-            ],
-          ),
-          if (_reportError != null) ...[
-            const SizedBox(height: 14),
-            Text(
-              _reportError!,
-              style: const TextStyle(color: Color(0xFFB42318)),
-            ),
-          ] else ...[
-            const SizedBox(height: 12),
-            Text(() {
-              if (_requiredHours <= 0) {
-                return 'Progress tracking will improve once required hours are available.';
-              }
-
-              final approvedDelta = _paceDelta;
-              final pendingDelta = _paceDeltaAfterPending;
-              if (approvedDelta != null &&
-                  pendingDelta != null &&
-                  approvedDelta < 0 &&
-                  _pendingHours > 0) {
-                final pendingStatus = pendingDelta < 0
-                    ? 'behind by ${pendingDelta.abs()} hours'
-                    : pendingDelta > 0
-                    ? 'ahead by $pendingDelta hours'
-                    : 'on pace';
-
-                return 'You are ${approvedDelta.abs()} approved hours behind today. Pending review ($_pendingHours h) could move you to $pendingStatus once reviewed.';
-              }
-
-              return 'Remaining: ${math.max(0, _requiredHours - _approvedHours)} hours';
-            }(), style: const TextStyle(color: Color(0xFF4A6480), fontSize: 16)),
-          ],
-        ],
->>>>>>> b399481542d8197646b57ad199b7e5030298c80f
-      ),
+        ),
     );
   }
 
@@ -1205,7 +1132,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _loadDashboard,
-<<<<<<< HEAD
         child: LayoutBuilder(
           builder: (context, constraints) {
             final horizontalPadding = constraints.maxWidth < 640 ? 12.0 : 16.0;
@@ -1226,6 +1152,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                             padding: EdgeInsets.symmetric(vertical: 32),
                             child: Center(child: CircularProgressIndicator()),
                           )
+                        else if (_dashboardError != null)
+                          _buildDashboardErrorState()
                         else ...[
                           _buildNextActionSection(),
                           const SizedBox(height: 16),
@@ -1240,38 +1168,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       ],
                     ),
                   ),
-=======
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1220),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(context),
-                    const SizedBox(height: 20),
-                    if (_isLoading)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 32),
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    else if (_dashboardError != null)
-                      _buildDashboardErrorState()
-                    else ...[
-                      _buildNextActionSection(),
-                      const SizedBox(height: 16),
-                      _buildSummaryAndMetricsSection(),
-                      const SizedBox(height: 16),
-                      _buildProgressAndPaceSection(),
-                      const SizedBox(height: 16),
-                      _buildRecentLogsSection(),
-                      const SizedBox(height: 16),
-                      _buildQuickActionsSection(),
-                    ],
-                  ],
->>>>>>> b399481542d8197646b57ad199b7e5030298c80f
                 ),
               ],
             );
@@ -1431,15 +1327,11 @@ class _SummaryChip extends StatelessWidget {
 }
 
 class _PaceTile extends StatelessWidget {
-<<<<<<< HEAD
   const _PaceTile({
     required this.width,
     required this.label,
     required this.value,
   });
-=======
-  const _PaceTile({required this.label, required this.value});
->>>>>>> b399481542d8197646b57ad199b7e5030298c80f
 
   final double width;
   final String label;
