@@ -7,3 +7,6 @@
 # Local SDK artifacts
 flutter-sdk/
 flutter_linux_*.tar.xz
+
+# Local git worktrees
+.worktrees/
