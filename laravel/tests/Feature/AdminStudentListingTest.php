@@ -110,6 +110,73 @@ class AdminStudentListingTest extends TestCase
             ->assertJsonPath('meta.has_more_pages', true);
     }
 
+    public function test_students_endpoint_respects_requested_page_and_page_size(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+
+        for ($i = 1; $i <= 15; $i++) {
+            $this->createUserWithRole('Student', "Student {$i}");
+        }
+
+        Sanctum::actingAs($admin);
+
+        $response = $this->withHeader('Accept', 'application/json')
+            ->get('/api/v1/admin/students?page=2&per_page=10');
+
+        $response->assertOk()
+            ->assertJsonCount(5, 'data')
+            ->assertJsonPath('data.0.name', 'Student 11')
+            ->assertJsonPath('meta.current_page', 2)
+            ->assertJsonPath('meta.per_page', 10)
+            ->assertJsonPath('meta.total', 15)
+            ->assertJsonPath('meta.last_page', 2)
+            ->assertJsonPath('meta.has_more_pages', false);
+    }
+
+    public function test_students_endpoint_returns_empty_payload_when_student_role_is_missing(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->createUserWithRole('Supervisor', 'Non Student User');
+
+        Sanctum::actingAs($admin);
+
+        $this->withHeader('Accept', 'application/json')
+            ->get('/api/v1/admin/students?per_page=20')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertExactJson([
+                'success' => true,
+                'message' => 'Admin students retrieved successfully.',
+                'data' => [],
+                'meta' => [
+                    'current_page' => 1,
+                    'per_page' => 20,
+                    'total' => 0,
+                    'last_page' => 1,
+                    'has_more_pages' => false,
+                ],
+            ]);
+    }
+
+    public function test_students_endpoint_rejects_invalid_page_size(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+
+        Sanctum::actingAs($admin);
+
+        $this->withHeader('Accept', 'application/json')
+            ->get('/api/v1/admin/students?per_page=9')
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Validation failed.')
+            ->assertJsonStructure([
+                'data' => [
+                    'errors' => [
+                        'per_page',
+                    ],
+                ],
+            ]);
+    }
+
     public function test_non_admin_cannot_retrieve_students_listing(): void
     {
         $student = $this->createUserWithRole('Student');

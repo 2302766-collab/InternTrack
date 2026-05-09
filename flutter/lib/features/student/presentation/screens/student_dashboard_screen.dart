@@ -14,6 +14,7 @@ import '../../../../shared/models/log_entry.dart';
 import '../../../../shared/models/student_report.dart';
 import '../../../../shared/widgets/dashboard_info_card.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
+import '../../../../shared/widgets/settings_shortcut_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class StudentDashboardScreen extends StatefulWidget {
@@ -816,6 +817,42 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   ),
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              minHeight: 12,
+              value: progressRatio,
+              backgroundColor: const Color(0xFFD8E2EC),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Color(0xFF0F4C5C),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _PaceTile(
+                label: 'Expected by Today',
+                value: _expectedHoursByToday != null
+                    ? '${_expectedHoursByToday!} h'
+                    : 'N/A',
+              ),
+              _PaceTile(label: 'Approved', value: '$_approvedHours h'),
+              _PaceTile(label: 'Pending Review', value: '$_pendingHours h'),
+              _PaceTile(
+                label: 'Pace After Pending',
+                value: () {
+                  final paceDelta = _paceDeltaAfterPending;
+                  if (paceDelta == null) return 'N/A';
+                  if (paceDelta < 0) return 'Behind by ${paceDelta.abs()} h';
+                  if (paceDelta > 0) return 'Ahead by $paceDelta h';
+                  return 'On pace';
+                }(),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 12,
@@ -889,6 +926,40 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 ),
               ],
             ],
+          ),
+          if (_reportError != null) ...[
+            const SizedBox(height: 14),
+            Text(
+              _reportError!,
+              style: const TextStyle(color: Color(0xFFB42318)),
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
+            Text(() {
+              if (_requiredHours <= 0) {
+                return 'Progress tracking will improve once required hours are available.';
+              }
+
+              final approvedDelta = _paceDelta;
+              final pendingDelta = _paceDeltaAfterPending;
+              if (approvedDelta != null &&
+                  pendingDelta != null &&
+                  approvedDelta < 0 &&
+                  _pendingHours > 0) {
+                final pendingStatus = pendingDelta < 0
+                    ? 'behind by ${pendingDelta.abs()} hours'
+                    : pendingDelta > 0
+                    ? 'ahead by $pendingDelta hours'
+                    : 'on pace';
+
+                return 'You are ${approvedDelta.abs()} approved hours behind today. Pending review ($_pendingHours h) could move you to $pendingStatus once reviewed.';
+              }
+
+              return 'Remaining: ${math.max(0, _requiredHours - _approvedHours)} hours';
+            }(), style: const TextStyle(color: Color(0xFF4A6480), fontSize: 16)),
+          ],
+        ],
+      ),
           );
         },
         ),
@@ -1114,6 +1185,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       appBar: AppBar(
         title: const Text('InternTrack'),
         actions: [
+          const SettingsShortcutButton(),
           NotificationBellButton(token: token),
           IconButton(
             tooltip: 'Logout',
@@ -1327,6 +1399,7 @@ class _SummaryChip extends StatelessWidget {
 }
 
 class _PaceTile extends StatelessWidget {
+  const _PaceTile({required this.label, required this.value});
   const _PaceTile({
     required this.width,
     required this.label,

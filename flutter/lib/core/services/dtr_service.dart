@@ -17,7 +17,7 @@ class DtrExportFile {
 }
 
 /// Service for managing Daily Time Records (DTR)
-/// 
+///
 /// Handles punch operations (time-in, time-out, lunch breaks) and DTR exports
 /// All methods throw [ApiException] for consistent error handling
 class DtrService extends BaseService {
@@ -26,7 +26,7 @@ class DtrService extends BaseService {
   DtrService(this._apiClient);
 
   /// Fetches today's DTR record
-  /// 
+  ///
   /// Throws [ApiException] with user-friendly error messages
   Future<DailyTimeRecord> getTodayRecord() async {
     try {
@@ -41,11 +41,9 @@ class DtrService extends BaseService {
   }
 
   /// Punches in/out or takes lunch break
-  /// 
+  ///
   /// Action should be: 'time-in', 'time-out', 'lunch-in', 'lunch-out'
-  Future<DailyTimeRecord> punch({
-    required String action,
-  }) async {
+  Future<DailyTimeRecord> punch({required String action}) async {
     try {
       return await _apiClient.post<DailyTimeRecord>(
         path: '/student/dtr/$action',
@@ -69,50 +67,68 @@ class DtrService extends BaseService {
   /// Punch out for the day
   Future<DailyTimeRecord> timeOut() => punch(action: 'time-out');
 
-  /// Exports DTR as PDF for given month/year
-  /// 
+  /// Exports DTR as PDF for a monthly or filtered range export
+  ///
   /// Throws [ApiException] if export fails
   /// Returns DtrExportFile with bytes and filename
   Future<DtrExportFile> exportPdf({
-    required int month,
-    required int year,
-  }) =>
-      _exportMonthly(
-        month: month,
-        year: year,
-        format: 'pdf',
-        fallbackMimeType: 'application/pdf',
-      );
+    int? month,
+    int? year,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) => _exportMonthly(
+    month: month,
+    year: year,
+    startDate: startDate,
+    endDate: endDate,
+    format: 'pdf',
+    fallbackMimeType: 'application/pdf',
+  );
 
-  /// Exports DTR as Excel/CSV for given month/year
-  /// 
+  /// Exports DTR as Excel/CSV for a monthly or filtered range export
+  ///
   /// Throws [ApiException] if export fails
   /// Returns DtrExportFile with bytes and filename
   Future<DtrExportFile> exportExcel({
-    required int month,
-    required int year,
-  }) =>
-      _exportMonthly(
-        month: month,
-        year: year,
-        format: 'excel',
-        fallbackMimeType: 'text/csv',
-      );
+    int? month,
+    int? year,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) => _exportMonthly(
+    month: month,
+    year: year,
+    startDate: startDate,
+    endDate: endDate,
+    format: 'excel',
+    fallbackMimeType: 'text/csv',
+  );
 
   /// Downloads and returns DTR export file
   Future<DtrExportFile> _exportMonthly({
-    required int month,
-    required int year,
+    int? month,
+    int? year,
+    DateTime? startDate,
+    DateTime? endDate,
     required String format,
     required String fallbackMimeType,
   }) async {
+    final queryParameters = _buildExportQueryParameters(
+      month: month,
+      year: year,
+      startDate: startDate,
+      endDate: endDate,
+    );
+    final resolvedYear = year ?? startDate!.year;
+    final resolvedMonth = month ?? startDate!.month;
+
     try {
       final bytes = await _apiClient.download(
-        path: '/student/dtr/export/$format?month=$month&year=$year',
+        path: '/student/dtr/export/$format',
+        queryParameters: queryParameters,
       );
 
       final filename =
-          'dtr_$year-${month.toString().padLeft(2, '0')}.${format == 'pdf' ? 'pdf' : 'csv'}';
+          'dtr_$resolvedYear-${resolvedMonth.toString().padLeft(2, '0')}.${format == 'pdf' ? 'pdf' : 'csv'}';
 
       return DtrExportFile(
         bytes: bytes,
@@ -123,6 +139,47 @@ class DtrService extends BaseService {
       handleApiError(e);
       rethrow;
     }
+  }
+
+  Map<String, dynamic> _buildExportQueryParameters({
+    int? month,
+    int? year,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) {
+    final hasDateRange = startDate != null || endDate != null;
+
+    if (hasDateRange) {
+      if (startDate == null || endDate == null) {
+        throw ApiException(
+          message:
+              'Both start and end dates are required for filtered exports.',
+          errorType: ApiErrorType.clientError,
+          isRecoverable: false,
+        );
+      }
+
+      return <String, dynamic>{
+        'start_date': _formatDate(startDate),
+        'end_date': _formatDate(endDate),
+      };
+    }
+
+    if (month == null || year == null) {
+      throw ApiException(
+        message: 'Month and year are required when no date range is provided.',
+        errorType: ApiErrorType.clientError,
+        isRecoverable: false,
+      );
+    }
+
+    return <String, dynamic>{'month': month, 'year': year};
+  }
+
+  String _formatDate(DateTime value) {
+    return '${value.year.toString().padLeft(4, '0')}-'
+        '${value.month.toString().padLeft(2, '0')}-'
+        '${value.day.toString().padLeft(2, '0')}';
   }
 
   /// Parses DTR response and returns DailyTimeRecord

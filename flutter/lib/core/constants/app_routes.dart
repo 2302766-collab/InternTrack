@@ -14,6 +14,7 @@ class AppRoutes {
   static const logbook = '/logbook';
   static const studentReport = '/student-report';
   static const studentAdviserAssignment = '/student-adviser-assignment';
+  static const settings = '/settings';
 
   static const authGate = '/auth-gate';
 }

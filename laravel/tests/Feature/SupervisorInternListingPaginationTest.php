@@ -64,6 +64,8 @@ class SupervisorInternListingPaginationTest extends TestCase
             ->assertJsonPath('meta.last_page', 2)
             ->assertJsonPath('meta.per_page', 20)
             ->assertJsonPath('meta.total', 25)
+            ->assertJsonPath('meta.from', 1)
+            ->assertJsonPath('meta.to', 20)
             ->assertJsonPath('meta.has_more_pages', true)
             ->assertJsonMissing(['id' => $unassignedProfile->id]);
     }
@@ -126,6 +128,24 @@ class SupervisorInternListingPaginationTest extends TestCase
                 'data' => [
                     'errors' => [
                         'per_page',
+                    ],
+                ],
+            ]);
+    }
+
+    public function test_supervisor_intern_list_rejects_invalid_page_number(): void
+    {
+        $supervisor = $this->createUserWithRole('Supervisor');
+        Sanctum::actingAs($supervisor);
+
+        $this->withHeader('Accept', 'application/json')
+            ->get('/api/v1/supervisor/interns?page=0')
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Validation failed.')
+            ->assertJsonStructure([
+                'data' => [
+                    'errors' => [
+                        'page',
                     ],
                 ],
             ]);

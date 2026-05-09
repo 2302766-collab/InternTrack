@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         
         // Apply security headers to all API routes
         $middleware->group('api', [
+            \App\Http\Middleware\RequestTracingMiddleware::class,
             \App\Http\Middleware\SecurityHeadersMiddleware::class,
         ]);
     })

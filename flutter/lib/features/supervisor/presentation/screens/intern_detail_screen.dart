@@ -9,12 +9,12 @@ import '../../../../core/utils/file_download_stub.dart'
     as file_download;
 import '../../../../core/services/intern_list_service.dart';
 import '../../../../core/services/supervisor_log_service.dart';
-import '../../../../core/utils/date_formatter.dart';
 import '../../../../shared/models/intern_detail.dart';
 import '../../../../shared/models/intern_list_item.dart';
 import '../../../../shared/models/log_entry.dart';
 import '../../../../shared/models/supervisor_log_item.dart';
 import '../../../../shared/widgets/dashboard_info_card.dart';
+import '../../../../shared/widgets/dtr_export_dialog.dart';
 import '../../../../shared/widgets/progress_widget.dart';
 import 'intern_report_screen.dart';
 import 'supervisor_log_detail_screen.dart';
@@ -62,15 +62,15 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
   bool _isExportingExcel = false;
   String? _errorMessage;
   InternDetailItem? _intern;
-  late int _selectedMonth;
-  late int _selectedYear;
+  late DateTime _exportStartDate;
+  late DateTime _exportEndDate;
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
-    _selectedMonth = now.month;
-    _selectedYear = now.year;
+    _exportStartDate = DateTime(now.year, now.month, 1);
+    _exportEndDate = DateTime(now.year, now.month + 1, 0);
     final injectedService = widget.service;
     final injectedLogService = widget.logService;
 
@@ -82,10 +82,7 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
       _service = injectedService ?? InternListService(apiClient);
       _logService =
           injectedLogService ??
-          SupervisorLogService(
-            apiClient,
-            role: widget.role.toLowerCase(),
-          );
+          SupervisorLogService(apiClient, role: widget.role.toLowerCase());
     }
     _loadIntern();
   }
@@ -174,8 +171,8 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
   Future<void> _exportDtr({
     required InternDetailItem intern,
     required bool pdf,
-    required int month,
-    required int year,
+    required DateTime startDate,
+    required DateTime endDate,
   }) async {
     if ((pdf && _isExportingPdf) || (!pdf && _isExportingExcel)) {
       return;
@@ -193,8 +190,8 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
       final file = await _reportingService.exportDtr(
         role: widget.role,
         studentId: intern.studentId,
-        month: month,
-        year: year,
+        startDate: startDate,
+        endDate: endDate,
         pdf: pdf,
       );
 
@@ -242,15 +239,44 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
     }
   }
 
+  Future<void> _openExportDialog(InternDetailItem intern) async {
+    if (_isExportingPdf || _isExportingExcel) {
+      return;
+    }
+
+    final selection = await showDtrExportDialog(
+      context,
+      initialStartDate: _exportStartDate,
+      initialEndDate: _exportEndDate,
+      title: 'Export Dialog',
+      description:
+          'Choose a date range within one month. The exported DTR layout stays unchanged.',
+    );
+
+    if (selection == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _exportStartDate = selection.startDate;
+      _exportEndDate = selection.endDate;
+    });
+
+    await _exportDtr(
+      intern: intern,
+      pdf: selection.pdf,
+      startDate: selection.startDate,
+      endDate: selection.endDate,
+    );
+  }
+
   Widget _buildActionsCard(InternDetailItem intern) {
     final titlePrefix = widget.role.isNotEmpty
         ? '${widget.role[0].toUpperCase()}${widget.role.substring(1).toLowerCase()}'
         : 'Intern';
-    final selectedDate = DateTime(_selectedYear, _selectedMonth);
-    final monthOptions = List<int>.generate(12, (i) => i + 1);
-    final currentYear = DateTime.now().year;
-    final yearOptions =
-        List<int>.generate(5, (i) => currentYear - 4 + i);
+    final rangeLabel =
+        '${DateFormat('MMM d, yyyy').format(_exportStartDate)} - '
+        '${DateFormat('MMM d, yyyy').format(_exportEndDate)}';
 
     return DashboardInfoCard(
       title: '$titlePrefix Tools',
@@ -262,61 +288,36 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
             style: const TextStyle(color: Color(0xFF526072)),
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  initialValue: _selectedMonth,
-                  decoration: const InputDecoration(
-                    labelText: 'Month',
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFD0D5DD)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Selected export range',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF475467),
                   ),
-                  items: monthOptions
-                      .map(
-                        (month) => DropdownMenuItem<int>(
-                          value: month,
-                          child: Text(
-                            DateFormat('MMMM')
-                                .format(DateTime(2000, month)),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (_isExportingPdf || _isExportingExcel)
-                      ? null
-                      : (value) {
-                          if (value == null) return;
-                          setState(() {
-                            _selectedMonth = value;
-                          });
-                        },
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  initialValue: _selectedYear,
-                  decoration: const InputDecoration(
-                    labelText: 'Year',
+                const SizedBox(height: 4),
+                Text(
+                  rangeLabel,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF102A56),
                   ),
-                  items: yearOptions
-                      .map(
-                        (year) => DropdownMenuItem<int>(
-                          value: year,
-                          child: Text('$year'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (_isExportingPdf || _isExportingExcel)
-                      ? null
-                      : (value) {
-                          if (value == null) return;
-                          setState(() {
-                            _selectedYear = value;
-                          });
-                        },
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -329,47 +330,22 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
                 label: const Text('View Report'),
               ),
               OutlinedButton.icon(
-                onPressed: _isExportingPdf
+                onPressed: _isExportingPdf || _isExportingExcel
                     ? null
-                    : () => _exportDtr(
-                          intern: intern,
-                          pdf: true,
-                          month: _selectedMonth,
-                          year: _selectedYear,
-                        ),
-                icon: _isExportingPdf
+                    : () => _openExportDialog(intern),
+                icon: _isExportingPdf || _isExportingExcel
                     ? const SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.picture_as_pdf_outlined),
+                    : const Icon(Icons.file_download_outlined),
                 label: Text(
                   _isExportingPdf
                       ? 'Opening...'
-                      : 'Open ${DateFormatter.formatMonthYear(selectedDate)} DTR PDF',
-                ),
-              ),
-              OutlinedButton.icon(
-                onPressed: _isExportingExcel
-                    ? null
-                    : () => _exportDtr(
-                          intern: intern,
-                          pdf: false,
-                          month: _selectedMonth,
-                          year: _selectedYear,
-                        ),
-                icon: _isExportingExcel
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.table_chart_outlined),
-                label: Text(
-                  _isExportingExcel
+                      : _isExportingExcel
                       ? 'Downloading...'
-                      : 'Download ${DateFormatter.formatMonthYear(selectedDate)} DTR CSV',
+                      : 'Open Export Dialog',
                 ),
               ),
             ],
