@@ -6,6 +6,7 @@ import '../../../../core/constants/app_routes.dart';
 import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/intern_reporting_service.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/file_download_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_download_web.dart'
     as file_download;
@@ -418,6 +419,7 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
   Widget _buildRecentLogCard(InternDetailItem intern, int index) {
     final log = intern.recentLogs[index];
     final statusColor = _statusColor(log.status);
+    final dateLabel = DateFormatter.formatApiDate(log.date);
     final role = widget.role.toLowerCase();
     final isLogDetailContext = role == 'supervisor' || role == 'adviser';
     final canOpenLog = isLogDetailContext && log.id > 0;
@@ -458,7 +460,7 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        log.date,
+                        dateLabel,
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
                     ),
@@ -557,6 +559,12 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
     final roleTitle = widget.role.isNotEmpty
         ? '${widget.role[0].toUpperCase()}${widget.role.substring(1).toLowerCase()}'
         : 'Role';
+    final startDate = (intern.startDate ?? '').trim();
+    final endDate = (intern.endDate ?? '').trim();
+    final hasSchedule = startDate.isNotEmpty && endDate.isNotEmpty;
+    final scheduleLabel = hasSchedule
+        ? '${DateFormatter.formatApiDate(startDate)} to ${DateFormatter.formatApiDate(endDate)}'
+        : null;
 
     return RefreshIndicator(
       onRefresh: _loadIntern,
@@ -580,11 +588,7 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
                 Text('Company: ${intern.companyName}'),
                 if (intern.companyAddress.isNotEmpty)
                   Text('Address: ${intern.companyAddress}'),
-                if ((intern.startDate ?? '').isNotEmpty &&
-                    (intern.endDate ?? '').isNotEmpty)
-                  Text(
-                    'Internship Dates: ${intern.startDate} to ${intern.endDate}',
-                  ),
+                if (scheduleLabel != null) Text('Internship Dates: $scheduleLabel'),
                 const SizedBox(height: 8),
                 Text(
                   'Supervisor: ${intern.supervisorName?.trim().isNotEmpty == true ? intern.supervisorName : intern.supervisorId?.toString() ?? "Not assigned"}',
