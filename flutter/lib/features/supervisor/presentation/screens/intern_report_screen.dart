@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -28,11 +30,15 @@ class InternReportScreen extends StatefulWidget {
 }
 
 class _InternReportScreenState extends State<InternReportScreen> {
+  static const int _initialVisibleLogCount = 20;
+  static const int _visibleLogStep = 20;
+
   final InternReportingService _reportService = InternReportingService();
 
   Future<StudentReportData>? _reportFuture;
   DateTime? _startDate;
   DateTime? _endDate;
+  int _visibleLogCount = _initialVisibleLogCount;
 
   @override
   void initState() {
@@ -79,6 +85,7 @@ class _InternReportScreenState extends State<InternReportScreen> {
         );
 
     setState(() {
+      _visibleLogCount = _initialVisibleLogCount;
       _reportFuture = reportFuture;
     });
   }
@@ -276,7 +283,7 @@ class _InternReportScreenState extends State<InternReportScreen> {
         child: report.logs.isEmpty
             ? const Text('No approved logs found for the selected date range.')
             : Column(
-                children: report.logs.map((log) {
+                children: report.logs.take(_visibleLogCount).map((log) {
                   return Container(
                     width: double.infinity,
                     margin: const EdgeInsets.only(bottom: 12),
@@ -316,6 +323,25 @@ class _InternReportScreenState extends State<InternReportScreen> {
                 }).toList(),
               ),
       ),
+      if (report.logs.length > _visibleLogCount) ...[
+        const SizedBox(height: 12),
+        Center(
+          child: OutlinedButton.icon(
+            onPressed: () {
+              setState(() {
+                _visibleLogCount = math.min(
+                  _visibleLogCount + _visibleLogStep,
+                  report.logs.length,
+                );
+              });
+            },
+            icon: const Icon(Icons.expand_more),
+            label: Text(
+              'Show more logs (${report.logs.length - _visibleLogCount} remaining)',
+            ),
+          ),
+        ),
+      ],
     ];
   }
 
