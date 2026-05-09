@@ -13,14 +13,12 @@ import 'log_edit_screen.dart';
 
 class LogDetailScreen extends StatefulWidget {
   final int logId;
-  final String token;
   final LogbookService service;
   final LogEntryItem? initialLog;
 
   const LogDetailScreen({
     super.key,
     required this.logId,
-    required this.token,
     required this.service,
     this.initialLog,
   });
@@ -1082,7 +1080,6 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
       MaterialPageRoute(
         builder: (_) => LogEditScreen(
           log: _log,
-          token: widget.token,
           service: widget.service,
         ),
       ),

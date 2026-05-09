@@ -5,12 +5,7 @@ import '../../../../shared/models/supervisor_option.dart';
 import '../../../../core/services/internship_service.dart';
 
 class InternshipProfileScreen extends StatefulWidget {
-  final String token;
-
-  const InternshipProfileScreen({
-    super.key,
-    required this.token,
-  });
+  const InternshipProfileScreen({super.key});
 
   @override
   State<InternshipProfileScreen> createState() => _InternshipProfileScreenState();

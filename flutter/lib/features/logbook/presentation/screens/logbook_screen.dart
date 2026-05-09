@@ -149,7 +149,6 @@ class _LogbookScreenState extends State<LogbookScreen> {
         builder: (_) => LogDetailScreen(
           logId: log.id,
           initialLog: log,
-          token: _token,
           service: _service,
         ),
       ),
@@ -172,7 +171,7 @@ class _LogbookScreenState extends State<LogbookScreen> {
       context,
       MaterialPageRoute(
         builder: (_) =>
-            LogEditScreen(log: log, token: _token, service: _service),
+            LogEditScreen(log: log, service: _service),
       ),
     );
 

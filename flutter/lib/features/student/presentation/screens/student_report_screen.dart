@@ -9,12 +9,7 @@ import '../../../../shared/models/student_report.dart';
 import '../../../../shared/widgets/dashboard_info_card.dart';
 
 class StudentReportScreen extends StatefulWidget {
-  final String token;
-
-  const StudentReportScreen({
-    super.key,
-    required this.token,
-  });
+  const StudentReportScreen({super.key});
 
   @override
   State<StudentReportScreen> createState() => _StudentReportScreenState();

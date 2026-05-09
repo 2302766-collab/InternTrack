@@ -249,11 +249,10 @@ class InternTrackApp extends StatelessWidget {
               },
 
               AppRoutes.internshipProfile: (_) {
-                final token = authProvider.token ?? '';
                 return _guardRoleRoute(
                   authProvider,
                   'student',
-                  InternshipProfileScreen(token: token),
+                  const InternshipProfileScreen(),
                 );
               },
 
@@ -274,11 +273,10 @@ class InternTrackApp extends StatelessWidget {
               },
 
               AppRoutes.studentReport: (_) {
-                final token = authProvider.token ?? '';
                 return _guardRoleRoute(
                   authProvider,
                   'student',
-                  StudentReportScreen(token: token),
+                  const StudentReportScreen(),
                 );
               },
 
