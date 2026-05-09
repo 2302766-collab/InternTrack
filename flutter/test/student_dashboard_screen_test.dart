@@ -72,18 +72,18 @@ void main() {
           logbookService: _FakeLogbookService(
             logs: <LogEntryItem>[
               _buildLog(
-                id: 11,
-                date: _formatApiDate(yesterday),
-                hoursRendered: 8,
-                status: 'PENDING',
-                taskDescription: 'Completed daily development tasks.',
-              ),
-              _buildLog(
                 id: 10,
                 date: '2026-04-18',
                 hoursRendered: 7,
                 status: 'APPROVED',
                 taskDescription: 'Fixed UI issues and tested forms.',
+              ),
+              _buildLog(
+                id: 11,
+                date: _formatApiDate(yesterday),
+                hoursRendered: 8,
+                status: 'PENDING',
+                taskDescription: 'Completed daily development tasks.',
               ),
             ],
           ),
@@ -101,7 +101,16 @@ void main() {
       expect(find.text('Pace After Pending'), findsOneWidget);
       expect(find.text('Recent Logs'), findsOneWidget);
       expect(find.text('Completed daily development tasks.'), findsOneWidget);
+      expect(find.text('Fixed UI issues and tested forms.'), findsOneWidget);
       expect(find.text('Edit in Logbook'), findsOneWidget);
+
+      final newerLogY = tester
+          .getTopLeft(find.text('Completed daily development tasks.'))
+          .dy;
+      final olderLogY = tester
+          .getTopLeft(find.text('Fixed UI issues and tested forms.'))
+          .dy;
+      expect(newerLogY, lessThan(olderLogY));
     },
   );
 

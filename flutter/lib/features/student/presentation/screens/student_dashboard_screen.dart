@@ -128,7 +128,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     setState(() {
       _profile = profile;
       _report = report;
-      _logs = logs;
+      _logs = _sortLogsNewestFirst(logs);
       _dashboardError = dashboardError;
       _profileError = profileError;
       _reportError = reportError;
@@ -272,6 +272,19 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     final parsed = DateTime.tryParse(value);
     if (parsed == null) return value;
     return DateFormat('MMM d').format(parsed);
+  }
+
+  List<LogEntryItem> _sortLogsNewestFirst(List<LogEntryItem> logs) {
+    final sorted = List<LogEntryItem>.from(logs);
+    sorted.sort((a, b) {
+      final aDate = DateTime.tryParse(a.date);
+      final bDate = DateTime.tryParse(b.date);
+      if (aDate == null && bDate == null) return 0;
+      if (aDate == null) return 1;
+      if (bDate == null) return -1;
+      return bDate.compareTo(aDate);
+    });
+    return sorted;
   }
 
   void _openRoute(String route) {
