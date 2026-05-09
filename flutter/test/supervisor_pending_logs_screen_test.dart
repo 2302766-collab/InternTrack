@@ -11,7 +11,7 @@ import 'package:intern_track_app/shared/models/supervisor_log_item.dart';
 
 void main() {
   group('SupervisorPendingLogsScreen', () {
-    testWidgets('loads pending logs sorted oldest first', (tester) async {
+    testWidgets('loads pending logs sorted newest first', (tester) async {
       final service = _FakeSupervisorLogService(
         pendingLogs: [
           _buildLog(
@@ -55,8 +55,8 @@ void main() {
       expect(find.text('Jan 12 (8 hrs)'), findsOneWidget);
       expect(find.text('Status: PENDING'), findsNWidgets(2));
       expect(
-        tester.getTopLeft(find.text('Student: Juan Dela Cruz')).dy,
-        lessThan(tester.getTopLeft(find.text('Student: Ana Cruz')).dy),
+        tester.getTopLeft(find.text('Student: Ana Cruz')).dy,
+        lessThan(tester.getTopLeft(find.text('Student: Juan Dela Cruz')).dy),
       );
     });
 

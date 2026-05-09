@@ -92,13 +92,21 @@ class _SupervisorLogQueueScreenState extends State<SupervisorLogQueueScreen> {
           .toList();
 
       logs.sort((a, b) {
-        final aDate = DateTime.tryParse(a.date);
-        final bDate = DateTime.tryParse(b.date);
-        if (aDate != null && bDate != null) {
-          final cmp = aDate.compareTo(bDate);
+        final aTimestamp =
+            DateTime.tryParse(a.submittedAt ?? '') ?? DateTime.tryParse(a.date);
+        final bTimestamp =
+            DateTime.tryParse(b.submittedAt ?? '') ?? DateTime.tryParse(b.date);
+
+        if (aTimestamp != null && bTimestamp != null) {
+          final cmp = bTimestamp.compareTo(aTimestamp);
           if (cmp != 0) return cmp;
+        } else if (aTimestamp != null) {
+          return -1;
+        } else if (bTimestamp != null) {
+          return 1;
         }
-        return a.id.compareTo(b.id);
+
+        return b.id.compareTo(a.id);
       });
 
       if (!mounted) return;
