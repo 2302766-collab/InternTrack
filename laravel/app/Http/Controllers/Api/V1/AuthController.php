@@ -8,6 +8,7 @@ use App\Services\InputSanitizationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -34,6 +35,18 @@ class AuthController extends Controller
             'message' => $message,
             'data' => $data,
         ], $status);
+    }
+
+    private function userPayload(User $user): array
+    {
+        $roleName = $user->loadMissing('role')->role?->name;
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $roleName,
+        ];
     }
 
     // POST /api/v1/auth/register
@@ -99,31 +112,47 @@ class AuthController extends Controller
         // Log sanitization if changes occurred
         $this->sanitizer->logSanitization('email', $originalEmail, $sanitizedEmail);
 
-        $user = User::where('email', $sanitizedEmail)->first();
+        $user = User::query()
+            ->with('role')
+            ->where('email', $sanitizedEmail)
+            ->first();
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
+            Log::warning('Login failed due to invalid credentials.', [
+                'email' => $sanitizedEmail,
+            ]);
+
             return $this->fail('Invalid credentials', null, 401);
         }
 
-        $roleName = DB::table('roles')->where('id', $user->role_id)->value('name');
+        $roleName = $user->role?->name;
+        if (!is_string($roleName) || trim($roleName) === '') {
+            Log::error('Login blocked because the authenticated user has no resolvable role.', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'role_id' => $user->role_id,
+            ]);
+
+            return $this->fail('Account role is not configured. Contact support.', null, 500);
+        }
 
         $token = $user->createToken('api-token')->plainTextToken;
 
+        Log::info('Login successful.', [
+            'user_id' => $user->id,
+            'role' => $roleName,
+        ]);
+
         return $this->success('Login successful', [
             'access_token' => $token,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $roleName,
-            ],
+            'user' => $this->userPayload($user),
         ]);
     }
 
     // POST /api/v1/auth/logout (auth:sanctum)
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $request->user()?->currentAccessToken()?->delete();
 
         return $this->success('Logged out successfully');
     }
@@ -131,16 +160,29 @@ class AuthController extends Controller
     // GET /api/v1/auth/me (auth:sanctum)
     public function me(Request $request)
     {
-        $user = $request->user();
-        $roleName = DB::table('roles')->where('id', $user->role_id)->value('name');
+        $user = $request->user()?->loadMissing('role');
+        if (!$user) {
+            return $this->fail('Unauthenticated.', null, 401);
+        }
+
+        $roleName = $user->role?->name;
+        if (!is_string($roleName) || trim($roleName) === '') {
+            Log::error('Authenticated session could not resolve a user role.', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'role_id' => $user->role_id,
+            ]);
+
+            return $this->fail('Account role is not configured. Contact support.', null, 500);
+        }
+
+        Log::info('Authenticated user profile resolved.', [
+            'user_id' => $user->id,
+            'role' => $roleName,
+        ]);
 
         return $this->success('Authenticated user', [
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $roleName,
-            ],
+            'user' => $this->userPayload($user),
         ]);
     }
 }

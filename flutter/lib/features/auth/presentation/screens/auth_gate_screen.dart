@@ -26,6 +26,9 @@ class _AuthGateScreenState extends State<AuthGateScreen> {
     // Defer navigation until after build to avoid setState during build errors.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      debugPrint(
+        '[AuthGate] redirecting to $nextRoute isAuthenticated=${authProvider.isAuthenticated} role=${authProvider.role}',
+      );
       Navigator.pushReplacementNamed(context, nextRoute);
     });
   }

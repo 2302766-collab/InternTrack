@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 ///
 /// - Prefer `API_BASE_URL` via `--dart-define` when running on a real device
 ///   (e.g. `flutter run --dart-define=API_BASE_URL=http://192.168.0.5:8000/api/v1`).
+/// - On web, `?api_base_url=http://host:8000/api/v1` can override the API
+///   target at runtime without rebuilding the app.
 /// - Falls back to emulator/localhost addresses for dev.
 class ApiConfig {
   static const String _envBaseUrl =
@@ -13,7 +15,18 @@ class ApiConfig {
     final configuredBaseUrl = normalizeBaseUrl(_envBaseUrl);
     if (configuredBaseUrl.isNotEmpty) return configuredBaseUrl;
 
-    if (kIsWeb) return 'http://localhost:8000/api/v1';
+    if (kIsWeb) {
+      final queryBaseUrl = normalizeBaseUrl(
+        Uri.base.queryParameters['api_base_url'] ??
+            Uri.base.queryParameters['apiBaseUrl'] ??
+            '',
+      );
+      if (queryBaseUrl.isNotEmpty) {
+        return queryBaseUrl;
+      }
+
+      return defaultWebBaseUrlFor(Uri.base);
+    }
 
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -36,5 +49,13 @@ class ApiConfig {
     }
 
     return '$withoutTrailingSlash/api/v1';
+  }
+
+  @visibleForTesting
+  static String defaultWebBaseUrlFor(Uri currentPageUri, {int apiPort = 8000}) {
+    final scheme = currentPageUri.scheme.isNotEmpty ? currentPageUri.scheme : 'http';
+    final host = currentPageUri.host.isNotEmpty ? currentPageUri.host : 'localhost';
+
+    return normalizeBaseUrl('$scheme://$host:$apiPort');
   }
 }

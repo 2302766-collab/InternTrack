@@ -7,6 +7,8 @@ import '../../../../core/services/token_service.dart';
 import '../../../../shared/models/app_user.dart';
 
 class AuthProvider extends ChangeNotifier {
+  static const String _logTag = '[AuthProvider]';
+
   AuthProvider(
     this._tokenService, {
     required AuthService authService,
@@ -50,30 +52,61 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
-    _token = await _tokenService.getToken();
+    _log('initialize() start');
 
-    if ((_token ?? '').isNotEmpty) {
-      final synced = await _syncUserFromServer(silentOnError: true);
-      if (!synced) {
-        await _clearSession();
+    try {
+      _token = await _tokenService.getToken();
+      _log('initialize() restored token: ${(_token ?? '').isNotEmpty}');
+
+      if ((_token ?? '').isNotEmpty) {
+        final synced = await _syncUserFromServer(silentOnError: true);
+        if (!synced) {
+          _log('initialize() could not sync user; clearing session');
+          await _clearSession();
+        }
       }
-    }
+    } catch (error) {
+      _log('initialize() failed: $error');
+      _lastError = _toApiException(
+        error,
+        fallbackMessage: 'Failed to restore your saved session.',
+      );
+      _token = null;
+      _user = null;
 
-    _isReady = true;
-    notifyListeners();
+      try {
+        await _tokenService.clearToken();
+      } catch (_) {
+        // Startup should still recover to the login screen even if storage cleanup fails.
+      }
+    } finally {
+      _isReady = true;
+      _log(
+        'initialize() complete isAuthenticated=$isAuthenticated role=${role.isEmpty ? 'unknown' : role}',
+      );
+      notifyListeners();
+    }
   }
 
   Future<void> setToken(String token, {AppUser? user}) async {
+    _log(
+      'setToken() start tokenLength=${token.length} userProvided=${user != null}',
+    );
     _token = token;
     _user = user;
     await _tokenService.saveToken(token);
+    _log('setToken() token saved to secure storage');
     _lastError = null;
 
     if (_user == null) {
+      _log('setToken() missing user payload; syncing from server');
       final synced = await _syncUserFromServer(silentOnError: true);
       if (!synced) {
+        _log('setToken() failed to sync user; clearing session');
         await _clearSession();
       }
+    } else {
+      _log('setToken() user role resolved as ${_user?.role}');
     }
 
     notifyListeners();
@@ -88,15 +121,20 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> refreshAuthState() async {
+    _log('refreshAuthState() start');
     _token = await _tokenService.getToken();
     if ((_token ?? '').isNotEmpty) {
       final synced = await _syncUserFromServer(silentOnError: true);
       if (!synced) {
+        _log('refreshAuthState() sync failed; clearing session');
         await _clearSession();
       }
     } else {
       _user = null;
     }
+    _log(
+      'refreshAuthState() complete isAuthenticated=$isAuthenticated role=${role.isEmpty ? 'unknown' : role}',
+    );
     notifyListeners();
   }
 
@@ -108,10 +146,15 @@ class AuthProvider extends ChangeNotifier {
     }
 
     try {
+      _log('_syncUserFromServer() requesting /auth/me');
       _user = await _authService.getAuthenticatedUser();
+      _log('_syncUserFromServer() resolved role=${_user?.role}');
       _lastError = null;
       return true;
     } on ApiException catch (e) {
+      _log(
+        '_syncUserFromServer() failed status=${e.statusCode} type=${e.errorType} message=${e.message}',
+      );
       if (!silentOnError) {
         _lastError = e;
         rethrow;
@@ -123,9 +166,29 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> _clearSession() async {
+    _log('_clearSession() removing local session');
     _token = null;
     _user = null;
     _lastError = null;
     await _tokenService.clearToken();
+  }
+
+  ApiException _toApiException(
+    Object error, {
+    required String fallbackMessage,
+  }) {
+    if (error is ApiException) {
+      return error;
+    }
+
+    return ApiException(
+      message: fallbackMessage,
+      errorType: ApiErrorType.unknown,
+      originalError: error,
+    );
+  }
+
+  void _log(String message) {
+    debugPrint('$_logTag $message');
   }
 }
