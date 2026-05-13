@@ -308,7 +308,11 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Daily log submitted successfully.')),
+        const SnackBar(
+          content: Text(
+            'Log submitted successfully. Your log is now pending supervisor review.',
+          ),
+        ),
       );
       Navigator.pop(context, true);
     } on ApiException catch (e) {
@@ -701,6 +705,28 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
     );
   }
 
+  Widget _buildFieldLabel(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w700,
+        color: Color(0xFF102A56),
+      ),
+    );
+  }
+
+  Widget _buildHelperText(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 13,
+        color: Color(0xFF667085),
+        height: 1.4,
+      ),
+    );
+  }
+
   Widget _buildAttachmentField() {
     return FormField<PickedFileData?>(
       key: _attachmentFieldKey,
@@ -709,40 +735,114 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
           : AutovalidateMode.onUserInteraction,
       validator: (_) => _validateAttachment(),
       builder: (state) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _isSubmitting ? null : _pickAttachment,
-                    icon: const Icon(Icons.attach_file),
-                    label: Text(
-                      _selectedFile != null
-                          ? 'Change Attachment'
-                          : 'Choose File',
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FBFF),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFDCE6F2)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildFieldLabel('Upload Proof'),
+              const SizedBox(height: 6),
+              _buildHelperText(
+                'Attach a screenshot, image, or PDF as proof of work.',
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isSubmitting ? null : _pickAttachment,
+                      icon: const Icon(Icons.attach_file),
+                      label: Text(
+                        _selectedFile != null
+                            ? 'Change Attachment'
+                            : 'Upload File',
+                      ),
                     ),
                   ),
+                  if (_selectedFile != null)
+                    IconButton(
+                      onPressed: _isSubmitting ? null : _removeAttachment,
+                      tooltip: 'Remove file',
+                      icon: const Icon(Icons.close),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _buildHelperText(
+                'Allowed: JPG, JPEG, PNG, PDF | Maximum size: 5 MB',
+              ),
+              if (_selectedFile != null) _buildSelectedAttachmentPreview(),
+              if (state.hasError) ...[
+                const SizedBox(height: 8),
+                Text(
+                  state.errorText!,
+                  style: const TextStyle(color: Colors.red),
                 ),
-                if (_selectedFile != null)
-                  IconButton(
-                    onPressed: _isSubmitting ? null : _removeAttachment,
-                    tooltip: 'Remove file',
-                    icon: const Icon(Icons.close),
-                  ),
               ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Attachment (optional) - jpg/jpeg/png/pdf - <= 5MB',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            if (_selectedFile != null) _buildSelectedAttachmentPreview(),
-            if (state.hasError) ...[
-              const SizedBox(height: 6),
-              Text(state.errorText!, style: const TextStyle(color: Colors.red)),
             ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActionRow() {
+    final submitChild = _isSubmitting
+        ? Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                height: 16,
+                width: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text('Submitting...'),
+            ],
+          )
+        : const Text('Submit Log');
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 520;
+
+        final cancelButton = OutlinedButton(
+          onPressed: _isSubmitting ? null : () => Navigator.maybePop(context),
+          child: const Text('Cancel'),
+        );
+
+        final submitButton = FilledButton(
+          onPressed: _isSubmitEnabled ? _submitLog : null,
+          child: submitChild,
+        );
+
+        if (isCompact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(width: double.infinity, child: cancelButton),
+              const SizedBox(height: 12),
+              SizedBox(width: double.infinity, child: submitButton),
+            ],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            cancelButton,
+            const SizedBox(width: 12),
+            submitButton,
           ],
         );
       },
@@ -754,92 +854,125 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Add Daily Log')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          autovalidateMode: _autoValidate
-              ? AutovalidateMode.always
-              : AutovalidateMode.onUserInteraction,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextFormField(
-                controller: _dateController,
-                enabled: !_isSubmitting,
-                readOnly: true,
-                onTap: _isSubmitting ? null : _selectLogDate,
-                decoration: const InputDecoration(
-                  labelText: 'Date',
-                  helperText: LogDatePolicy.helperText,
-                  suffixIcon: Icon(Icons.calendar_today),
-                ),
-                validator: (value) =>
-                    _validateDate(value, serverError: _apiFieldErrors['date']),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _hoursController,
-                enabled: !_isSubmitting,
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(2),
-                ],
-                decoration: const InputDecoration(
-                  labelText: 'Hours Rendered',
-                  hintText: '1-12',
-                ),
-                onChanged: (_) => setState(() {}),
-                validator: (value) => _validateHours(
-                  value,
-                  serverError: _apiFieldErrors['hours'],
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _taskController,
-                enabled: !_isSubmitting,
-                maxLines: 5,
-                decoration: const InputDecoration(
-                  labelText: 'Task Description',
-                  alignLabelWithHint: true,
-                ),
-                onChanged: (_) => setState(() {}),
-                validator: (value) =>
-                    _validateTask(value, serverError: _apiFieldErrors['task']),
-              ),
-              const SizedBox(height: 12),
-              _buildAttachmentField(),
-              if (_formGeneralError != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  _formGeneralError!,
-                  style: const TextStyle(color: Colors.red),
-                ),
-              ],
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isSubmitEnabled ? _submitLog : null,
-                  child: _isSubmitting
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const SizedBox(
-                              height: 16,
-                              width: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 860),
+            child: Form(
+              key: _formKey,
+              autovalidateMode: _autoValidate
+                  ? AutovalidateMode.always
+                  : AutovalidateMode.onUserInteraction,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Add Daily Log',
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF102A56),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Record your internship work hours and activity details.',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Color(0xFF4A6480),
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildFieldLabel('Date'),
+                          const SizedBox(height: 6),
+                          TextFormField(
+                            controller: _dateController,
+                            enabled: !_isSubmitting,
+                            readOnly: true,
+                            onTap: _isSubmitting ? null : _selectLogDate,
+                            decoration: const InputDecoration(
+                              hintText: 'YYYY-MM-DD',
+                              suffixIcon: Icon(Icons.calendar_today),
                             ),
-                            const SizedBox(width: 8),
-                            const Text('Submitting...'),
+                            validator: (value) => _validateDate(
+                              value,
+                              serverError: _apiFieldErrors['date'],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          _buildHelperText(LogDatePolicy.helperText),
+                          const SizedBox(height: 22),
+                          _buildFieldLabel('Hours Rendered'),
+                          const SizedBox(height: 6),
+                          TextFormField(
+                            controller: _hoursController,
+                            enabled: !_isSubmitting,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(2),
+                            ],
+                            decoration: const InputDecoration(
+                              hintText: 'Enter hours worked',
+                            ),
+                            onChanged: (_) => setState(() {}),
+                            validator: (value) => _validateHours(
+                              value,
+                              serverError: _apiFieldErrors['hours'],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          _buildHelperText(
+                            'Enter the number of hours worked today.',
+                          ),
+                          const SizedBox(height: 22),
+                          _buildFieldLabel('Task Description'),
+                          const SizedBox(height: 6),
+                          TextFormField(
+                            controller: _taskController,
+                            enabled: !_isSubmitting,
+                            minLines: 4,
+                            maxLines: 6,
+                            decoration: const InputDecoration(
+                              hintText:
+                                  'Example: Worked on login page validation and fixed button alignment.',
+                              alignLabelWithHint: true,
+                            ),
+                            onChanged: (_) => setState(() {}),
+                            validator: (value) => _validateTask(
+                              value,
+                              serverError: _apiFieldErrors['task'],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          _buildHelperText(
+                            'Write a short but clear summary of your internship task.',
+                          ),
+                          const SizedBox(height: 22),
+                          _buildAttachmentField(),
+                          if (_formGeneralError != null) ...[
+                            const SizedBox(height: 10),
+                            Text(
+                              _formGeneralError!,
+                              style: const TextStyle(color: Colors.red),
+                            ),
                           ],
-                        )
-                      : const Text('Submit Log'),
-                ),
+                          const SizedBox(height: 24),
+                          _buildActionRow(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
