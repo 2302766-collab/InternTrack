@@ -49,6 +49,12 @@ class StudentAdviserController extends Controller
                 'required_hours' => 0,
                 'start_date' => null,
                 'end_date' => null,
+                'company_address' => 'N/A',
+                'supervisor_id' => null,
+                'adviser_id' => null,
+                'required_hours' => 0,
+                'start_date' => now()->toDateString(),
+                'end_date' => now()->addMonths(3)->toDateString(),
             ]
         );
 

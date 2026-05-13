@@ -3,7 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/exceptions/api_exception.dart';
+<<<<<<< MMP-103
 import '../../../../core/config/api_config.dart';
+=======
+>>>>>>> main
 import '../../../../core/services/auth_service.dart';
 import '../../../../shared/models/app_user.dart';
 import '../../../../shared/widgets/auth_shell.dart';
@@ -95,6 +98,12 @@ class _LoginScreenState extends State<LoginScreen> {
         nextRoute,
         (route) => false,
       );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _generalError = e.message;
+      });
     } catch (e) {
       _log('Login failed: $e');
       if (!mounted) return;

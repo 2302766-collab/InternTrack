@@ -6,6 +6,7 @@ use App\Models\InternshipProfile;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class StudentAdviserAssignmentTest extends TestCase
@@ -48,7 +49,7 @@ class StudentAdviserAssignmentTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function admin_can_assign_adviser_to_student()
     {
         $response = $this->actingAs($this->admin, 'sanctum')
@@ -75,7 +76,7 @@ class StudentAdviserAssignmentTest extends TestCase
         $this->assertEquals($this->adviser->id, $profile->adviser_id);
     }
 
-    /** @test */
+    #[Test]
     public function admin_can_remove_adviser_from_student()
     {
         // First assign
@@ -83,6 +84,10 @@ class StudentAdviserAssignmentTest extends TestCase
             'student_id' => $this->student->id,
             'adviser_id' => $this->adviser->id,
             'company_name' => 'Test Company',
+            'company_address' => '123 Main St',
+            'required_hours' => 486,
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addMonths(3)->toDateString(),
         ]);
 
         $response = $this->actingAs($this->admin, 'sanctum')
@@ -101,7 +106,7 @@ class StudentAdviserAssignmentTest extends TestCase
         $this->assertNull($profile->adviser_id);
     }
 
-    /** @test */
+    #[Test]
     public function admin_gets_404_when_student_not_found()
     {
         $response = $this->actingAs($this->admin, 'sanctum')
@@ -116,7 +121,7 @@ class StudentAdviserAssignmentTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function admin_gets_400_when_assigning_non_adviser_user()
     {
         $nonAdviser = User::create([
@@ -138,7 +143,7 @@ class StudentAdviserAssignmentTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function admin_can_change_adviser()
     {
         // Create another adviser
@@ -176,7 +181,7 @@ class StudentAdviserAssignmentTest extends TestCase
         $this->assertEquals($adviser2->id, $profile->adviser_id);
     }
 
-    /** @test */
+    #[Test]
     public function admin_can_get_student_adviser_info()
     {
         // Assign adviser
@@ -184,6 +189,10 @@ class StudentAdviserAssignmentTest extends TestCase
             'student_id' => $this->student->id,
             'adviser_id' => $this->adviser->id,
             'company_name' => 'Test Company',
+            'company_address' => '123 Main St',
+            'required_hours' => 486,
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addMonths(3)->toDateString(),
         ]);
 
         $response = $this->actingAs($this->admin, 'sanctum')
@@ -201,7 +210,7 @@ class StudentAdviserAssignmentTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function admin_can_get_all_advisers()
     {
         $adviser2 = User::create([
@@ -226,7 +235,7 @@ class StudentAdviserAssignmentTest extends TestCase
         $response->assertJsonCount(2, 'data');
     }
 
-    /** @test */
+    #[Test]
     public function non_admin_cannot_assign_adviser()
     {
         $response = $this->actingAs($this->student, 'sanctum')
@@ -237,7 +246,7 @@ class StudentAdviserAssignmentTest extends TestCase
         $response->assertStatus(403);
     }
 
-    /** @test */
+    #[Test]
     public function unauthenticated_user_cannot_assign_adviser()
     {
         $response = $this->patchJson('/api/v1/admin/students/' . $this->student->id . '/assign-adviser', [
@@ -247,7 +256,7 @@ class StudentAdviserAssignmentTest extends TestCase
         $response->assertStatus(401);
     }
 
-    /** @test */
+    #[Test]
     public function adviser_id_must_be_integer()
     {
         $response = $this->actingAs($this->admin, 'sanctum')

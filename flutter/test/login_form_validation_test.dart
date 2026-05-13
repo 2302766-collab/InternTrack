@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intern_track_app/core/exceptions/api_exception.dart';
 import 'package:intern_track_app/features/auth/presentation/screens/login_screen.dart';
 import 'package:intern_track_app/core/services/auth_service.dart';
 import 'package:intern_track_app/core/services/token_service.dart';
 import 'package:intern_track_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:intern_track_app/core/services/api_client.dart';
-import 'package:dio/dio.dart';
 import 'package:provider/provider.dart';
 
 void main() {
@@ -118,8 +118,6 @@ void main() {
 
       final emailField = find.byType(TextFormField).first;
       final passwordField = find.byType(TextFormField).at(1);
-      final submitButton = find.text('Login');
-
       // Enter valid credentials
       await tester.enterText(emailField, 'test@example.com');
       await tester.enterText(passwordField, 'password123');
@@ -159,6 +157,36 @@ void main() {
       // Error should disappear
       expect(find.text('Enter a valid email address'), findsNothing);
     });
+
+    testWidgets('shows a friendly invalid credentials error on failed login', (
+      tester,
+    ) async {
+      final authService = MockAuthService(
+        loginError: ApiException(
+          message: 'Invalid credentials',
+          statusCode: 401,
+          errorType: ApiErrorType.unauthorized,
+        ),
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(authService, mockTokenService),
+      );
+
+      final emailField = find.byType(TextFormField).first;
+      final passwordField = find.byType(TextFormField).at(1);
+
+      await tester.enterText(emailField, 'adviser@example.com');
+      await tester.enterText(passwordField, 'password123');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(ElevatedButton));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(find.text('Invalid credentials'), findsOneWidget);
+      expect(find.textContaining('ApiException('), findsNothing);
+    });
   });
 }
 
@@ -176,7 +204,30 @@ Widget _buildTestApp(AuthService authService, TokenService tokenService) {
 }
 
 class MockAuthService extends AuthService {
-  MockAuthService() : super(ApiClient());
+  MockAuthService({this.loginError}) : super(ApiClient());
+
+  final Object? loginError;
+
+  @override
+  Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
+    final loginError = this.loginError;
+    if (loginError != null) {
+      throw loginError;
+    }
+
+    return {
+      'token': 'token',
+      'user': {
+        'id': 1,
+        'name': 'Test User',
+        'email': email,
+        'role': 'Student',
+      },
+    };
+  }
 }
 
 class MockTokenService extends TokenService {

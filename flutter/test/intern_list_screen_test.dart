@@ -232,7 +232,6 @@ void _setLargeSurfaceSize(WidgetTester tester) {
 Widget _buildTestApp(InternListService service) {
   return MaterialApp(
     home: InternListScreen(
-      token: 'token',
       role: 'supervisor',
       service: service,
     ),

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/logbook_service.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/file_picker_helper_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
     as file_picker;
@@ -181,7 +182,6 @@ class _LogbookScreenState extends State<LogbookScreen> {
         builder: (_) => LogDetailScreen(
           logId: log.id,
           initialLog: log,
-          token: _token,
           service: _service,
         ),
       ),
@@ -204,7 +204,7 @@ class _LogbookScreenState extends State<LogbookScreen> {
       context,
       MaterialPageRoute(
         builder: (_) =>
-            LogEditScreen(log: log, token: _token, service: _service),
+            LogEditScreen(log: log, service: _service),
       ),
     );
 
@@ -365,7 +365,7 @@ class _LogbookScreenState extends State<LogbookScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      log.date,
+                      DateFormatter.formatApiDate(log.date),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
