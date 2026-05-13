@@ -4,6 +4,7 @@ namespace Tests\Unit\Services;
 
 use App\Models\InternshipProfile;
 use App\Models\LogEntry;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\NotificationMailService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -170,8 +171,7 @@ class NotificationMailServiceTest extends TestCase
         $this->service->sendLogPendingApprovalEmail($log, $supervisor);
 
         Mail::assertQueued(\App\Mail\LogPendingApproval::class, function ($mail) use ($log) {
-            return str_contains($mail->build()->view->data['message']->subject ?? '', $log->date) ||
-                   str_contains($mail->subject, $log->date);
+            return str_contains($mail->envelope()->subject, $log->date);
         });
     }
 
@@ -192,5 +192,51 @@ class NotificationMailServiceTest extends TestCase
 
         Mail::assertQueued(\App\Mail\LogPendingApproval::class);
         Mail::assertQueued(\App\Mail\LogApproved::class);
+    }
+
+    private function createRole(string $name): Role
+    {
+        return Role::query()->firstOrCreate(['name' => $name]);
+    }
+
+    private function createSupervisor(array $overrides = []): User
+    {
+        return User::factory()->create(array_merge([
+            'role_id' => $this->createRole('Supervisor')->id,
+        ], $overrides));
+    }
+
+    private function createStudent(array $overrides = []): User
+    {
+        return User::factory()->create(array_merge([
+            'role_id' => $this->createRole('Student')->id,
+        ], $overrides));
+    }
+
+    private function createInternshipProfileFor(User $student, User $supervisor): InternshipProfile
+    {
+        return InternshipProfile::create([
+            'student_id' => $student->id,
+            'supervisor_id' => $supervisor->id,
+            'company_name' => 'Test Company',
+            'company_address' => '123 Main St',
+            'required_hours' => 486,
+            'start_date' => now()->subDays(7)->toDateString(),
+            'end_date' => now()->addMonths(3)->toDateString(),
+        ]);
+    }
+
+    private function createLogEntryFor(
+        InternshipProfile $profile,
+        string $status = 'PENDING',
+        ?string $date = null
+    ): LogEntry {
+        return LogEntry::create([
+            'internship_profile_id' => $profile->id,
+            'date' => $date ?? now()->toDateString(),
+            'hours_rendered' => 8,
+            'task_description' => 'Completed assigned tasks',
+            'status' => $status,
+        ]);
     }
 }

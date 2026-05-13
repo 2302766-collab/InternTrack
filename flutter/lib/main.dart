@@ -7,7 +7,9 @@ import 'core/interceptors/logging_interceptor.dart';
 import 'core/interceptors/token_refresh_interceptor.dart';
 import 'core/retry/retry_interceptor.dart';
 import 'core/retry/retry_policy.dart';
+import 'core/services/admin_dashboard_service.dart';
 import 'core/services/admin_student_service.dart';
+import 'core/services/adviser_management_service.dart';
 import 'core/services/api_client.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/internship_service.dart';
@@ -28,6 +30,7 @@ import 'features/auth/presentation/screens/register_screen.dart';
 import 'features/internship/presentation/screens/internship_profile_screen.dart';
 import 'features/logbook/presentation/screens/logbook_screen.dart';
 import 'features/settings/presentation/screens/settings_screen.dart';
+import 'features/student/navigation/student_notification_routing.dart';
 import 'features/student/presentation/screens/student_dashboard_screen.dart';
 import 'features/student/presentation/screens/student_dtr_screen.dart';
 import 'features/student/presentation/screens/student_report_screen.dart';
@@ -126,6 +129,14 @@ class InternTrackApp extends StatelessWidget {
           update: (context, apiClient, previous) =>
               AdminStudentService(apiClient),
         ),
+        ProxyProvider<ApiClient, AdminDashboardService>(
+          update: (context, apiClient, previous) =>
+              AdminDashboardService(apiClient),
+        ),
+        ProxyProvider<ApiClient, AdviserManagementService>(
+          update: (context, apiClient, previous) =>
+              AdviserManagementService(apiClient),
+        ),
         ProxyProvider<ApiClient, InternshipService>(
           update: (context, apiClient, previous) =>
               InternshipService(apiClient),
@@ -157,8 +168,19 @@ class InternTrackApp extends StatelessWidget {
             return authProvider..initialize();
           },
         ),
-        ChangeNotifierProvider(
-          create: (context) => AdviserManagementProvider(),
+        ChangeNotifierProxyProvider<
+          AdviserManagementService,
+          AdviserManagementProvider
+        >(
+          create: (context) => AdviserManagementProvider(
+            service: context.read<AdviserManagementService>(),
+          ),
+          update: (context, adviserService, provider) {
+            final notifier =
+                provider ?? AdviserManagementProvider(service: adviserService);
+            notifier.updateService(adviserService);
+            return notifier;
+          },
         ),
       ],
       child: Consumer2<AuthProvider, ThemeController>(
@@ -228,11 +250,10 @@ class InternTrackApp extends StatelessWidget {
               },
 
               AppRoutes.internshipProfile: (_) {
-                final token = authProvider.token ?? '';
                 return _guardRoleRoute(
                   authProvider,
                   'student',
-                  InternshipProfileScreen(token: token),
+                  const InternshipProfileScreen(),
                 );
               },
 
@@ -240,7 +261,15 @@ class InternTrackApp extends StatelessWidget {
                 return _guardRoleRoute(
                   authProvider,
                   'student',
-                  const LogbookScreen(),
+                  Builder(
+                    builder: (context) {
+                      final raw =
+                          ModalRoute.of(context)?.settings.arguments;
+                      final int? focusId =
+                          raw is LogbookNavArgs ? raw.logId : null;
+                      return LogbookScreen(initialFocusLogId: focusId);
+                    },
+                  ),
                 );
               },
 
@@ -253,11 +282,10 @@ class InternTrackApp extends StatelessWidget {
               },
 
               AppRoutes.studentReport: (_) {
-                final token = authProvider.token ?? '';
                 return _guardRoleRoute(
                   authProvider,
                   'student',
-                  StudentReportScreen(token: token),
+                  const StudentReportScreen(),
                 );
               },
 

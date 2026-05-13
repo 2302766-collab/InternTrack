@@ -29,6 +29,8 @@ class NotificationController extends Controller
                     'id' => $notification->id,
                     'title' => $notification->title,
                     'message' => $notification->message,
+                    'type' => $notification->type,
+                    'meta' => $notification->meta ?: [],
                     'is_read' => $notification->is_read,
                     'created_at' => $notification->created_at,
                 ];
@@ -75,6 +77,8 @@ class NotificationController extends Controller
                 'id' => $notification->id,
                 'title' => $notification->title,
                 'message' => $notification->message,
+                'type' => $notification->type,
+                'meta' => $notification->meta ?: [],
                 'is_read' => $notification->is_read,
                 'created_at' => $notification->created_at,
             ],

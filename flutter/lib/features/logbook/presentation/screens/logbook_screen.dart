@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/logbook_service.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/file_picker_helper_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
     as file_picker;
@@ -15,7 +16,10 @@ import 'log_edit_screen.dart';
 import 'log_submission_screen.dart';
 
 class LogbookScreen extends StatefulWidget {
-  const LogbookScreen({super.key});
+  const LogbookScreen({super.key, this.initialFocusLogId});
+
+  /// When non-null, opens this log’s detail after the list loads (if still present).
+  final int? initialFocusLogId;
 
   @override
   State<LogbookScreen> createState() => _LogbookScreenState();
@@ -40,6 +44,7 @@ class _LogbookScreenState extends State<LogbookScreen> {
 
   final Set<int> _uploadingLogIds = <int>{};
   List<LogEntryItem> _logs = <LogEntryItem>[];
+  bool _handledInitialLogFocus = false;
 
   @override
   void didChangeDependencies() {
@@ -96,8 +101,36 @@ class _LogbookScreenState extends State<LogbookScreen> {
         setState(() {
           _isLoading = false;
         });
+        _scheduleFocusLogIfNeeded();
       }
     }
+  }
+
+  void _scheduleFocusLogIfNeeded() {
+    if (_handledInitialLogFocus) return;
+    final id = widget.initialFocusLogId;
+    if (id == null) return;
+    _handledInitialLogFocus = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      LogEntryItem? found;
+      for (final log in _logs) {
+        if (log.id == id) {
+          found = log;
+          break;
+        }
+      }
+      if (found != null) {
+        _openLogDetails(found);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('That log is no longer available.'),
+          ),
+        );
+      }
+    });
   }
 
   List<LogEntryItem> _sortLogsNewestFirst(List<LogEntryItem> logs) {
@@ -149,7 +182,6 @@ class _LogbookScreenState extends State<LogbookScreen> {
         builder: (_) => LogDetailScreen(
           logId: log.id,
           initialLog: log,
-          token: _token,
           service: _service,
         ),
       ),
@@ -172,7 +204,7 @@ class _LogbookScreenState extends State<LogbookScreen> {
       context,
       MaterialPageRoute(
         builder: (_) =>
-            LogEditScreen(log: log, token: _token, service: _service),
+            LogEditScreen(log: log, service: _service),
       ),
     );
 
@@ -333,7 +365,7 @@ class _LogbookScreenState extends State<LogbookScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      log.date,
+                      DateFormatter.formatApiDate(log.date),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),

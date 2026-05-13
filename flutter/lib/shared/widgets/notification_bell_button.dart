@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants/app_routes.dart';
+import '../../core/exceptions/api_exception.dart';
 import '../../core/services/notification_service.dart';
+import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../../features/student/navigation/student_notification_routing.dart';
 import '../models/app_notification.dart';
 
 class NotificationBellButton extends StatefulWidget {
@@ -125,8 +129,11 @@ class _NotificationBellButtonState extends State<NotificationBellButton> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) {
+      builder: (sheetContext) {
         return _NotificationSheet(
+          hostContext: context,
+          enableStudentTapRouting:
+              context.read<AuthProvider>().role.toLowerCase() == 'student',
           errorMessage: _errorMessage,
           isLoading: _isLoading,
           notifications: _notifications,
@@ -182,6 +189,8 @@ class _NotificationBellButtonState extends State<NotificationBellButton> {
 }
 
 class _NotificationSheet extends StatefulWidget {
+  final BuildContext hostContext;
+  final bool enableStudentTapRouting;
   final String? errorMessage;
   final bool isLoading;
   final List<AppNotification> notifications;
@@ -189,6 +198,8 @@ class _NotificationSheet extends StatefulWidget {
   final Future<void> Function(int notificationId) onMarkAsRead;
 
   const _NotificationSheet({
+    required this.hostContext,
+    required this.enableStudentTapRouting,
     required this.errorMessage,
     required this.isLoading,
     required this.notifications,
@@ -246,6 +257,62 @@ class _NotificationSheetState extends State<_NotificationSheet> {
           _markingIds.remove(notificationId);
         });
       }
+    }
+  }
+
+  Future<void> _handleNotificationTap(AppNotification notification) async {
+    if (!widget.enableStudentTapRouting) return;
+
+    if (!notification.isRead) {
+      try {
+        await widget.onMarkAsRead(notification.id);
+        if (!mounted) return;
+        final index = _notifications.indexWhere((n) => n.id == notification.id);
+        if (index != -1) {
+          setState(() {
+            _notifications = List<AppNotification>.from(_notifications)
+              ..[index] = _notifications[index].copyWith(isRead: true);
+            _unreadCount = _unreadCount > 0 ? _unreadCount - 1 : 0;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          final message = e is ApiException
+              ? e.message
+              : e.toString().replaceFirst('Exception: ', '');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message)),
+          );
+        }
+      }
+    }
+
+    if (!mounted) return;
+    Navigator.of(context).pop();
+
+    final host = widget.hostContext;
+    if (!host.mounted) return;
+
+    final route = StudentNotificationRoute.resolve(notification);
+    if (route == null) {
+      ScaffoldMessenger.of(host).showSnackBar(
+        const SnackBar(
+          content: Text('No quick link is available for this notification.'),
+        ),
+      );
+      return;
+    }
+
+    switch (route.kind) {
+      case StudentNotificationRouteKind.logbook:
+        Navigator.of(host).pushNamed(
+          AppRoutes.logbook,
+          arguments: LogbookNavArgs(logId: route.logId),
+        );
+        break;
+      case StudentNotificationRouteKind.report:
+        Navigator.of(host).pushNamed(AppRoutes.studentReport);
+        break;
     }
   }
 
@@ -323,22 +390,29 @@ class _NotificationSheetState extends State<_NotificationSheet> {
                       final notification = _notifications[index];
                       final isMarking = _markingIds.contains(notification.id);
 
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: notification.isRead
-                              ? Colors.white
-                              : const Color(0xFFF5F9FF),
+                      return Material(
+                        color: notification.isRead
+                            ? Colors.white
+                            : const Color(0xFFF5F9FF),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
+                          side: BorderSide(
                             color: notification.isRead
                                 ? const Color(0xFFE4E7EC)
                                 : const Color(0xFFBFDBFE),
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: widget.enableStudentTapRouting
+                              ? () => _handleNotificationTap(notification)
+                              : null,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -416,7 +490,9 @@ class _NotificationSheetState extends State<_NotificationSheet> {
                                   ),
                               ],
                             ),
-                          ],
+                              ],
+                            ),
+                          ),
                         ),
                       );
                     },

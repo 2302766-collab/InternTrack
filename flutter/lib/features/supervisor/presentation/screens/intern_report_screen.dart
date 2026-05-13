@@ -1,19 +1,23 @@
-import 'package:flutter/material.dart';
+import 'dart:math' as math;
 
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../../../core/constants/app_routes.dart';
+import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/intern_reporting_service.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../shared/models/student_report.dart';
 import '../../../../shared/widgets/dashboard_info_card.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 class InternReportScreen extends StatefulWidget {
-  final String token;
   final String role;
   final int studentId;
   final String studentName;
 
   const InternReportScreen({
     super.key,
-    required this.token,
     required this.role,
     required this.studentId,
     required this.studentName,
@@ -24,11 +28,15 @@ class InternReportScreen extends StatefulWidget {
 }
 
 class _InternReportScreenState extends State<InternReportScreen> {
+  static const int _initialVisibleLogCount = 20;
+  static const int _visibleLogStep = 20;
+
   final InternReportingService _reportService = InternReportingService();
 
   Future<StudentReportData>? _reportFuture;
   DateTime? _startDate;
   DateTime? _endDate;
+  int _visibleLogCount = _initialVisibleLogCount;
 
   @override
   void initState() {
@@ -36,14 +44,47 @@ class _InternReportScreenState extends State<InternReportScreen> {
     _loadReport();
   }
 
+  Future<void> _handleExpiredSession() async {
+    final authProvider = Provider.of<AuthProvider?>(context, listen: false);
+    await authProvider?.logout();
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Your session has expired. Please log in again.'),
+      ),
+    );
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.login,
+      (route) => false,
+    );
+  }
+
   void _loadReport() {
+    final reportFuture = _reportService
+        .getReport(
+          role: widget.role,
+          studentId: widget.studentId,
+          startDate: _toApiDate(_startDate),
+          endDate: _toApiDate(_endDate),
+        )
+        .then<StudentReportData>(
+          (value) => value,
+          onError: (error) {
+            if (error is ApiException &&
+                (error.statusCode == 401 ||
+                    error.errorType == ApiErrorType.unauthorized)) {
+              _handleExpiredSession();
+            }
+            throw error;
+          },
+        );
+
     setState(() {
-      _reportFuture = _reportService.getReport(
-        role: widget.role,
-        studentId: widget.studentId,
-        startDate: _toApiDate(_startDate),
-        endDate: _toApiDate(_endDate),
-      );
+      _visibleLogCount = _initialVisibleLogCount;
+      _reportFuture = reportFuture;
     });
   }
 
@@ -240,7 +281,7 @@ class _InternReportScreenState extends State<InternReportScreen> {
         child: report.logs.isEmpty
             ? const Text('No approved logs found for the selected date range.')
             : Column(
-                children: report.logs.map((log) {
+                children: report.logs.take(_visibleLogCount).map((log) {
                   return Container(
                     width: double.infinity,
                     margin: const EdgeInsets.only(bottom: 12),
@@ -280,6 +321,25 @@ class _InternReportScreenState extends State<InternReportScreen> {
                 }).toList(),
               ),
       ),
+      if (report.logs.length > _visibleLogCount) ...[
+        const SizedBox(height: 12),
+        Center(
+          child: OutlinedButton.icon(
+            onPressed: () {
+              setState(() {
+                _visibleLogCount = math.min(
+                  _visibleLogCount + _visibleLogStep,
+                  report.logs.length,
+                );
+              });
+            },
+            icon: const Icon(Icons.expand_more),
+            label: Text(
+              'Show more logs (${report.logs.length - _visibleLogCount} remaining)',
+            ),
+          ),
+        ),
+      ],
     ];
   }
 
