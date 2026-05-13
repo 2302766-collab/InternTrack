@@ -36,7 +36,7 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           service: service,
-          reviewScreenBuilder: (context, log, service, token, intern) {
+          reviewScreenBuilder: (context, log, service, intern) {
             openedLogIds.add(log.id);
 
             return Scaffold(
@@ -85,7 +85,7 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           service: service,
-          reviewScreenBuilder: (context, log, service, token, intern) {
+          reviewScreenBuilder: (context, log, service, intern) {
             openedLogIds.add(log.id);
             return const Scaffold(body: Text('Unexpected review screen'));
           },
@@ -179,7 +179,6 @@ Widget _buildTestApp({
 }) {
   return MaterialApp(
     home: InternDetailScreen(
-      token: 'token',
       role: role,
       profileId: 7,
       service: service,

@@ -9,6 +9,7 @@ use App\Models\LogEntry;
 use App\Models\Role;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -21,6 +22,7 @@ class BulkStudentDemoSeeder extends Seeder
     private const SUPERVISOR_END = 16;
     private const ADVISER_START = 2;
     private const ADVISER_END = 12;
+    private const REQUIRED_HOUR_OPTIONS = [240, 300, 360, 420, 486, 540, 600];
 
     private const COMPANY_NAMES = [
         'Acme Innovations',
@@ -55,141 +57,164 @@ class BulkStudentDemoSeeder extends Seeder
             return;
         }
 
-        $roles = Role::query()->pluck('id', 'name');
-        $studentRoleId = $roles['Student'] ?? null;
-        $supervisorRoleId = $roles['Supervisor'] ?? null;
-        $adviserRoleId = $roles['Adviser'] ?? null;
-
-        if (!$studentRoleId) {
-            $this->command?->error('Student role not found. Run RoleSeeder first.');
-            return;
+        if (class_exists(\Laravel\Telescope\Telescope::class)) {
+            \Laravel\Telescope\Telescope::stopRecording();
         }
 
-        $this->seedReviewers(
-            supervisorRoleId: $supervisorRoleId,
-            adviserRoleId: $adviserRoleId,
-        );
+        Model::withoutEvents(function (): void {
+            $roles = Role::query()->pluck('id', 'name');
+            $studentRoleId = $roles['Student'] ?? null;
+            $supervisorRoleId = $roles['Supervisor'] ?? null;
+            $adviserRoleId = $roles['Adviser'] ?? null;
 
-        $supervisorIds = $supervisorRoleId
-            ? User::query()->where('role_id', $supervisorRoleId)->pluck('id')->values()->all()
-            : [];
-        $adviserIds = $adviserRoleId
-            ? User::query()->where('role_id', $adviserRoleId)->pluck('id')->values()->all()
-            : [];
+            if (!$studentRoleId) {
+                $this->command?->error('Student role not found. Run RoleSeeder first.');
+                return;
+            }
 
-        $faker = fake();
-        $today = Carbon::today();
-        $createdUsers = 0;
+            $this->seedReviewers(
+                supervisorRoleId: $supervisorRoleId,
+                adviserRoleId: $adviserRoleId,
+            );
 
-        DB::transaction(function () use (
-            $faker,
-            $today,
-            $studentRoleId,
-            $supervisorIds,
-            $adviserIds,
-            &$createdUsers
-        ): void {
+            $supervisorIds = $supervisorRoleId
+                ? User::query()->where('role_id', $supervisorRoleId)->pluck('id')->values()->all()
+                : [];
+            $adviserIds = $adviserRoleId
+                ? User::query()->where('role_id', $adviserRoleId)->pluck('id')->values()->all()
+                : [];
+
+            $faker = fake();
+            $today = Carbon::today();
+            $defaultPassword = Hash::make('password');
+            $createdUsers = 0;
+
             for ($i = self::EMAIL_START; $i <= self::EMAIL_END; $i++) {
                 $email = "student{$i}@example.com";
-                $firstName = $faker->firstName();
-                $lastName = $faker->lastName();
 
-                $student = User::query()->updateOrCreate(
-                    ['email' => $email],
-                    [
-                        'name' => "{$firstName} {$lastName}",
-                        'password' => Hash::make('password'),
-                        'role_id' => $studentRoleId,
-                    ],
-                );
-                $createdUsers++;
+                try {
+                    DB::transaction(function () use (
+                        $faker,
+                        $today,
+                        $studentRoleId,
+                        $supervisorIds,
+                        $adviserIds,
+                        $defaultPassword,
+                        &$createdUsers,
+                        $email,
+                        $i
+                    ): void {
+                        $firstName = $faker->firstName();
+                        $lastName = $faker->lastName();
 
-                $requiredHours = [240, 300, 360, 420, 486, 540, 600][array_rand([240, 300, 360, 420, 486, 540, 600])];
-                $startDate = $today->copy()->subDays(random_int(15, 140));
-                $endDate = $startDate->copy()->addDays(random_int(75, 180));
-                $assignedSupervisorId = empty($supervisorIds)
-                    ? null
-                    : $supervisorIds[($i - self::EMAIL_START) % count($supervisorIds)];
-                $assignedAdviserId = empty($adviserIds)
-                    ? null
-                    : $adviserIds[($i - self::EMAIL_START) % count($adviserIds)];
+                        $student = User::query()->updateOrCreate(
+                            ['email' => $email],
+                            [
+                                'name' => "{$firstName} {$lastName}",
+                                'password' => $defaultPassword,
+                                'role_id' => $studentRoleId,
+                            ],
+                        );
+                        $createdUsers++;
 
-                $profile = InternshipProfile::query()->updateOrCreate(
-                    ['student_id' => $student->id],
-                    [
-                        'company_name' => self::COMPANY_NAMES[array_rand(self::COMPANY_NAMES)] . " {$faker->numberBetween(1, 99)}",
-                        'company_address' => $faker->streetAddress() . ', ' . $faker->city(),
-                        'required_hours' => $requiredHours,
-                        'start_date' => $startDate->toDateString(),
-                        'end_date' => $endDate->toDateString(),
-                        'supervisor_id' => $assignedSupervisorId,
-                        'adviser_id' => $assignedAdviserId,
-                    ],
-                );
+                        $requiredHours = self::REQUIRED_HOUR_OPTIONS[array_rand(self::REQUIRED_HOUR_OPTIONS)];
+                        $startDate = $today->copy()->subDays(random_int(15, 140));
+                        $endDate = $startDate->copy()->addDays(random_int(75, 180));
+                        $assignedSupervisorId = empty($supervisorIds)
+                            ? null
+                            : $supervisorIds[($i - self::EMAIL_START) % count($supervisorIds)];
+                        $assignedAdviserId = empty($adviserIds)
+                            ? null
+                            : $adviserIds[($i - self::EMAIL_START) % count($adviserIds)];
 
-                LogEntry::query()->where('internship_profile_id', $profile->id)->delete();
-                DailyTimeRecord::query()->where('student_id', $student->id)->delete();
+                        $profile = InternshipProfile::query()->updateOrCreate(
+                            ['student_id' => $student->id],
+                            [
+                                'company_name' => self::COMPANY_NAMES[array_rand(self::COMPANY_NAMES)] . " {$faker->numberBetween(1, 99)}",
+                                'company_address' => $faker->streetAddress() . ', ' . $faker->city(),
+                                'required_hours' => $requiredHours,
+                                'start_date' => $startDate->toDateString(),
+                                'end_date' => $endDate->toDateString(),
+                                'supervisor_id' => $assignedSupervisorId,
+                                'adviser_id' => $assignedAdviserId,
+                            ],
+                        );
 
-                $latestDate = $endDate->isBefore($today) ? $endDate->copy() : $today->copy();
-                $availableDays = max(1, $startDate->diffInDays($latestDate) + 1);
-                $expectedByToday = $this->expectedHoursByToday(
-                    requiredHours: $requiredHours,
-                    startDate: $startDate,
-                    endDate: $endDate,
-                    today: $today,
-                );
-                $targets = $this->buildPerformanceTargets(
-                    requiredHours: $requiredHours,
-                    expectedByToday: $expectedByToday,
-                );
+                        LogEntry::query()->where('internship_profile_id', $profile->id)->delete();
+                        DailyTimeRecord::query()->where('student_id', $student->id)->delete();
 
-                $this->seedLogs(
-                    profile: $profile,
-                    fallbackSupervisorIds: $supervisorIds,
-                    startDate: $startDate,
-                    availableDays: $availableDays,
-                    approvedHoursTarget: $targets['approved_hours_target'],
-                    pendingHoursTarget: $targets['pending_hours_target'],
-                    rejectedLogsTarget: $targets['rejected_logs_target'],
-                );
+                        $latestDate = $endDate->isBefore($today) ? $endDate->copy() : $today->copy();
+                        $availableDays = max(1, $startDate->diffInDays($latestDate) + 1);
+                        $expectedByToday = $this->expectedHoursByToday(
+                            requiredHours: $requiredHours,
+                            startDate: $startDate,
+                            endDate: $endDate,
+                            today: $today,
+                        );
+                        $targets = $this->buildPerformanceTargets(
+                            requiredHours: $requiredHours,
+                            expectedByToday: $expectedByToday,
+                        );
 
-                $this->seedDtr(
-                    studentId: $student->id,
-                    startDate: $startDate,
-                    availableDays: $availableDays,
-                );
+                        $this->seedLogs(
+                            profile: $profile,
+                            fallbackSupervisorIds: $supervisorIds,
+                            startDate: $startDate,
+                            availableDays: $availableDays,
+                            approvedHoursTarget: $targets['approved_hours_target'],
+                            pendingHoursTarget: $targets['pending_hours_target'],
+                            rejectedLogsTarget: $targets['rejected_logs_target'],
+                        );
+
+                        $this->seedDtr(
+                            studentId: $student->id,
+                            startDate: $startDate,
+                            availableDays: $availableDays,
+                        );
+                    });
+                } catch (\Throwable $exception) {
+                    $this->command?->error(sprintf(
+                        'Bulk student seed failed for %s: %s',
+                        $email,
+                        $exception->getMessage(),
+                    ));
+
+                    throw $exception;
+                }
             }
-        });
 
-        $this->command?->info(sprintf(
-            'Seeded %d students (%s to %s) with varied internship profiles, logs, and DTR data.',
-            $createdUsers,
-            'student' . self::EMAIL_START . '@example.com',
-            'student' . self::EMAIL_END . '@example.com',
-        ));
-        $this->command?->line(sprintf(
-            'Created/updated supervisors: supervisor%d@example.com to supervisor%d@example.com',
-            self::SUPERVISOR_START,
-            self::SUPERVISOR_END
-        ));
-        $this->command?->line(sprintf(
-            'Created/updated advisers: adviser%d@example.com to adviser%d@example.com',
-            self::ADVISER_START,
-            self::ADVISER_END
-        ));
-        $this->command?->line('Password for all generated students: password');
-        $this->command?->line('Password for generated supervisors/advisers: password');
+            $this->command?->info(sprintf(
+                'Seeded %d students (%s to %s) with varied internship profiles, logs, and DTR data.',
+                $createdUsers,
+                'student' . self::EMAIL_START . '@example.com',
+                'student' . self::EMAIL_END . '@example.com',
+            ));
+            $this->command?->line(sprintf(
+                'Created/updated supervisors: supervisor%d@example.com to supervisor%d@example.com',
+                self::SUPERVISOR_START,
+                self::SUPERVISOR_END
+            ));
+            $this->command?->line(sprintf(
+                'Created/updated advisers: adviser%d@example.com to adviser%d@example.com',
+                self::ADVISER_START,
+                self::ADVISER_END
+            ));
+            $this->command?->line('Password for all generated students: password');
+            $this->command?->line('Password for generated supervisors/advisers: password');
+        });
     }
 
     private function seedReviewers(?int $supervisorRoleId, ?int $adviserRoleId): void
     {
         if ($supervisorRoleId) {
+            $defaultPassword = Hash::make('password');
+
             for ($i = self::SUPERVISOR_START; $i <= self::SUPERVISOR_END; $i++) {
                 User::query()->updateOrCreate(
                     ['email' => "supervisor{$i}@example.com"],
                     [
                         'name' => "Supervisor {$i}",
-                        'password' => Hash::make('password'),
+                        'password' => $defaultPassword,
                         'role_id' => $supervisorRoleId,
                     ],
                 );
@@ -197,12 +222,14 @@ class BulkStudentDemoSeeder extends Seeder
         }
 
         if ($adviserRoleId) {
+            $defaultPassword = $defaultPassword ?? Hash::make('password');
+
             for ($i = self::ADVISER_START; $i <= self::ADVISER_END; $i++) {
                 User::query()->updateOrCreate(
                     ['email' => "adviser{$i}@example.com"],
                     [
                         'name' => "Adviser {$i}",
-                        'password' => Hash::make('password'),
+                        'password' => $defaultPassword,
                         'role_id' => $adviserRoleId,
                     ],
                 );

@@ -117,19 +117,71 @@ class SupervisorLogService extends BaseService {
     required int attachmentId,
   }) async {
     try {
-      final bytes = await _apiClient.download(
+      final response = await _apiClient.downloadResponse(
         path: '$_endpoint/$logId/attachments/$attachmentId',
+      );
+      final mimeType =
+          response.headers.value('content-type') ?? 'application/octet-stream';
+      final filename = _extractFilename(
+        response.headers.value('content-disposition'),
+        attachmentId,
+        mimeType,
       );
 
       return SupervisorLogAttachmentFile(
-        bytes: bytes,
-        filename: 'attachment_$attachmentId',
-        mimeType: 'application/octet-stream',
+        bytes: response.data ?? const <int>[],
+        filename: filename,
+        mimeType: mimeType,
       );
     } on ApiException catch (e) {
       handleApiError(e);
       rethrow;
     }
+  }
+
+  String _extractFilename(
+    String? contentDisposition,
+    int attachmentId,
+    String mimeType,
+  ) {
+    final raw = contentDisposition ?? '';
+    final utf8Match = RegExp(r'''filename\*\s*=\s*UTF-8''([^;]+)''').firstMatch(
+      raw,
+    );
+    if (utf8Match != null) {
+      final encoded = utf8Match.group(1) ?? '';
+      final decoded = Uri.decodeComponent(encoded).trim();
+      if (decoded.isNotEmpty) {
+        return decoded;
+      }
+    }
+
+    final quotedMatch = RegExp(r'''filename\s*=\s*"([^"]+)"''').firstMatch(raw);
+    if (quotedMatch != null) {
+      final value = quotedMatch.group(1)?.trim() ?? '';
+      if (value.isNotEmpty) {
+        return value;
+      }
+    }
+
+    final plainMatch = RegExp(r'''filename\s*=\s*([^;]+)''').firstMatch(raw);
+    if (plainMatch != null) {
+      final value = plainMatch.group(1)?.trim() ?? '';
+      if (value.isNotEmpty) {
+        return value;
+      }
+    }
+
+    return 'attachment_$attachmentId${_extensionForMimeType(mimeType)}';
+  }
+
+  String _extensionForMimeType(String mimeType) {
+    final normalized = mimeType.toLowerCase();
+    if (normalized.contains('pdf')) return '.pdf';
+    if (normalized.contains('png')) return '.png';
+    if (normalized.contains('jpeg') || normalized.contains('jpg')) return '.jpg';
+    if (normalized.contains('csv')) return '.csv';
+    return '.bin';
   }
 
   /// Submits a review (approve/reject) for a log

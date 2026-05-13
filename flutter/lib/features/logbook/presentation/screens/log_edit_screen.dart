@@ -7,13 +7,11 @@ import '../log_date_policy.dart';
 
 class LogEditScreen extends StatefulWidget {
   final LogEntryItem log;
-  final String token;
   final LogbookService service;
 
   const LogEditScreen({
     super.key,
     required this.log,
-    required this.token,
     required this.service,
   });
 

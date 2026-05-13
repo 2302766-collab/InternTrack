@@ -104,7 +104,9 @@ void main() {
 
     profileCompleter.complete(_sampleProfile());
     reportCompleter.complete(_sampleReport());
-    logsCompleter.complete(_sampleLogs(taskDescription: 'Refreshed activity log.'));
+    logsCompleter.complete(
+      _sampleLogs(taskDescription: 'Refreshed activity log.'),
+    );
 
     await tester.pumpAndSettle();
 
@@ -183,7 +185,8 @@ void main() {
         logbookService: _QueuedLogbookService(
           responses: Queue.of([
             () async => _sampleLogs(),
-            () async => _sampleLogs(taskDescription: 'Logs refreshed successfully.'),
+            () async =>
+                _sampleLogs(taskDescription: 'Logs refreshed successfully.'),
           ]),
         ),
         clock: clock.call,
@@ -251,7 +254,9 @@ void main() {
     expect(find.byType(DashboardSkeletonBlock), findsWidgets);
     expect(find.text('Next Action'), findsOneWidget);
 
-    logsCompleter.complete(_sampleLogs(taskDescription: 'Logs loaded after retry.'));
+    logsCompleter.complete(
+      _sampleLogs(taskDescription: 'Logs loaded after retry.'),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Logs refresh failed.'), findsNothing);
@@ -299,10 +304,144 @@ void main() {
 
     await tester.pumpAndSettle();
 
+    expect(find.text('Next Action'), findsOneWidget);
     expect(find.text('Add today\'s log entry'), findsOneWidget);
+    expect(find.text('Add Today\'s Log'), findsNWidgets(2));
     expect(find.text('Pending Hours'), findsOneWidget);
     expect(find.text('Completed daily development tasks.'), findsOneWidget);
+    expect(find.text('Fixed UI issues and tested forms.'), findsOneWidget);
     expect(find.text('Edit in Logbook'), findsOneWidget);
+    expect(find.text('Update Profile'), findsOneWidget);
+
+    final newerLogY = tester
+        .getTopLeft(find.text('Completed daily development tasks.'))
+        .dy;
+    final olderLogY = tester
+        .getTopLeft(find.text('Fixed UI issues and tested forms.'))
+        .dy;
+    expect(newerLogY, lessThan(olderLogY));
+  });
+
+  testWidgets(
+    'student dashboard pushes profile completion when profile is missing',
+    (tester) async {
+      final authProvider = await _buildAuthProvider();
+
+      await tester.pumpWidget(
+        _buildApp(
+          authProvider: authProvider,
+          internshipService: _FakeInternshipService(profile: null),
+          reportService: _FakeStudentReportService(report: null),
+          logbookService: _FakeLogbookService(logs: const <LogEntryItem>[]),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Complete your internship profile'), findsOneWidget);
+      expect(find.text('Complete Internship Profile'), findsOneWidget);
+      expect(
+        find.textContaining('No internship profile is active yet'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('student dashboard shows loading state during API calls', (
+    tester,
+  ) async {
+    final authProvider = await _buildAuthProvider();
+    final completer = Completer<InternshipProfile?>();
+
+    await tester.pumpWidget(
+      _buildApp(
+        authProvider: authProvider,
+        internshipService: _FakeInternshipService(completer: completer),
+        reportService: _FakeStudentReportService(report: _sampleReport()),
+        logbookService: _FakeLogbookService(logs: const <LogEntryItem>[]),
+      ),
+    );
+
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+    completer.complete(_sampleProfile());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Next Action'), findsOneWidget);
+  });
+
+  testWidgets('student dashboard shows specific timeout error with retry', (
+    tester,
+  ) async {
+    final authProvider = await _buildAuthProvider();
+
+    await tester.pumpWidget(
+      _buildApp(
+        authProvider: authProvider,
+        internshipService: _FakeInternshipService(
+          error: ApiException(
+            message: 'Network timeout. Please try again.',
+            errorType: ApiErrorType.timeout,
+          ),
+        ),
+        reportService: _FakeStudentReportService(report: null),
+        logbookService: _FakeLogbookService(logs: const <LogEntryItem>[]),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Unable to load student dashboard'), findsOneWidget);
+    expect(find.text('Network timeout. Please try again.'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+  });
+
+  testWidgets('student dashboard retry button reloads data after failure', (
+    tester,
+  ) async {
+    final authProvider = await _buildAuthProvider();
+    var callCount = 0;
+    final retryCompleter = Completer<InternshipProfile?>();
+
+    await tester.pumpWidget(
+      _buildApp(
+        authProvider: authProvider,
+        internshipService: _FakeInternshipService(
+          onCall: () => callCount++,
+          handler: () async {
+            if (callCount == 1) {
+              throw ApiException(
+                message: 'Server unavailable. Please try again later.',
+                errorType: ApiErrorType.serverError,
+              );
+            }
+
+            return retryCompleter.future;
+          },
+        ),
+        reportService: _FakeStudentReportService(report: _sampleReport()),
+        logbookService: _FakeLogbookService(logs: const <LogEntryItem>[]),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Server unavailable. Please try again later.'),
+      findsOneWidget,
+    );
+    expect(callCount, equals(1));
+
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+    retryCompleter.complete(_sampleProfile());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Next Action'), findsOneWidget);
+    expect(callCount, equals(2));
   });
 }
 
@@ -468,14 +607,50 @@ class _FakeAuthService extends AuthService {
 }
 
 class _QueuedInternshipService extends InternshipService {
-  _QueuedInternshipService({required Queue<Future<InternshipProfile?> Function()> responses})
-      : _responses = responses;
+  _QueuedInternshipService({
+    required Queue<Future<InternshipProfile?> Function()> responses,
+  }) : _responses = responses;
 
   final Queue<Future<InternshipProfile?> Function()> _responses;
 
   @override
   Future<InternshipProfile?> getInternshipProfile() {
     return _responses.removeFirst()();
+  }
+}
+
+class _FakeInternshipService extends InternshipService {
+  _FakeInternshipService({
+    this.profile,
+    this.error,
+    this.completer,
+    this.onCall,
+    this.handler,
+  });
+
+  final InternshipProfile? profile;
+  final Object? error;
+  final Completer<InternshipProfile?>? completer;
+  final VoidCallback? onCall;
+  final Future<InternshipProfile?> Function()? handler;
+
+  @override
+  Future<InternshipProfile?> getInternshipProfile() async {
+    onCall?.call();
+
+    if (handler != null) {
+      return handler!();
+    }
+
+    if (error != null) {
+      throw error!;
+    }
+
+    if (completer != null) {
+      return completer!.future;
+    }
+
+    return profile;
   }
 }
 
@@ -492,6 +667,20 @@ class _QueuedStudentReportService extends StudentReportService {
   }
 }
 
+class _FakeStudentReportService extends StudentReportService {
+  _FakeStudentReportService({required this.report});
+
+  final StudentReportData? report;
+
+  @override
+  Future<StudentReportData> getReport({
+    String? startDate,
+    String? endDate,
+  }) async {
+    return report!;
+  }
+}
+
 class _QueuedLogbookService extends LogbookService {
   _QueuedLogbookService({
     required Queue<Future<List<LogEntryItem>> Function()> responses,
@@ -503,6 +692,15 @@ class _QueuedLogbookService extends LogbookService {
   Future<List<LogEntryItem>> getLogs() {
     return _responses.removeFirst()();
   }
+}
+
+class _FakeLogbookService extends LogbookService {
+  _FakeLogbookService({required this.logs});
+
+  final List<LogEntryItem> logs;
+
+  @override
+  Future<List<LogEntryItem>> getLogs() async => logs;
 }
 
 class _FakeNotificationService extends NotificationService {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intern_track_app/shared/models/student_adviser_assignment.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/services/admin_student_service.dart';
 import '../../../../shared/models/admin_student_summary.dart';
 import '../../../../shared/models/adviser_info.dart';
@@ -17,14 +19,21 @@ class StudentAdviserAssignmentScreen extends StatefulWidget {
 
 class _StudentAdviserAssignmentScreenState
     extends State<StudentAdviserAssignmentScreen> {
+  static const int _itemsPerPage = 10;
+
   late final AdminStudentService _studentService;
   late final AdviserManagementProvider _adviserProvider;
 
-  late List<AdminStudentSummary> _students = [];
+  final Map<int, _AdviserDraft> _draftAdvisers = <int, _AdviserDraft>{};
+  final List<AdminStudentSummary> _students = <AdminStudentSummary>[];
+
   bool _isLoadingStudents = true;
+  bool _isPageLoading = false;
+  bool _showOnlyUnassigned = false;
   String? _errorMessage;
-  final int _currentPage = 1;
-  final Map<int, AdviserInfo?> _selectedAdvisers = {};
+  int _currentPage = 1;
+  int _lastPage = 1;
+  int _totalStudents = 0;
 
   @override
   void initState() {
@@ -36,440 +45,1018 @@ class _StudentAdviserAssignmentScreenState
 
   Future<void> _loadInitialData() async {
     await _adviserProvider.loadAdvisers();
-    _loadStudents();
+    await _loadStudents(page: 1);
   }
 
-  Future<void> _loadStudents() async {
+  Future<void> _loadStudents({required int page}) async {
+    final isInitial = _students.isEmpty && !_isPageLoading;
+
     setState(() {
-      _isLoadingStudents = true;
       _errorMessage = null;
+      if (isInitial) {
+        _isLoadingStudents = true;
+      } else {
+        _isPageLoading = true;
+      }
     });
 
     try {
-      final page = await _studentService.fetchStudents(page: _currentPage);
+      final studentsPage = await _studentService.fetchStudents(
+        page: page,
+        perPage: _itemsPerPage,
+      );
+
+      if (!mounted) return;
+
       setState(() {
-        _students = page.students;
-        _isLoadingStudents = false;
+        _students
+          ..clear()
+          ..addAll(studentsPage.students);
+        _currentPage = studentsPage.currentPage;
+        _lastPage = studentsPage.lastPage == 0 ? 1 : studentsPage.lastPage;
+        _totalStudents = studentsPage.total;
       });
 
-      // Load adviser for each student
-      for (final student in _students) {
-        await _adviserProvider.loadStudentAdviser(student.studentId);
-      }
+      await Future.wait(
+        studentsPage.students.map(
+          (student) => _adviserProvider.loadStudentAdviser(student.studentId),
+        ),
+      );
     } catch (e) {
+      if (!mounted) return;
       setState(() {
-        _errorMessage = 'Failed to load students: $e';
-        _isLoadingStudents = false;
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingStudents = false;
+          _isPageLoading = false;
+        });
+      }
     }
   }
 
-  Future<void> _assignAdviser(
-    int studentId,
-    AdviserInfo? adviser,
-  ) async {
+  Future<void> _refresh() async {
+    await _adviserProvider.loadAdvisers();
+    await _loadStudents(page: _currentPage);
+  }
+
+  Future<void> _goToPage(int page) async {
+    if (page < 1 ||
+        page > _lastPage ||
+        page == _currentPage ||
+        _isPageLoading) {
+      return;
+    }
+
+    await _loadStudents(page: page);
+  }
+
+  Future<void> _assignAdviser(int studentId, AdviserInfo? adviser) async {
     final success = await _adviserProvider.assignAdviser(
       studentId: studentId,
       adviserId: adviser?.id,
     );
 
-    if (mounted) {
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              adviser == null
-                  ? 'Adviser removed successfully'
-                  : 'Adviser assigned successfully',
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
+    if (!mounted) return;
+
+    if (success) {
+      await _adviserProvider.loadStudentAdviser(studentId);
+      if (!mounted) return;
+
+      setState(() {
+        _draftAdvisers.remove(studentId);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            adviser == null
+                ? 'Adviser removed successfully.'
+                : 'Adviser assigned successfully.',
           ),
-        );
-        _adviserProvider.clearMessages();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_adviserProvider.errorMessage ?? 'Failed to assign adviser'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-        _adviserProvider.clearMessages();
-      }
+          backgroundColor: const Color(0xFF067647),
+        ),
+      );
+      _adviserProvider.clearMessages();
+      return;
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _adviserProvider.errorMessage ??
+              'Failed to update adviser assignment.',
+        ),
+        backgroundColor: const Color(0xFFB42318),
+      ),
+    );
+    _adviserProvider.clearMessages();
   }
 
-  @override
-  Widget build(BuildContext context) {
+  List<AdminStudentSummary> get _visibleStudents {
+    if (!_showOnlyUnassigned) {
+      return _students;
+    }
+
+    return _students.where((student) {
+      final assignment = _adviserProvider.getStudentAssignment(
+        student.studentId,
+      );
+      return !student.hasAdviser || assignment?.adviserId == null;
+    }).toList();
+  }
+
+  int get _studentsWithoutAdviserOnPage {
+    return _students.where((student) {
+      final assignment = _adviserProvider.getStudentAssignment(
+        student.studentId,
+      );
+      return !student.hasAdviser || assignment?.adviserId == null;
+    }).length;
+  }
+
+  String _studentStatusLabel(AdminStudentSummary student) {
+    if (!student.hasInternshipProfile) return 'Missing internship profile';
+    if (!student.hasSupervisor) return 'No supervisor assigned';
+    if (!student.hasAdviser) return 'No adviser assigned';
+    return 'Ready';
+  }
+
+  Color _studentStatusColor(AdminStudentSummary student) {
+    if (!student.hasInternshipProfile) return const Color(0xFFB54708);
+    if (!student.hasSupervisor) return const Color(0xFF175CD3);
+    if (!student.hasAdviser) return const Color(0xFF7A5AF8);
+    return const Color(0xFF067647);
+  }
+
+  Color _studentStatusBackground(AdminStudentSummary student) {
+    if (!student.hasInternshipProfile) return const Color(0xFFFFF4E5);
+    if (!student.hasSupervisor) return const Color(0xFFE8F1FF);
+    if (!student.hasAdviser) return const Color(0xFFF1EBFF);
+    return const Color(0xFFE7F6EC);
+  }
+
+  Widget _buildTopPanel(AdviserManagementProvider adviserProvider) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Manage Student Advisers'),
-        elevation: 0,
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: <Color>[Color(0xFF0F4C5C), Color(0xFF1B7A8C)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1E0F172A),
+            blurRadius: 24,
+            offset: Offset(0, 10),
+          ),
+        ],
       ),
-      body: Consumer<AdviserManagementProvider>(
-        builder: (context, adviserProvider, _) {
-          if (_isLoadingStudents) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
-
-          if (_errorMessage != null) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: Colors.red[400],
+                    const Text(
+                      'Adviser Management',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                     Text(
-                      _errorMessage ?? 'An error occurred',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _loadStudents,
-                      child: const Text('Retry'),
+                      'Assign advisers, follow setup gaps, and keep student support coverage complete.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFFE3F5F7),
+                      ),
                     ),
                   ],
                 ),
               ),
-            );
-          }
-
-          if (_students.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.people_outline,
-                    size: 48,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No students found',
-                    style: theme.textTheme.titleMedium,
-                  ),
-                ],
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(
+                  Icons.manage_accounts_rounded,
+                  color: Colors.white,
+                  size: 30,
+                ),
               ),
-            );
-          }
+            ],
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _buildHeroChip(
+                label: 'Students on Page',
+                value: '${_students.length}',
+              ),
+              _buildHeroChip(
+                label: 'Need Adviser',
+                value: '$_studentsWithoutAdviserOnPage',
+              ),
+              _buildHeroChip(
+                label: 'Available Advisers',
+                value: '${adviserProvider.advisers.length}',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-          if (adviserProvider.advisers.isEmpty && adviserProvider.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: _loadStudents,
-            child: ListView.builder(
-              itemCount: _students.length,
-              padding: const EdgeInsets.all(16),
-              itemBuilder: (context, index) {
-                final student = _students[index];
-                final assignment = adviserProvider.getStudentAssignment(student.studentId);
-                final selectedAdviser = _selectedAdvisers[student.studentId] ??
-                    (assignment != null && assignment.adviserId != null
-                        ? adviserProvider.advisers
-                            .firstWhere(
-                              (a) => a.id == assignment.adviserId,
-                              orElse: () => AdviserInfo(
-                                id: assignment.adviserId,
-                                name: assignment.adviserName,
-                                email: null,
-                              ),
-                            )
-                        : null);
-
-                return _StudentAdviserCard(
-                  student: student,
-                  currentAdviser: assignment,
-                  selectedAdviser: selectedAdviser,
-                  availableAdvisers: adviserProvider.advisers,
-                  isAssigning: adviserProvider.isAssigning,
-                  onAdviserChanged: (adviser) {
-                    setState(() {
-                      _selectedAdvisers[student.studentId] = adviser;
-                    });
-                  },
-                  onAssign: () {
-                    _assignAdviser(student.studentId, selectedAdviser);
-                    setState(() {
-                      _selectedAdvisers.remove(student.studentId);
-                    });
-                  },
-                  onRemove: () {
-                    _assignAdviser(student.studentId, null);
-                    setState(() {
-                      _selectedAdvisers.remove(student.studentId);
-                    });
-                  },
-                );
-              },
+  Widget _buildHeroChip({required String label, required String value}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFFD6F1F4),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
-          );
-        },
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToolbar() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x120F172A),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Assignment Queue',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF102A56),
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Work through the current page, then move forward using the page controls below.',
+            style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilterChip(
+                label: const Text('All Students'),
+                selected: !_showOnlyUnassigned,
+                onSelected: (_) {
+                  setState(() {
+                    _showOnlyUnassigned = false;
+                  });
+                },
+                selectedColor: const Color(0xFFD8ECF0),
+                side: const BorderSide(color: Color(0xFFD0D5DD)),
+              ),
+              FilterChip(
+                label: const Text('Needs Adviser'),
+                selected: _showOnlyUnassigned,
+                onSelected: (_) {
+                  setState(() {
+                    _showOnlyUnassigned = true;
+                  });
+                },
+                selectedColor: const Color(0xFFEDE7FF),
+                side: const BorderSide(color: Color(0xFFD0D5DD)),
+              ),
+              OutlinedButton.icon(
+                onPressed: _isPageLoading ? null : _refresh,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Refresh'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<int> _visiblePages(bool isCompact) {
+    if (_lastPage <= 1) {
+      return const <int>[1];
+    }
+
+    if (isCompact) {
+      final pages = <int>{_currentPage};
+      if (_currentPage > 1) {
+        pages.add(_currentPage - 1);
+      }
+      if (_currentPage < _lastPage) {
+        pages.add(_currentPage + 1);
+      }
+      final sorted = pages.toList()..sort();
+      return sorted;
+    }
+
+    final start = (_currentPage - 2).clamp(1, _lastPage);
+    final end = (_currentPage + 2).clamp(1, _lastPage);
+    return <int>[for (var page = start; page <= end; page++) page];
+  }
+
+  Widget _buildPageButton({
+    required int page,
+    required bool selected,
+    required bool compact,
+  }) {
+    final size = compact ? 40.0 : 42.0;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: InkWell(
+        onTap: _isPageLoading ? null : () => _goToPage(page),
+        borderRadius: BorderRadius.circular(size / 2),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF1976D2) : Colors.transparent,
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            '$page',
+            style: TextStyle(
+              fontSize: compact ? 16 : 18,
+              fontWeight: FontWeight.w700,
+              color: selected ? Colors.white : const Color(0xFF344054),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildArrowButton({
+    required IconData icon,
+    required VoidCallback? onPressed,
+    bool compact = false,
+  }) {
+    return IconButton(
+      tooltip: compact ? null : 'Pagination',
+      onPressed: _isPageLoading ? null : onPressed,
+      icon: Icon(
+        icon,
+        color: onPressed == null
+            ? const Color(0xFF98A2B3)
+            : const Color(0xFF101828),
+      ),
+    );
+  }
+
+  Widget _buildPaginationControls(BoxConstraints constraints) {
+    if (_students.isEmpty && _totalStudents == 0) {
+      return const SizedBox.shrink();
+    }
+
+    final isCompact = constraints.maxWidth < 600;
+    final visiblePages = _visiblePages(isCompact);
+    final startItem = _totalStudents == 0
+        ? 0
+        : ((_currentPage - 1) * _itemsPerPage) + 1;
+    final endItem = (_currentPage * _itemsPerPage).clamp(0, _totalStudents);
+
+    if (isCompact) {
+      return Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildArrowButton(
+                icon: Icons.chevron_left_rounded,
+                compact: true,
+                onPressed: _currentPage > 1
+                    ? () => _goToPage(_currentPage - 1)
+                    : null,
+              ),
+              ...visiblePages.map(
+                (page) => _buildPageButton(
+                  page: page,
+                  selected: page == _currentPage,
+                  compact: true,
+                ),
+              ),
+              _buildArrowButton(
+                icon: Icons.chevron_right_rounded,
+                compact: true,
+                onPressed: _currentPage < _lastPage
+                    ? () => _goToPage(_currentPage + 1)
+                    : null,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '$startItem-$endItem of $_totalStudents students',
+            style: const TextStyle(fontSize: 14, color: Color(0xFF667085)),
+          ),
+        ],
+      );
+    }
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 4,
+      runSpacing: 10,
+      children: [
+        _buildArrowButton(
+          icon: Icons.keyboard_double_arrow_left_rounded,
+          onPressed: _currentPage > 1 ? () => _goToPage(1) : null,
+        ),
+        _buildArrowButton(
+          icon: Icons.chevron_left_rounded,
+          onPressed: _currentPage > 1
+              ? () => _goToPage(_currentPage - 1)
+              : null,
+        ),
+        ...visiblePages.map(
+          (page) => _buildPageButton(
+            page: page,
+            selected: page == _currentPage,
+            compact: false,
+          ),
+        ),
+        _buildArrowButton(
+          icon: Icons.chevron_right_rounded,
+          onPressed: _currentPage < _lastPage
+              ? () => _goToPage(_currentPage + 1)
+              : null,
+        ),
+        _buildArrowButton(
+          icon: Icons.keyboard_double_arrow_right_rounded,
+          onPressed: _currentPage < _lastPage
+              ? () => _goToPage(_lastPage)
+              : null,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$startItem-$endItem of $_totalStudents students',
+          style: const TextStyle(fontSize: 16, color: Color(0xFF667085)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBody(AdviserManagementProvider adviserProvider) {
+    if (_isLoadingStudents) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage != null && _students.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFF475467)),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () => _loadStudents(page: 1),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final visibleStudents = _visibleStudents;
+
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: LayoutBuilder(
+        builder: (context, constraints) => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+          children: [
+            _buildTopPanel(adviserProvider),
+            const SizedBox(height: 20),
+            _buildToolbar(),
+            if (adviserProvider.errorMessage != null &&
+                adviserProvider.advisers.isEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF4E5),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFFDB022)),
+                ),
+                child: Text(
+                  adviserProvider.errorMessage!,
+                  style: const TextStyle(
+                    color: Color(0xFFB54708),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
+            if (visibleStudents.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: const Text(
+                  'No students matched this filter on the current page.',
+                  style: TextStyle(fontSize: 15, color: Color(0xFF667085)),
+                ),
+              )
+            else
+              ...visibleStudents.map(
+                (student) => Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: _StudentAdviserCard(
+                    student: student,
+                    currentAdviser: adviserProvider.getStudentAssignment(
+                      student.studentId,
+                    ),
+                    selectedAdviser: _draftAdvisers[student.studentId]?.adviser,
+                    hasDraftSelection: _draftAdvisers.containsKey(
+                      student.studentId,
+                    ),
+                    availableAdvisers: adviserProvider.advisers,
+                    isAssigning: adviserProvider.isAssigning,
+                    statusLabel: _studentStatusLabel(student),
+                    statusColor: _studentStatusColor(student),
+                    statusBackground: _studentStatusBackground(student),
+                    onAdviserChanged: (adviser) {
+                      setState(() {
+                        _draftAdvisers[student.studentId] = _AdviserDraft(
+                          adviser: adviser,
+                        );
+                      });
+                    },
+                    onAssign: (adviser) =>
+                        _assignAdviser(student.studentId, adviser),
+                    onReset: () {
+                      setState(() {
+                        _draftAdvisers.remove(student.studentId);
+                      });
+                    },
+                  ),
+                ),
+              ),
+            if (_errorMessage != null && _students.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 12),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Text(
+                        _errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Color(0xFFB42318)),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () => _loadStudents(page: _currentPage),
+                        child: const Text('Try loading again'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (_isPageLoading)
+              const Padding(
+                padding: EdgeInsets.only(top: 8, bottom: 18),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            if (_students.isNotEmpty || _totalStudents > 0) ...[
+              const SizedBox(height: 12),
+              _buildPaginationControls(constraints),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F7FB),
+      appBar: AppBar(title: const Text('Manage Student Advisers')),
+      body: Consumer<AdviserManagementProvider>(
+        builder: (context, adviserProvider, _) => _buildBody(adviserProvider),
       ),
     );
   }
 }
 
 class _StudentAdviserCard extends StatelessWidget {
-  final AdminStudentSummary student;
-  final StudentAdviserAssignment? currentAdviser;
-  final AdviserInfo? selectedAdviser;
-  final List<AdviserInfo> availableAdvisers;
-  final bool isAssigning;
-  final ValueChanged<AdviserInfo?> onAdviserChanged;
-  final VoidCallback onAssign;
-  final VoidCallback onRemove;
-
   const _StudentAdviserCard({
     required this.student,
     required this.currentAdviser,
     required this.selectedAdviser,
+    required this.hasDraftSelection,
     required this.availableAdvisers,
     required this.isAssigning,
+    required this.statusLabel,
+    required this.statusColor,
+    required this.statusBackground,
     required this.onAdviserChanged,
     required this.onAssign,
-    required this.onRemove,
+    required this.onReset,
   });
+
+  final AdminStudentSummary student;
+  final StudentAdviserAssignment? currentAdviser;
+  final AdviserInfo? selectedAdviser;
+  final bool hasDraftSelection;
+  final List<AdviserInfo> availableAdvisers;
+  final bool isAssigning;
+  final String statusLabel;
+  final Color statusColor;
+  final Color statusBackground;
+  final ValueChanged<AdviserInfo?> onAdviserChanged;
+  final ValueChanged<AdviserInfo?> onAssign;
+  final VoidCallback onReset;
+
+  AdviserInfo? get _effectiveSelection {
+    if (hasDraftSelection) {
+      return selectedAdviser;
+    }
+
+    final matchingIndex = availableAdvisers.indexWhere(
+      (adviser) => adviser.id == currentAdviser?.adviserId,
+    );
+
+    if (matchingIndex >= 0) {
+      return availableAdvisers[matchingIndex];
+    }
+
+    if (currentAdviser?.adviserId != null) {
+      return AdviserInfo(
+        id: currentAdviser!.adviserId,
+        name: currentAdviser!.adviserName,
+        email: null,
+      );
+    }
+
+    return null;
+  }
+
+  bool get _hasPendingChanges =>
+      _effectiveSelection?.id != currentAdviser?.adviserId;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final currentAdviserId = currentAdviser?.adviserId;
+    final progress = (student.completionPercentage / 100).clamp(0.0, 1.0);
     final currentAdviserName = currentAdviser?.adviserName;
-    final hasChanges = selectedAdviser?.id != currentAdviser?.adviserId;
+    final theme = Theme.of(context);
 
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Student name and ID
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        student.name,
-                        style: theme.textTheme.titleMedium,
-                        overflow: TextOverflow.ellipsis,
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x120F172A),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      student.name,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF102A56),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'ID: ${student.studentId}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // Divider
-            Divider(height: 1, color: Colors.grey[300]),
-            const SizedBox(height: 12),
-            // Current adviser display
-            if (currentAdviser?.adviserName != null)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Current Adviser:',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: Colors.grey[700],
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.green[200]!),
-                    ),
-                    child: Row(
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
-                        Icon(Icons.check_circle, size: 16, color: Colors.green[700]),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            currentAdviserName ?? 'Unknown',
-                            style: theme.textTheme.bodyMedium,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        _InfoPill(
+                          label: 'Student ID ${student.studentId}',
+                          backgroundColor: const Color(0xFFF2F4F7),
+                          foregroundColor: const Color(0xFF344054),
+                        ),
+                        _InfoPill(
+                          label: statusLabel,
+                          backgroundColor: statusBackground,
+                          foregroundColor: statusColor,
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-              )
-            else
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Status:',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.orange[50],
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.orange[200]!),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.warning_amber, size: 16, color: Colors.orange[700]),
-                        const SizedBox(width: 8),
-                        Text(
-                          'No adviser assigned',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
+                  ],
+                ),
               ),
-            // Adviser dropdown
-            Text(
-              hasChanges ? 'Change to:' : 'Assign adviser:',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: Colors.grey[700],
-              ),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<AdviserInfo?>(
-              initialValue: selectedAdviser,
-              hint: const Text('Select an adviser...'),
-              isExpanded: true,
-              items: [
-                DropdownMenuItem<AdviserInfo?>(
-                  value: null,
-                  child: Text(
-                    'None (Remove adviser)',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ),
-                ...availableAdvisers.map(
-                  (adviser) => DropdownMenuItem<AdviserInfo?>(
-                    value: adviser,
-                    child: Text(adviser.name ?? 'Unknown'),
-                  ),
-                ),
-              ],
-              onChanged: isAssigning ? null : onAdviserChanged,
-              decoration: InputDecoration(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                filled: true,
-                fillColor: Colors.grey[50],
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Action buttons
-            if (hasChanges)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: isAssigning
-                        ? null
-                        : () {
-                            onAdviserChanged(
-                              currentAdviserId != null
-                                  ? availableAdvisers.firstWhere(
-                                      (a) => a.id == currentAdviserId,
-                                      orElse: () => AdviserInfo(
-                                        id: currentAdviserId,
-                                        name: currentAdviserName,
-                                        email: null,
-                                      ),
-                                    )
-                                  : null,
-                            );
-                          },
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: isAssigning ? null : onAssign,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                    ),
-                    child: isAssigning
-                        ? SizedBox(
-                            height: 16,
-                            width: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white.withValues(alpha: 0.7),
-                              ),
-                            ),
-                          )
-                        : const Text('Assign'),
-                  ),
-                ],
-              )
-            else if (currentAdviser?.adviserName != null)
+              const SizedBox(width: 16),
               SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: isAssigning ? null : onRemove,
-                  icon: const Icon(Icons.clear),
+                width: 86,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${student.completionPercentage.round()}%',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F4C5C),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 10,
+                        backgroundColor: const Color(0xFFDCE3EB),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Color(0xFF0F766E),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Company: ${student.company?.isNotEmpty == true ? student.company : 'Not assigned yet'}',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: const Color(0xFF475467),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Approved Hours: ${student.approvedHours} / ${student.requiredHours}',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: const Color(0xFF667085),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: currentAdviserName == null
+                  ? const Color(0xFFFFF7ED)
+                  : const Color(0xFFF0FDF4),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: currentAdviserName == null
+                    ? const Color(0xFFFDB022)
+                    : const Color(0xFFABEFC6),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  currentAdviserName == null
+                      ? 'Current Status'
+                      : 'Current Adviser',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF667085),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  currentAdviserName ?? 'No adviser assigned',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: currentAdviserName == null
+                        ? const Color(0xFFB54708)
+                        : const Color(0xFF067647),
+                  ),
+                ),
+                if (currentAdviser?.assignedAt != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Assigned ${DateFormatter.formatDateOnly(currentAdviser!.assignedAt!)}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF667085),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Assign Adviser',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: const Color(0xFF102A56),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<AdviserInfo?>(
+            key: ValueKey<String>(
+              '${student.studentId}-${_effectiveSelection?.id ?? 'none'}',
+            ),
+            initialValue: _effectiveSelection,
+            hint: const Text('Select an adviser'),
+            isExpanded: true,
+            items: [
+              const DropdownMenuItem<AdviserInfo?>(
+                value: null,
+                child: Text('None (Remove adviser)'),
+              ),
+              ...availableAdvisers.map(
+                (adviser) => DropdownMenuItem<AdviserInfo?>(
+                  value: adviser,
+                  child: Text(
+                    adviser.email?.isNotEmpty == true
+                        ? '${adviser.name} • ${adviser.email}'
+                        : adviser.name ?? 'Unknown adviser',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ],
+            onChanged: isAssigning ? null : onAdviserChanged,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: const Color(0xFFF8FAFC),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: Color(0xFFD0D5DD)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: Color(0xFFD0D5DD)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(
+                  color: Color(0xFF0F4C5C),
+                  width: 1.4,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              if (_hasPendingChanges)
+                TextButton(
+                  onPressed: isAssigning ? null : onReset,
+                  child: const Text('Reset'),
+                ),
+              if (_hasPendingChanges)
+                ElevatedButton.icon(
+                  onPressed: isAssigning
+                      ? null
+                      : () => onAssign(_effectiveSelection),
+                  icon: isAssigning
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check_rounded),
+                  label: Text(
+                    _effectiveSelection == null
+                        ? 'Remove Adviser'
+                        : 'Save Assignment',
+                  ),
+                )
+              else if (currentAdviser?.adviserId != null)
+                OutlinedButton.icon(
+                  onPressed: isAssigning ? null : () => onAssign(null),
+                  icon: const Icon(Icons.clear_rounded),
                   label: const Text('Remove Adviser'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red[700],
-                    side: BorderSide(color: Colors.red[300]!),
+                    foregroundColor: const Color(0xFFB42318),
+                    side: const BorderSide(color: Color(0xFFFDA29B)),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoPill extends StatelessWidget {
+  const _InfoPill({
+    required this.label,
+    required this.backgroundColor,
+    required this.foregroundColor,
+  });
+
+  final String label;
+  final Color backgroundColor;
+  final Color foregroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: foregroundColor,
         ),
       ),
     );
   }
+}
+
+class _AdviserDraft {
+  const _AdviserDraft({required this.adviser});
+
+  final AdviserInfo? adviser;
 }

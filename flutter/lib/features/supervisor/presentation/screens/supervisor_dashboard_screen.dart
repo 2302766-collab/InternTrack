@@ -38,6 +38,8 @@ class SupervisorDashboardScreen extends StatefulWidget {
 }
 
 class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
+  static const double _maxContentWidth = 1360;
+
   late final SupervisorLogService _logService;
   late final SupervisorDashboardService _dashboardService;
 
@@ -45,13 +47,16 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   bool _isRefreshing = false;
   bool _hasCompletedFirstLoad = false;
   DateTime? _lastUpdated;
+
   List<SupervisorLogItem> _pendingLogs = <SupervisorLogItem>[];
   SupervisorDashboardSummary? _dashboardSummary;
+
   final Map<_SupervisorDashboardSection, bool> _sectionLoading =
       <_SupervisorDashboardSection, bool>{
         _SupervisorDashboardSection.summary: false,
         _SupervisorDashboardSection.logs: false,
       };
+
   final Map<_SupervisorDashboardSection, String?> _sectionErrors =
       <_SupervisorDashboardSection, String?>{
         _SupervisorDashboardSection.summary: null,
@@ -102,9 +107,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     if (token.isEmpty) {
       setState(() {
         _isInitialLoading = false;
+        _isRefreshing = false;
         _hasCompletedFirstLoad = true;
         _sectionErrors[_SupervisorDashboardSection.summary] =
             'Missing authentication token. Please log in again.';
+        _sectionErrors[_SupervisorDashboardSection.logs] = null;
+        _sectionLoading[_SupervisorDashboardSection.summary] = false;
+        _sectionLoading[_SupervisorDashboardSection.logs] = false;
       });
       return;
     }
@@ -114,6 +123,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     setState(() {
       _isInitialLoading = showFullScreenLoader;
       _isRefreshing = !showFullScreenLoader;
+      _sectionErrors[_SupervisorDashboardSection.summary] = null;
+      _sectionErrors[_SupervisorDashboardSection.logs] = null;
       _sectionLoading[_SupervisorDashboardSection.summary] = true;
       _sectionLoading[_SupervisorDashboardSection.logs] = true;
     });
@@ -125,7 +136,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
     if (!mounted) return;
 
-    final successfulSections = results.where((result) => result.succeeded).length;
+    final successfulSections =
+        results.where((result) => result.succeeded).length;
 
     setState(() {
       _isInitialLoading = false;
@@ -145,8 +157,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     });
 
     final result = switch (section) {
-      _SupervisorDashboardSection.summary => await _refreshSummary(markLoading: false),
-      _SupervisorDashboardSection.logs => await _refreshPendingLogs(markLoading: false),
+      _SupervisorDashboardSection.summary =>
+        await _refreshSummary(markLoading: false),
+      _SupervisorDashboardSection.logs =>
+        await _refreshPendingLogs(markLoading: false),
     };
 
     if (!mounted) return;
@@ -269,11 +283,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Future<void> _openPendingQueue() async {
-    final token = context.read<AuthProvider>().token ?? '';
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => SupervisorPendingLogsScreen(token: token),
+        builder: (_) => const SupervisorPendingLogsScreen(),
       ),
     );
 
@@ -283,11 +296,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Future<void> _openAssignedInterns() async {
-    final token = context.read<AuthProvider>().token ?? '';
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => InternListScreen(token: token, role: 'supervisor'),
+        builder: (_) => const InternListScreen(role: 'supervisor'),
       ),
     );
 
@@ -297,13 +309,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Future<void> _openLogReview(SupervisorLogItem log) async {
-    final token = context.read<AuthProvider>().token ?? '';
-
     final updated = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => SupervisorLogDetailScreen(
-          token: token,
           logId: log.id,
           initialLog: log,
           service: _logService,
@@ -314,6 +323,17 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     if (updated == true && mounted) {
       await _loadDashboardData();
     }
+  }
+
+  Future<void> _logout() async {
+    await context.read<AuthProvider>().logout();
+    if (!mounted) return;
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.login,
+      (route) => false,
+    );
   }
 
   String _initialsFor(String name) {
@@ -384,19 +404,19 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
   Widget _buildStatsSkeleton() {
     return Wrap(
-      spacing: 28,
-      runSpacing: 16,
+      spacing: 12,
+      runSpacing: 12,
       children: const [
         SizedBox(
-          width: 250,
+          width: 320,
           child: DashboardSkeletonBlock(height: 108, radius: 24),
         ),
         SizedBox(
-          width: 250,
+          width: 320,
           child: DashboardSkeletonBlock(height: 108, radius: 24),
         ),
         SizedBox(
-          width: 250,
+          width: 320,
           child: DashboardSkeletonBlock(height: 108, radius: 24),
         ),
       ],
@@ -439,6 +459,17 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     }
   }
 
+  String _statusLabel(String status) {
+    final normalized = status.trim();
+    if (normalized.isEmpty) {
+      return 'Unknown';
+    }
+    if (normalized.length == 1) {
+      return normalized.toUpperCase();
+    }
+    return normalized[0].toUpperCase() + normalized.substring(1).toLowerCase();
+  }
+
   Widget _buildHeader(AuthProvider authProvider) {
     final theme = Theme.of(context);
     final surfaceColor = theme.colorScheme.surface;
@@ -448,70 +479,34 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     final dividerColor =
         theme.dividerTheme.color ?? theme.colorScheme.outlineVariant;
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(28, 20, 28, 20),
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        border: Border(bottom: BorderSide(color: dividerColor)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          IconButton(
-            onPressed: () async {
-              await context.read<AuthProvider>().logout();
-              if (!mounted) return;
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                AppRoutes.login,
-                (route) => false,
-              );
-            },
-            icon: const Icon(Icons.arrow_back),
-            tooltip: 'Logout',
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Supervisor Dashboard',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    color: primaryTextColor,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Review and manage student logs',
-                  style: TextStyle(fontSize: 14, color: secondaryTextColor),
-                ),
-                const SizedBox(height: 8),
-                DashboardRefreshStatus(
-                  lastUpdated: _lastUpdated,
-                  isRefreshing: _isRefreshing,
-                  pullToRefreshLabel: 'Pull down to refresh dashboard data',
-                  refreshingLabel: 'Refreshing supervisor dashboard...',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Row(
-            children: [
-              const SettingsShortcutButton(),
-              const SizedBox(width: 8),
-              NotificationBellButton(token: authProvider.token ?? ''),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 900;
+        final isCompact = constraints.maxWidth < 520;
+        final horizontalPadding = isNarrow
+            ? 16.0
+            : constraints.maxWidth >= 1440
+            ? 40.0
+            : 28.0;
+        final profileMaxWidth = constraints.maxWidth >= 1280 ? 420.0 : 360.0;
+
+        final profileSection = Row(
+          children: [
+            const SettingsShortcutButton(),
+            const SizedBox(width: 8),
+            NotificationBellButton(token: authProvider.token ?? ''),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: isCompact
+                    ? CrossAxisAlignment.start
+                    : CrossAxisAlignment.end,
                 children: [
                   Text(
                     widget.userName,
-                    style: TextStyle(
-                      color: primaryTextColor,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -519,26 +514,110 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   const SizedBox(height: 2),
                   Text(
                     'Company Supervisor',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 13, color: secondaryTextColor),
                   ),
                 ],
               ),
-              const SizedBox(width: 14),
-              CircleAvatar(
-                radius: 26,
-                backgroundColor: const Color(0xFF06C167),
-                child: Text(
-                  _initialsFor(authProvider.user?.name ?? widget.userName),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
+            ),
+            const SizedBox(width: 14),
+            CircleAvatar(
+              radius: 26,
+              backgroundColor: const Color(0xFF06C167),
+              child: Text(
+                _initialsFor(authProvider.user?.name ?? widget.userName),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            ],
+            ),
+          ],
+        );
+
+        final titleBlock = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Supervisor Dashboard',
+              style: TextStyle(
+                fontSize: isNarrow ? (isCompact ? 20 : 24) : 28,
+                fontWeight: FontWeight.w700,
+                color: primaryTextColor,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Review and manage student logs',
+              style: TextStyle(
+                fontSize: isCompact ? 13 : 14,
+                color: secondaryTextColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            DashboardRefreshStatus(
+              lastUpdated: _lastUpdated,
+              isRefreshing: _isRefreshing,
+              pullToRefreshLabel: 'Pull down to refresh dashboard data',
+              refreshingLabel: 'Refreshing supervisor dashboard...',
+            ),
+          ],
+        );
+
+        return Container(
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            20,
+            horizontalPadding,
+            20,
           ),
-        ],
-      ),
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            border: Border(bottom: BorderSide(color: dividerColor)),
+          ),
+          child: isNarrow
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        IconButton(
+                          onPressed: _logout,
+                          icon: const Icon(Icons.arrow_back),
+                          tooltip: 'Logout',
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(child: titleBlock),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: profileMaxWidth),
+                      child: profileSection,
+                    ),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    IconButton(
+                      onPressed: _logout,
+                      icon: const Icon(Icons.arrow_back),
+                      tooltip: 'Logout',
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: titleBlock),
+                    const SizedBox(width: 12),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: profileMaxWidth),
+                      child: profileSection,
+                    ),
+                  ],
+                ),
+        );
+      },
     );
   }
 
@@ -549,55 +628,64 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     required Color accent,
     double? width,
   }) {
-    final cardWidget = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 26),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x120F172A),
-            blurRadius: 18,
-            offset: Offset(0, 6),
+    final cardWidget = LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 520;
+
+        return Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: isCompact ? 22 : 28,
+            vertical: isCompact ? 22 : 26,
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF355070),
-                  ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x120F172A),
+                blurRadius: 18,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: isCompact ? 15 : 16,
+                        color: const Color(0xFF355070),
+                      ),
+                    ),
+                    SizedBox(height: isCompact ? 10 : 12),
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: isCompact ? 32 : 40,
+                        fontWeight: FontWeight.w600,
+                        color: accent,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.w600,
-                    color: accent,
-                  ),
+              ),
+              Container(
+                width: isCompact ? 50 : 54,
+                height: isCompact ? 50 : 54,
+                decoration: BoxDecoration(
+                  color: accent.withAlpha(28),
+                  shape: BoxShape.circle,
                 ),
-              ],
-            ),
+                child: Icon(icon, color: accent, size: isCompact ? 30 : 34),
+              ),
+            ],
           ),
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: accent.withAlpha(28),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: accent, size: 34),
-          ),
-        ],
-      ),
+        );
+      },
     );
 
     if (width != null) {
@@ -607,21 +695,38 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Widget _buildActionBar() {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        ElevatedButton.icon(
-          onPressed: _openAssignedInterns,
-          icon: const Icon(Icons.groups_2_outlined),
-          label: const Text('View Assigned Interns'),
-        ),
-        OutlinedButton.icon(
-          onPressed: _openPendingQueue,
-          icon: const Icon(Icons.fact_check_outlined),
-          label: const Text('Review Pending Logs'),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 640;
+        final actionWidth = isCompact
+            ? constraints.maxWidth
+            : constraints.maxWidth >= 920
+            ? (constraints.maxWidth - 12) / 2
+            : constraints.maxWidth;
+
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            SizedBox(
+              width: actionWidth,
+              child: ElevatedButton.icon(
+                onPressed: _openAssignedInterns,
+                icon: const Icon(Icons.groups_2_outlined),
+                label: const Text('View Assigned Interns'),
+              ),
+            ),
+            SizedBox(
+              width: actionWidth,
+              child: OutlinedButton.icon(
+                onPressed: _openPendingQueue,
+                icon: const Icon(Icons.fact_check_outlined),
+                label: const Text('Review Pending Logs'),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -709,8 +814,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  log.status[0].toUpperCase() +
-                      log.status.substring(1).toLowerCase(),
+                  _statusLabel(log.status),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -875,8 +979,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  log.status[0].toUpperCase() +
-                      log.status.substring(1).toLowerCase(),
+                  _statusLabel(log.status),
                   style: TextStyle(
                     color: _statusFg(log.status),
                     fontWeight: FontWeight.w600,
@@ -971,7 +1074,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   ),
                   child: DashboardInlineNotice(
                     message: _logsError!,
-                    onRetry: () => _refreshSection(_SupervisorDashboardSection.logs),
+                    onRetry: () =>
+                        _refreshSection(_SupervisorDashboardSection.logs),
                   ),
                 )
               else if (_pendingLogs.isEmpty)
@@ -980,9 +1084,14 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     horizontal: isNarrow ? 0 : 28,
                     vertical: 36,
                   ),
-                  child: const Text(
-                    'No pending student logs to review right now.',
-                    style: TextStyle(fontSize: 15, color: Color(0xFF68768A)),
+                  child: Text(
+                    _logsError == null
+                        ? 'No pending student logs to review right now.'
+                        : 'Unable to refresh pending logs. You can retry or open the queue.',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: Color(0xFF68768A),
+                    ),
                   ),
                 )
               else if (isNarrow)
@@ -992,24 +1101,18 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     vertical: 8,
                   ),
                   child: Column(
-                    children: _pendingLogs
-                        .take(6)
-                        .map(_buildLogCardRow)
-                        .toList(),
+                    children: _pendingLogs.take(6).map(_buildLogCardRow).toList(),
                   ),
                 )
               else
                 ..._pendingLogs.take(6).map(_buildLogRow),
               if (isNarrow && _pendingLogs.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(0),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _openPendingQueue,
-                      icon: const Icon(Icons.open_in_new),
-                      label: const Text('Open Full Queue'),
-                    ),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _openPendingQueue,
+                    icon: const Icon(Icons.open_in_new),
+                    label: const Text('Open Full Queue'),
                   ),
                 ),
               if (_logsError != null && _pendingLogs.isNotEmpty)
@@ -1022,7 +1125,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   ),
                   child: DashboardInlineNotice(
                     message: _logsError!,
-                    onRetry: () => _refreshSection(_SupervisorDashboardSection.logs),
+                    onRetry: () =>
+                        _refreshSection(_SupervisorDashboardSection.logs),
                   ),
                 )
               else if (isLoading)
@@ -1033,7 +1137,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     isNarrow ? 0 : 28,
                     0,
                   ),
-                  child: _buildSectionRefreshingHint('Refreshing pending logs...'),
+                  child: _buildSectionRefreshingHint(
+                    'Refreshing pending logs...',
+                  ),
                 ),
             ],
           ),
@@ -1053,93 +1159,86 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       onRefresh: _loadDashboardData,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isNarrow = constraints.maxWidth < 900;
+          final viewportWidth = constraints.maxWidth
+              .clamp(0.0, _maxContentWidth)
+              .toDouble();
+          final horizontalPadding = constraints.maxWidth < 640
+              ? 16.0
+              : constraints.maxWidth >= 1440
+              ? 40.0
+              : 30.0;
+          final contentWidth = (viewportWidth - (horizontalPadding * 2))
+              .clamp(0.0, viewportWidth)
+              .toDouble();
+          final isNarrow = contentWidth < 900;
+          final statCardWidth = contentWidth >= 1140
+              ? (contentWidth - 24) / 3
+              : contentWidth >= 720
+              ? (contentWidth - 12) / 2
+              : contentWidth;
 
-          return ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(
-              isNarrow ? 16 : 30,
-              isNarrow ? 20 : 28,
-              isNarrow ? 16 : 30,
-              isNarrow ? 20 : 30,
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: _maxContentWidth),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPadding,
+                  isNarrow ? 20 : 28,
+                  horizontalPadding,
+                  isNarrow ? 20 : 30,
+                ),
+                children: [
+                  if (isSummaryLoading && _dashboardSummary == null)
+                    _buildStatsSkeleton()
+                  else
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        _buildStatCard(
+                          title: 'Pending Review',
+                          value: '$pendingCount',
+                          icon: Icons.access_time_rounded,
+                          accent: const Color(0xFF326DE6),
+                          width: statCardWidth,
+                        ),
+                        _buildStatCard(
+                          title: 'Approved Today',
+                          value: '$approvedToday',
+                          icon: Icons.check_circle_outline_rounded,
+                          accent: const Color(0xFF06C167),
+                          width: statCardWidth,
+                        ),
+                        _buildStatCard(
+                          title: 'Total Students',
+                          value: '$totalStudents',
+                          icon: Icons.circle,
+                          accent: const Color(0xFF98A2B3),
+                          width: statCardWidth,
+                        ),
+                      ],
+                    ),
+                  if (_summaryError != null) ...[
+                    const SizedBox(height: 12),
+                    DashboardInlineNotice(
+                      message: _summaryError!,
+                      onRetry: () =>
+                          _refreshSection(_SupervisorDashboardSection.summary),
+                    ),
+                  ] else if (isSummaryLoading) ...[
+                    const SizedBox(height: 12),
+                    _buildSectionRefreshingHint(
+                      'Refreshing dashboard summary...',
+                    ),
+                  ],
+                  SizedBox(height: isNarrow ? 16 : 22),
+                  _buildActionBar(),
+                  SizedBox(height: isNarrow ? 16 : 24),
+                  _buildLogsPanel(),
+                ],
+              ),
             ),
-            children: [
-              if (isSummaryLoading && _dashboardSummary == null)
-                _buildStatsSkeleton()
-              else if (isNarrow)
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    SizedBox(
-                      width: (constraints.maxWidth - 16 * 2 - 12) / 2,
-                      child: _buildStatCard(
-                        title: 'Pending Review',
-                        value: '$pendingCount',
-                        icon: Icons.access_time_rounded,
-                        accent: const Color(0xFF326DE6),
-                      ),
-                    ),
-                    SizedBox(
-                      width: (constraints.maxWidth - 16 * 2 - 12) / 2,
-                      child: _buildStatCard(
-                        title: 'Approved Today',
-                        value: '$approvedToday',
-                        icon: Icons.check_circle_outline_rounded,
-                        accent: const Color(0xFF06C167),
-                      ),
-                    ),
-                    SizedBox(
-                      width: (constraints.maxWidth - 16 * 2 - 12) / 2,
-                      child: _buildStatCard(
-                        title: 'Total Students',
-                        value: '$totalStudents',
-                        icon: Icons.circle,
-                        accent: const Color(0xFF98A2B3),
-                      ),
-                    ),
-                  ],
-                )
-              else
-                Row(
-                  children: [
-                    _buildStatCard(
-                      title: 'Pending Review',
-                      value: '$pendingCount',
-                      icon: Icons.access_time_rounded,
-                      accent: const Color(0xFF326DE6),
-                    ),
-                    const SizedBox(width: 28),
-                    _buildStatCard(
-                      title: 'Approved Today',
-                      value: '$approvedToday',
-                      icon: Icons.check_circle_outline_rounded,
-                      accent: const Color(0xFF06C167),
-                    ),
-                    const SizedBox(width: 28),
-                    _buildStatCard(
-                      title: 'Total Students',
-                      value: '$totalStudents',
-                      icon: Icons.circle,
-                      accent: const Color(0xFF98A2B3),
-                    ),
-                  ],
-                ),
-              if (_summaryError != null) ...[
-                const SizedBox(height: 12),
-                DashboardInlineNotice(
-                  message: _summaryError!,
-                  onRetry: () => _refreshSection(_SupervisorDashboardSection.summary),
-                ),
-              ] else if (isSummaryLoading) ...[
-                const SizedBox(height: 12),
-                _buildSectionRefreshingHint('Refreshing dashboard summary...'),
-              ],
-              SizedBox(height: isNarrow ? 16 : 22),
-              _buildActionBar(),
-              SizedBox(height: isNarrow ? 16 : 24),
-              _buildLogsPanel(),
-            ],
           );
         },
       ),

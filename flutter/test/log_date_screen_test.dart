@@ -44,7 +44,6 @@ void main() {
         _buildTestApp(
           LogEditScreen(
             log: _buildLog(date: todayText),
-            token: 'token',
             service: service,
           ),
         ),

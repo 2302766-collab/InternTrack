@@ -11,7 +11,7 @@ import 'package:intern_track_app/shared/models/supervisor_log_item.dart';
 
 void main() {
   group('SupervisorPendingLogsScreen', () {
-    testWidgets('loads pending logs sorted oldest first', (tester) async {
+    testWidgets('loads pending logs sorted newest first', (tester) async {
       final service = _FakeSupervisorLogService(
         pendingLogs: [
           _buildLog(
@@ -39,7 +39,6 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           SupervisorPendingLogsScreen(
-            token: 'token',
             service: service,
           ),
         ),
@@ -56,8 +55,8 @@ void main() {
       expect(find.text('Jan 12 (8 hrs)'), findsOneWidget);
       expect(find.text('Status: PENDING'), findsNWidgets(2));
       expect(
-        tester.getTopLeft(find.text('Student: Juan Dela Cruz')).dy,
-        lessThan(tester.getTopLeft(find.text('Student: Ana Cruz')).dy),
+        tester.getTopLeft(find.text('Student: Ana Cruz')).dy,
+        lessThan(tester.getTopLeft(find.text('Student: Juan Dela Cruz')).dy),
       );
     });
 
@@ -67,7 +66,6 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           SupervisorPendingLogsScreen(
-            token: 'token',
             service: _FakeSupervisorLogService(pendingLogs: const []),
           ),
         ),
@@ -84,7 +82,6 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           SupervisorPendingLogsScreen(
-            token: 'token',
             service: _FakeSupervisorLogService(
               pendingLogs: const [],
               pendingLogsError: ApiException(
@@ -118,7 +115,6 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           SupervisorPendingLogsScreen(
-            token: 'token',
             service: service,
           ),
         ),
@@ -143,7 +139,6 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           SupervisorPendingLogsScreen(
-            token: 'token',
             service: _FakeSupervisorLogService(
               pendingLogs: [
                 _buildLog(
@@ -154,7 +149,7 @@ void main() {
                 ),
               ],
             ),
-            reviewScreenBuilder: (context, log, service, token) {
+            reviewScreenBuilder: (context, log, service) {
               return Scaffold(
                 appBar: AppBar(title: const Text('Review Screen')),
                 body: Text('Log ID: ${log.id}'),
@@ -189,7 +184,6 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           SupervisorPendingLogsScreen(
-            token: 'token',
             service: service,
           ),
         ),
