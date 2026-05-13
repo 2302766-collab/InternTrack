@@ -8,6 +8,7 @@ import '../../../../core/services/supervisor_dashboard_service.dart';
 import '../../../../core/services/supervisor_log_service.dart';
 import '../../../../shared/models/supervisor_dashboard_summary.dart';
 import '../../../../shared/models/supervisor_log_item.dart';
+import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
 import '../../../../shared/widgets/settings_shortcut_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -15,10 +16,21 @@ import 'intern_list_screen.dart';
 import 'supervisor_log_detail_screen.dart';
 import 'supervisor_log_queue_screen.dart';
 
+enum _SupervisorDashboardSection { summary, logs }
+
 class SupervisorDashboardScreen extends StatefulWidget {
   final String userName;
+  final SupervisorLogService? logService;
+  final SupervisorDashboardService? dashboardService;
+  final DateTime Function()? clock;
 
-  const SupervisorDashboardScreen({super.key, required this.userName});
+  const SupervisorDashboardScreen({
+    super.key,
+    required this.userName,
+    this.logService,
+    this.dashboardService,
+    this.clock,
+  });
 
   @override
   State<SupervisorDashboardScreen> createState() =>
@@ -29,18 +41,39 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   late final SupervisorLogService _logService;
   late final SupervisorDashboardService _dashboardService;
 
-  bool _isLoading = true;
-  String? _errorMessage;
+  bool _isInitialLoading = true;
+  bool _isRefreshing = false;
+  bool _hasCompletedFirstLoad = false;
+  DateTime? _lastUpdated;
   List<SupervisorLogItem> _pendingLogs = <SupervisorLogItem>[];
   SupervisorDashboardSummary? _dashboardSummary;
+  final Map<_SupervisorDashboardSection, bool> _sectionLoading =
+      <_SupervisorDashboardSection, bool>{
+        _SupervisorDashboardSection.summary: false,
+        _SupervisorDashboardSection.logs: false,
+      };
+  final Map<_SupervisorDashboardSection, String?> _sectionErrors =
+      <_SupervisorDashboardSection, String?>{
+        _SupervisorDashboardSection.summary: null,
+        _SupervisorDashboardSection.logs: null,
+      };
+
+  String? get _summaryError => _sectionErrors[_SupervisorDashboardSection.summary];
+  String? get _logsError => _sectionErrors[_SupervisorDashboardSection.logs];
+
+  DateTime _now() => (widget.clock ?? DateTime.now)();
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_isLoading && _pendingLogs.isEmpty && _dashboardSummary == null) {
+    if (!_hasCompletedFirstLoad &&
+        _pendingLogs.isEmpty &&
+        _dashboardSummary == null &&
+        !_isRefreshing) {
       final apiClient = context.read<ApiClient>();
-      _logService = SupervisorLogService(apiClient);
-      _dashboardService = SupervisorDashboardService(apiClient);
+      _logService = widget.logService ?? SupervisorLogService(apiClient);
+      _dashboardService =
+          widget.dashboardService ?? SupervisorDashboardService(apiClient);
       _loadDashboardData();
     }
   }
@@ -63,57 +96,175 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Future<void> _loadDashboardData() async {
+    if (_isRefreshing) return;
+
     final token = context.read<AuthProvider>().token ?? '';
     if (token.isEmpty) {
       setState(() {
-        _isLoading = false;
-        _errorMessage = 'Missing authentication token. Please log in again.';
+        _isInitialLoading = false;
+        _hasCompletedFirstLoad = true;
+        _sectionErrors[_SupervisorDashboardSection.summary] =
+            'Missing authentication token. Please log in again.';
       });
       return;
     }
 
+    final showFullScreenLoader = !_hasCompletedFirstLoad;
+
     setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+      _isInitialLoading = showFullScreenLoader;
+      _isRefreshing = !showFullScreenLoader;
+      _sectionLoading[_SupervisorDashboardSection.summary] = true;
+      _sectionLoading[_SupervisorDashboardSection.logs] = true;
     });
 
+    final results = await Future.wait<_SupervisorSectionResult<dynamic>>([
+      _refreshPendingLogs(markLoading: false),
+      _refreshSummary(markLoading: false),
+    ]);
+
+    if (!mounted) return;
+
+    final successfulSections = results.where((result) => result.succeeded).length;
+
+    setState(() {
+      _isInitialLoading = false;
+      _isRefreshing = false;
+      _hasCompletedFirstLoad = true;
+      if (successfulSections > 0) {
+        _lastUpdated = _now();
+      }
+    });
+  }
+
+  Future<void> _refreshSection(_SupervisorDashboardSection section) async {
+    if (_sectionLoading[section] == true) return;
+
+    setState(() {
+      _sectionLoading[section] = true;
+    });
+
+    final result = switch (section) {
+      _SupervisorDashboardSection.summary => await _refreshSummary(markLoading: false),
+      _SupervisorDashboardSection.logs => await _refreshPendingLogs(markLoading: false),
+    };
+
+    if (!mounted) return;
+
+    setState(() {
+      if (result.succeeded) {
+        _lastUpdated = _now();
+      }
+    });
+  }
+
+  Future<_SupervisorSectionResult<SupervisorDashboardSummary>> _refreshSummary({
+    bool markLoading = true,
+  }) async {
+    if (markLoading && mounted) {
+      setState(() {
+        _sectionLoading[_SupervisorDashboardSection.summary] = true;
+      });
+    }
+
     try {
-      final results = await Future.wait<dynamic>([
-        _logService.getPendingLogs(),
-        _dashboardService.getSummary(),
-      ]);
-
-      if (!mounted) return;
-
-      final pendingLogs = List<SupervisorLogItem>.from(results[0] as List);
-      final dashboardSummary = results[1] as SupervisorDashboardSummary;
+      final dashboardSummary = await _dashboardService.getSummary();
+      if (!mounted) {
+        return _SupervisorSectionResult<SupervisorDashboardSummary>.failure();
+      }
 
       setState(() {
-        _pendingLogs = pendingLogs;
         _dashboardSummary = dashboardSummary;
+        _sectionErrors[_SupervisorDashboardSection.summary] = null;
+        _sectionLoading[_SupervisorDashboardSection.summary] = false;
       });
+
+      return _SupervisorSectionResult<SupervisorDashboardSummary>.success(
+        dashboardSummary,
+      );
     } on ApiException catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return _SupervisorSectionResult<SupervisorDashboardSummary>.failure();
+      }
 
       if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
         await _handleExpiredSession();
-        return;
+        return _SupervisorSectionResult<SupervisorDashboardSummary>.failure();
       }
 
       setState(() {
-        _errorMessage = e.message;
+        _sectionErrors[_SupervisorDashboardSection.summary] = e.message;
+        _sectionLoading[_SupervisorDashboardSection.summary] = false;
       });
+
+      return _SupervisorSectionResult<SupervisorDashboardSummary>.failure();
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+      if (!mounted) {
+        return _SupervisorSectionResult<SupervisorDashboardSummary>.failure();
       }
+
+      setState(() {
+        _sectionErrors[_SupervisorDashboardSection.summary] =
+            e.toString().replaceFirst('Exception: ', '');
+        _sectionLoading[_SupervisorDashboardSection.summary] = false;
+      });
+
+      return _SupervisorSectionResult<SupervisorDashboardSummary>.failure();
+    }
+  }
+
+  Future<_SupervisorSectionResult<List<SupervisorLogItem>>> _refreshPendingLogs({
+    bool markLoading = true,
+  }) async {
+    if (markLoading && mounted) {
+      setState(() {
+        _sectionLoading[_SupervisorDashboardSection.logs] = true;
+      });
+    }
+
+    try {
+      final pendingLogs = await _logService.getPendingLogs();
+      if (!mounted) {
+        return _SupervisorSectionResult<List<SupervisorLogItem>>.failure();
+      }
+
+      setState(() {
+        _pendingLogs = pendingLogs;
+        _sectionErrors[_SupervisorDashboardSection.logs] = null;
+        _sectionLoading[_SupervisorDashboardSection.logs] = false;
+      });
+
+      return _SupervisorSectionResult<List<SupervisorLogItem>>.success(
+        pendingLogs,
+      );
+    } on ApiException catch (e) {
+      if (!mounted) {
+        return _SupervisorSectionResult<List<SupervisorLogItem>>.failure();
+      }
+
+      if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+        await _handleExpiredSession();
+        return _SupervisorSectionResult<List<SupervisorLogItem>>.failure();
+      }
+
+      setState(() {
+        _sectionErrors[_SupervisorDashboardSection.logs] = e.message;
+        _sectionLoading[_SupervisorDashboardSection.logs] = false;
+      });
+
+      return _SupervisorSectionResult<List<SupervisorLogItem>>.failure();
+    } catch (e) {
+      if (!mounted) {
+        return _SupervisorSectionResult<List<SupervisorLogItem>>.failure();
+      }
+
+      setState(() {
+        _sectionErrors[_SupervisorDashboardSection.logs] =
+            e.toString().replaceFirst('Exception: ', '');
+        _sectionLoading[_SupervisorDashboardSection.logs] = false;
+      });
+
+      return _SupervisorSectionResult<List<SupervisorLogItem>>.failure();
     }
   }
 
@@ -201,6 +352,69 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     return '${months[parsed.month - 1]} ${parsed.day}, ${parsed.year}';
   }
 
+  bool _isSectionLoading(_SupervisorDashboardSection section) {
+    return _sectionLoading[section] ?? false;
+  }
+
+  Widget _buildSectionRefreshingHint(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF667085),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsSkeleton() {
+    return Wrap(
+      spacing: 28,
+      runSpacing: 16,
+      children: const [
+        SizedBox(
+          width: 250,
+          child: DashboardSkeletonBlock(height: 108, radius: 24),
+        ),
+        SizedBox(
+          width: 250,
+          child: DashboardSkeletonBlock(height: 108, radius: 24),
+        ),
+        SizedBox(
+          width: 250,
+          child: DashboardSkeletonBlock(height: 108, radius: 24),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLogsSkeleton() {
+    return Column(
+      children: const [
+        DashboardSkeletonBlock(height: 110, radius: 20),
+        SizedBox(height: 14),
+        DashboardSkeletonBlock(height: 110, radius: 20),
+        SizedBox(height: 14),
+        DashboardSkeletonBlock(height: 110, radius: 20),
+      ],
+    );
+  }
+
   Color _statusBg(String status) {
     switch (status.toUpperCase()) {
       case 'APPROVED':
@@ -273,6 +487,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 Text(
                   'Review and manage student logs',
                   style: TextStyle(fontSize: 14, color: secondaryTextColor),
+                ),
+                const SizedBox(height: 8),
+                DashboardRefreshStatus(
+                  lastUpdated: _lastUpdated,
+                  isRefreshing: _isRefreshing,
+                  pullToRefreshLabel: 'Pull down to refresh dashboard data',
+                  refreshingLabel: 'Refreshing supervisor dashboard...',
                 ),
               ],
             ),
@@ -681,6 +902,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Widget _buildLogsPanel() {
+    final isLoading = _isSectionLoading(_SupervisorDashboardSection.logs);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 720;
@@ -732,7 +955,26 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               ),
               if (!isNarrow) const Divider(height: 1, color: Color(0xFFE7EBF0)),
               if (!isNarrow) _buildTableHeader(),
-              if (_pendingLogs.isEmpty)
+              if (isLoading && _pendingLogs.isEmpty && _logsError == null)
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isNarrow ? 0 : 28,
+                    vertical: 12,
+                  ),
+                  child: _buildLogsSkeleton(),
+                )
+              else if (_logsError != null && _pendingLogs.isEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isNarrow ? 0 : 28,
+                    vertical: 12,
+                  ),
+                  child: DashboardInlineNotice(
+                    message: _logsError!,
+                    onRetry: () => _refreshSection(_SupervisorDashboardSection.logs),
+                  ),
+                )
+              else if (_pendingLogs.isEmpty)
                 Padding(
                   padding: EdgeInsets.symmetric(
                     horizontal: isNarrow ? 0 : 28,
@@ -770,6 +1012,29 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     ),
                   ),
                 ),
+              if (_logsError != null && _pendingLogs.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    isNarrow ? 0 : 28,
+                    8,
+                    isNarrow ? 0 : 28,
+                    0,
+                  ),
+                  child: DashboardInlineNotice(
+                    message: _logsError!,
+                    onRetry: () => _refreshSection(_SupervisorDashboardSection.logs),
+                  ),
+                )
+              else if (isLoading)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    isNarrow ? 0 : 28,
+                    8,
+                    isNarrow ? 0 : 28,
+                    0,
+                  ),
+                  child: _buildSectionRefreshingHint('Refreshing pending logs...'),
+                ),
             ],
           ),
         );
@@ -778,6 +1043,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Widget _buildBody() {
+    final isSummaryLoading = _isSectionLoading(_SupervisorDashboardSection.summary);
     final summary = _dashboardSummary;
     final pendingCount = summary?.pendingReview ?? _pendingLogs.length;
     final totalStudents = summary?.totalStudents ?? 0;
@@ -790,6 +1056,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           final isNarrow = constraints.maxWidth < 900;
 
           return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsets.fromLTRB(
               isNarrow ? 16 : 30,
               isNarrow ? 20 : 28,
@@ -797,7 +1064,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               isNarrow ? 20 : 30,
             ),
             children: [
-              if (isNarrow)
+              if (isSummaryLoading && _dashboardSummary == null)
+                _buildStatsSkeleton()
+              else if (isNarrow)
                 Wrap(
                   spacing: 12,
                   runSpacing: 12,
@@ -856,6 +1125,16 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     ),
                   ],
                 ),
+              if (_summaryError != null) ...[
+                const SizedBox(height: 12),
+                DashboardInlineNotice(
+                  message: _summaryError!,
+                  onRetry: () => _refreshSection(_SupervisorDashboardSection.summary),
+                ),
+              ] else if (isSummaryLoading) ...[
+                const SizedBox(height: 12),
+                _buildSectionRefreshingHint('Refreshing dashboard summary...'),
+              ],
               SizedBox(height: isNarrow ? 16 : 22),
               _buildActionBar(),
               SizedBox(height: isNarrow ? 16 : 24),
@@ -878,31 +1157,31 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           children: [
             _buildHeader(authProvider),
             Expanded(
-              child: _isLoading
+              child: _isInitialLoading && !_hasCompletedFirstLoad
                   ? const Center(child: CircularProgressIndicator())
-                  : _errorMessage != null
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _errorMessage!,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Color(0xFF475467)),
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: _loadDashboardData,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    )
                   : _buildBody(),
             ),
           ],
         ),
       ),
     );
+  }
+}
+
+class _SupervisorSectionResult<T> {
+  const _SupervisorSectionResult._({
+    required this.succeeded,
+    this.value,
+  });
+
+  final bool succeeded;
+  final T? value;
+
+  factory _SupervisorSectionResult.success(T? value) {
+    return _SupervisorSectionResult<T>._(succeeded: true, value: value);
+  }
+
+  factory _SupervisorSectionResult.failure() {
+    return const _SupervisorSectionResult<T>._(succeeded: false);
   }
 }

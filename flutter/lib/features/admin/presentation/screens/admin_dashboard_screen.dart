@@ -4,14 +4,20 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/services/admin_student_service.dart';
 import '../../../../shared/models/admin_student_summary.dart';
+import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
 import '../../../../shared/widgets/settings_shortcut_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   final String userName;
+  final DateTime Function()? clock;
 
-  const AdminDashboardScreen({super.key, required this.userName});
+  const AdminDashboardScreen({
+    super.key,
+    required this.userName,
+    this.clock,
+  });
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -24,11 +30,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final List<AdminStudentSummary> _students = <AdminStudentSummary>[];
 
   bool _isInitialLoading = true;
+  bool _isRefreshing = false;
+  bool _hasCompletedFirstLoad = false;
   bool _isLoadingMore = false;
   bool _hasMorePages = true;
+  DateTime? _lastUpdated;
   String? _errorMessage;
   int _currentPage = 0;
   int _totalStudents = 0;
+
+  DateTime _now() => (widget.clock ?? DateTime.now)();
 
   @override
   void initState() {
@@ -77,6 +88,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (token.isEmpty) {
       setState(() {
         _isInitialLoading = false;
+        _isRefreshing = false;
+        _hasCompletedFirstLoad = true;
         _isLoadingMore = false;
         _errorMessage = 'Missing authentication token. Please log in again.';
       });
@@ -84,9 +97,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
 
     if (reset) {
+      final showFullScreenLoader = !_hasCompletedFirstLoad && _students.isEmpty;
       setState(() {
-        _isInitialLoading = true;
-        _errorMessage = null;
+        _isInitialLoading = showFullScreenLoader;
+        _isRefreshing = !showFullScreenLoader;
       });
     } else {
       if (_isLoadingMore || !_hasMorePages) {
@@ -113,6 +127,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _hasMorePages = page.hasMorePages;
         _totalStudents = page.total;
         _errorMessage = null;
+        if (reset) {
+          _lastUpdated = _now();
+        }
         _students
           ..clear()
           ..addAll(updatedStudents);
@@ -127,6 +144,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (mounted) {
         setState(() {
           _isInitialLoading = false;
+          _isRefreshing = false;
+          _hasCompletedFirstLoad = true;
           _isLoadingMore = false;
         });
       }
@@ -185,6 +204,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     fontSize: 14,
                     color: secondaryTextColor.withValues(alpha: 0.95),
                   ),
+                ),
+                const SizedBox(height: 8),
+                DashboardRefreshStatus(
+                  lastUpdated: _lastUpdated,
+                  isRefreshing: _isRefreshing,
+                  pullToRefreshLabel: 'Pull down to refresh dashboard data',
+                  refreshingLabel: 'Refreshing admin dashboard...',
                 ),
               ],
             ),
@@ -362,10 +388,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildBody() {
-    if (_isInitialLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
     if (_errorMessage != null && _students.isEmpty) {
       return Center(
         child: Padding(
@@ -398,6 +420,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         children: [
           _buildStatsCard(),
           const SizedBox(height: 22),
+          if (_errorMessage != null && _students.isNotEmpty) ...[
+            DashboardInlineNotice(
+              message: _errorMessage!,
+              onRetry: _refreshStudents,
+            ),
+            const SizedBox(height: 18),
+          ] else if (_isRefreshing) ...[
+            const Padding(
+              padding: EdgeInsets.only(bottom: 18),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Refreshing student list...',
+                  style: TextStyle(
+                    color: Color(0xFF667085),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
           const Text(
             'Students',
             style: TextStyle(
@@ -422,26 +465,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             )
           else
             ..._students.map(_buildStudentCard),
-          if (_errorMessage != null && _students.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8, bottom: 12),
-              child: Center(
-                child: Column(
-                  children: [
-                    Text(
-                      _errorMessage!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Color(0xFFB42318)),
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: _loadNextPage,
-                      child: const Text('Try loading again'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           if (_isLoadingMore)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 18),
@@ -472,7 +495,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         child: Column(
           children: [
             _buildHeader(authProvider),
-            Expanded(child: _buildBody()),
+            Expanded(
+              child: _isInitialLoading && !_hasCompletedFirstLoad
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildBody(),
+            ),
           ],
         ),
       ),

@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/constants/app_routes.dart';
 import '../../../../core/services/student_report_service.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../shared/models/student_report.dart';
 import '../../../../shared/widgets/dashboard_info_card.dart';
+import '../widgets/student_scaffold.dart';
 
 class StudentReportScreen extends StatefulWidget {
   final String token;
 
-  const StudentReportScreen({
-    super.key,
-    required this.token,
-  });
+  const StudentReportScreen({super.key, required this.token});
 
   @override
   State<StudentReportScreen> createState() => _StudentReportScreenState();
@@ -91,10 +90,9 @@ class _StudentReportScreenState extends State<StudentReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Internship Report'),
-      ),
+    return StudentScaffold(
+      currentRoute: AppRoutes.studentReport,
+      appBar: AppBar(title: const Text('Internship Report')),
       body: FutureBuilder<StudentReportData>(
         future: _reportFuture,
         builder: (context, snapshot) {
@@ -197,10 +195,7 @@ class _StudentReportScreenState extends State<StudentReportScreen> {
                   ? 'Not assigned yet'
                   : report.supervisor.name,
             ),
-            _InfoLine(
-              label: 'Range',
-              value: _dateRangeLabel(report.dateRange),
-            ),
+            _InfoLine(label: 'Range', value: _dateRangeLabel(report.dateRange)),
             const Divider(height: 24),
             _InfoLine(
               label: 'Approved Hours',
@@ -252,10 +247,7 @@ class _StudentReportScreenState extends State<StudentReportScreen> {
                               icon: Icons.schedule,
                               label: '${log.hoursRendered} hrs',
                             ),
-                            _MetaChip(
-                              icon: Icons.verified,
-                              label: log.status,
-                            ),
+                            _MetaChip(icon: Icons.verified, label: log.status),
                           ],
                         ),
                       ],
@@ -278,8 +270,9 @@ class _StudentReportScreenState extends State<StudentReportScreen> {
     final startText = (start ?? '').isEmpty
         ? 'Beginning'
         : DateFormatter.formatApiDate(start!);
-    final endText =
-        (end ?? '').isEmpty ? 'Latest' : DateFormatter.formatApiDate(end!);
+    final endText = (end ?? '').isEmpty
+        ? 'Latest'
+        : DateFormatter.formatApiDate(end!);
 
     return '$startText to $endText';
   }
@@ -289,10 +282,7 @@ class _InfoLine extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoLine({
-    required this.label,
-    required this.value,
-  });
+  const _InfoLine({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -319,10 +309,7 @@ class _MetaChip extends StatelessWidget {
   final IconData icon;
   final String label;
 
-  const _MetaChip({
-    required this.icon,
-    required this.label,
-  });
+  const _MetaChip({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -348,10 +335,7 @@ class _ReportErrorState extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
 
-  const _ReportErrorState({
-    required this.message,
-    required this.onRetry,
-  });
+  const _ReportErrorState({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {

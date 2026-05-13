@@ -9,6 +9,7 @@ import '../../../../core/utils/file_picker_helper_stub.dart'
     as file_picker;
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/models/log_entry.dart';
+import '../../../student/presentation/widgets/student_scaffold.dart';
 import 'log_detail_screen.dart';
 import 'log_edit_screen.dart';
 import 'log_submission_screen.dart';
@@ -420,7 +421,8 @@ class _LogbookScreenState extends State<LogbookScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return StudentScaffold(
+      currentRoute: AppRoutes.logbook,
       appBar: AppBar(
         title: const Text('My Logs'),
         actions: [

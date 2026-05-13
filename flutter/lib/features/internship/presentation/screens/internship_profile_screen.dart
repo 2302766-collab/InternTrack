@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../../../../core/constants/app_routes.dart';
 import '../../../../shared/models/internship_profile.dart';
 import '../../../../shared/models/supervisor_option.dart';
 import '../../../../core/services/internship_service.dart';
+import '../../../student/presentation/widgets/student_scaffold.dart';
 
 class InternshipProfileScreen extends StatefulWidget {
   final String token;
 
-  const InternshipProfileScreen({
-    super.key,
-    required this.token,
-  });
+  const InternshipProfileScreen({super.key, required this.token});
 
   @override
-  State<InternshipProfileScreen> createState() => _InternshipProfileScreenState();
+  State<InternshipProfileScreen> createState() =>
+      _InternshipProfileScreenState();
 }
 
 class _InternshipProfileScreenState extends State<InternshipProfileScreen> {
@@ -56,8 +57,9 @@ class _InternshipProfileScreenState extends State<InternshipProfileScreen> {
         setState(() {
           _profile = profile;
           _supervisors = supervisors;
-          _selectedSupervisorId =
-              supervisors.isNotEmpty ? supervisors.first.id : null;
+          _selectedSupervisorId = supervisors.isNotEmpty
+              ? supervisors.first.id
+              : null;
         });
       }
     } catch (e) {
@@ -316,10 +318,7 @@ class _InternshipProfileScreenState extends State<InternshipProfileScreen> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: _loadProfile,
-            child: const Text('Retry'),
-          ),
+          ElevatedButton(onPressed: _loadProfile, child: const Text('Retry')),
         ],
       ),
     );
@@ -327,21 +326,18 @@ class _InternshipProfileScreenState extends State<InternshipProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Internship Profile'),
-      ),
+    return StudentScaffold(
+      currentRoute: AppRoutes.internshipProfile,
+      appBar: AppBar(title: const Text('Internship Profile')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _errorMessage != null
-                ? _buildErrorView()
-                : _profile != null
-                    ? _buildSummaryView()
-                    : SingleChildScrollView(
-                        child: _buildFormView(),
-                      ),
+            ? _buildErrorView()
+            : _profile != null
+            ? _buildSummaryView()
+            : SingleChildScrollView(child: _buildFormView()),
       ),
     );
   }
