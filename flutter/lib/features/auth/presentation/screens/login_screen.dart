@@ -3,6 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/exceptions/api_exception.dart';
+<<<<<<< MMP-103
+import '../../../../core/config/api_config.dart';
+=======
+>>>>>>> main
 import '../../../../core/services/auth_service.dart';
 import '../../../../shared/models/app_user.dart';
 import '../../../../shared/widgets/auth_shell.dart';
@@ -51,7 +55,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
+    if (_isLoading) return;
     if (!_formKey.currentState!.validate()) return;
+
+    final email = _emailController.text.trim();
+    _log('Starting login for $email via ${ApiConfig.baseUrl}');
 
     setState(() {
       _isLoading = true;
@@ -60,9 +68,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final result = await _authService.login(
-        email: _emailController.text.trim(),
+        email: email,
         password: _passwordController.text,
       );
+      _log('Login API call succeeded');
 
       final token = result['token'] as String;
       AppUser? user;
@@ -70,17 +79,23 @@ class _LoginScreenState extends State<LoginScreen> {
       if (rawUser is Map<String, dynamic>) {
         user = AppUser.fromJson(rawUser);
       }
+      _log(
+        'Parsed login response tokenLength=${token.length} role=${user?.role ?? 'missing'}',
+      );
 
       if (!mounted) return;
 
       final authProvider = context.read<AuthProvider>();
+      _log('Persisting login session');
       await authProvider.setToken(token, user: user);
 
       if (!mounted) return;
 
+      final nextRoute = authProvider.dashboardRoute;
+      _log('Navigating to $nextRoute');
       Navigator.pushNamedAndRemoveUntil(
         context,
-        authProvider.dashboardRoute,
+        nextRoute,
         (route) => false,
       );
     } on ApiException catch (e) {
@@ -90,10 +105,11 @@ class _LoginScreenState extends State<LoginScreen> {
         _generalError = e.message;
       });
     } catch (e) {
+      _log('Login failed: $e');
       if (!mounted) return;
 
       setState(() {
-        _generalError = e.toString().replaceFirst('Exception: ', '');
+        _generalError = _formatLoginError(e);
       });
     } finally {
       if (mounted) {
@@ -101,7 +117,20 @@ class _LoginScreenState extends State<LoginScreen> {
           _isLoading = false;
         });
       }
+      _log('Login flow finished');
     }
+  }
+
+  void _log(String message) {
+    debugPrint('[LoginScreen] $message');
+  }
+
+  String _formatLoginError(Object error) {
+    if (error is ApiException) {
+      return error.message;
+    }
+
+    return error.toString().replaceFirst('Exception: ', '');
   }
 
   InputDecoration _inputDecoration(String label) {

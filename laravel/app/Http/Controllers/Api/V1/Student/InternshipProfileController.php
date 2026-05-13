@@ -98,6 +98,58 @@ class InternshipProfileController extends Controller
         ], 201);
     }
 
+    public function update(Request $request)
+    {
+        $userId = $request->user()->id;
+
+        $profile = InternshipProfile::query()
+            ->where('student_id', $userId)
+            ->first();
+
+        if (!$profile) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Internship profile not found.',
+                'data' => null,
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'company_name' => ['required', 'string', 'max:255'],
+            'company_address' => ['required', 'string', 'max:255'],
+            'required_hours' => ['required', 'integer', 'min:1'],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after:start_date'],
+        ]);
+
+        $profile->update([
+            'company_name' => $validated['company_name'],
+            'company_address' => $validated['company_address'],
+            'required_hours' => $validated['required_hours'],
+            'start_date' => $validated['start_date'],
+            'end_date' => $validated['end_date'],
+        ]);
+
+        $profile->load('supervisor');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Internship profile updated successfully.',
+            'data' => [
+                'id' => $profile->id,
+                'student_id' => $profile->student_id,
+                'company_name' => $profile->company_name,
+                'company_address' => $profile->company_address,
+                'required_hours' => $profile->required_hours,
+                'start_date' => $profile->start_date,
+                'end_date' => $profile->end_date,
+                'supervisor_id' => $profile->supervisor_id,
+                'adviser_id' => $profile->adviser_id,
+                'supervisor_name' => $profile->supervisor?->name,
+                'supervisor_email' => $profile->supervisor?->email,
+            ],
+        ], 200);
+    }
 
     public function show(Request $request)
     {

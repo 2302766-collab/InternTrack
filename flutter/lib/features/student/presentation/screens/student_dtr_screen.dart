@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/constants/app_routes.dart';
 import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/dtr_service.dart';
@@ -13,9 +14,12 @@ import '../../../../core/utils/file_download_stub.dart'
 import '../../../../shared/models/daily_time_record.dart';
 import '../../../../shared/widgets/dtr_export_dialog.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../widgets/student_scaffold.dart';
 
 class StudentDtrScreen extends StatefulWidget {
-  const StudentDtrScreen({super.key});
+  const StudentDtrScreen({super.key, this.dtrService});
+
+  final DtrService? dtrService;
 
   @override
   State<StudentDtrScreen> createState() => _StudentDtrScreenState();
@@ -46,7 +50,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_isLoading && _record == null && _errorMessage == null) {
-      _dtrService = DtrService(context.read<ApiClient>());
+      _dtrService = widget.dtrService ?? DtrService(context.read<ApiClient>());
       _loadRecord();
     }
   }
@@ -893,7 +897,8 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
   Widget build(BuildContext context) {
     final record = _record;
 
-    return Scaffold(
+    return StudentScaffold(
+      currentRoute: AppRoutes.studentDtr,
       appBar: AppBar(title: const Text('Daily Time Record')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

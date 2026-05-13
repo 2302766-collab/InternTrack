@@ -73,6 +73,57 @@ class StudentInternshipProfileTest extends TestCase
             ->assertJsonPath('message', 'Validation failed.');
     }
 
+    public function test_student_can_update_internship_profile_without_changing_supervisor(): void
+    {
+        $student = $this->createUserWithRole('Student');
+        $supervisor = $this->createUserWithRole('Supervisor');
+        $profile = $this->helperInternshipProfileFor($student, $supervisor, [
+            'company_name' => 'Old Co',
+            'company_address' => 'Old Addr',
+        ]);
+
+        Sanctum::actingAs($student);
+
+        $this->withHeader('Accept', 'application/json')
+            ->patchJson('/api/v1/student/internship', [
+                'company_name' => 'New Co',
+                'company_address' => 'New Addr',
+                'required_hours' => 500,
+                'start_date' => now()->subDays(3)->toDateString(),
+                'end_date' => now()->addDays(40)->toDateString(),
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.company_name', 'New Co')
+            ->assertJsonPath('data.supervisor_id', $supervisor->id);
+
+        $profile->refresh();
+        $this->assertSame('New Co', $profile->company_name);
+        $this->assertSame(500, (int) $profile->required_hours);
+    }
+
+    public function test_student_update_internship_profile_rejects_end_on_or_before_start(): void
+    {
+        $student = $this->createUserWithRole('Student');
+        $supervisor = $this->createUserWithRole('Supervisor');
+        $this->helperInternshipProfileFor($student, $supervisor);
+
+        Sanctum::actingAs($student);
+
+        $start = now()->addDays(10)->toDateString();
+
+        $this->withHeader('Accept', 'application/json')
+            ->patchJson('/api/v1/student/internship', [
+                'company_name' => 'Acme Corp',
+                'company_address' => '123 Main St',
+                'required_hours' => 100,
+                'start_date' => $start,
+                'end_date' => $start,
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false);
+    }
+
     private function createUserWithRole(string $roleName): User
     {
         return User::factory()->create([

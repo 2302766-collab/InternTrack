@@ -9,7 +9,11 @@ import '../../../../core/utils/file_picker_helper_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
     as file_picker;
 import '../../../../shared/models/log_entry.dart';
+<<<<<<< HEAD
 import '../../../auth/presentation/providers/auth_provider.dart';
+=======
+import '../../../student/presentation/widgets/student_scaffold.dart';
+>>>>>>> 9cd14a8a927dbbdc423a70fbc3c89bd066c82bb3
 import 'log_detail_screen.dart';
 import 'log_edit_screen.dart';
 import 'log_submission_screen.dart';
@@ -17,7 +21,10 @@ import 'log_submission_screen.dart';
 enum _LogFilter { all, pending, approved, rejected }
 
 class LogbookScreen extends StatefulWidget {
-  const LogbookScreen({super.key});
+  const LogbookScreen({super.key, this.initialFocusLogId});
+
+  /// When non-null, opens this log’s detail after the list loads (if still present).
+  final int? initialFocusLogId;
 
   @override
   State<LogbookScreen> createState() => _LogbookScreenState();
@@ -45,6 +52,7 @@ class _LogbookScreenState extends State<LogbookScreen> {
 
   final Set<int> _uploadingLogIds = <int>{};
   List<LogEntryItem> _logs = <LogEntryItem>[];
+  bool _handledInitialLogFocus = false;
 
   @override
   void didChangeDependencies() {
@@ -102,8 +110,36 @@ class _LogbookScreenState extends State<LogbookScreen> {
         setState(() {
           _isLoading = false;
         });
+        _scheduleFocusLogIfNeeded();
       }
     }
+  }
+
+  void _scheduleFocusLogIfNeeded() {
+    if (_handledInitialLogFocus) return;
+    final id = widget.initialFocusLogId;
+    if (id == null) return;
+    _handledInitialLogFocus = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      LogEntryItem? found;
+      for (final log in _logs) {
+        if (log.id == id) {
+          found = log;
+          break;
+        }
+      }
+      if (found != null) {
+        _openLogDetails(found);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('That log is no longer available.'),
+          ),
+        );
+      }
+    });
   }
 
   List<LogEntryItem> _sortLogsNewestFirst(List<LogEntryItem> logs) {
@@ -1007,7 +1043,8 @@ class _LogbookScreenState extends State<LogbookScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return StudentScaffold(
+      currentRoute: AppRoutes.logbook,
       appBar: AppBar(
         title: const Text('My Logbook'),
       ),

@@ -55,6 +55,7 @@ Route::prefix('v1')->group(function () {
         ->middleware(['auth:sanctum', 'role:Student'])
         ->group(function () {
             Route::post('/internship', [InternshipProfileController::class, 'store']);
+            Route::patch('/internship', [InternshipProfileController::class, 'update']);
             Route::get('/supervisors', [InternshipProfileController::class, 'supervisors']);
             Route::get('/internship', [InternshipProfileController::class, 'show'])
                 ->middleware('role:Student');

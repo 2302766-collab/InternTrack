@@ -61,6 +61,25 @@ void main() {
       expect(tokenService.storedToken, isNull);
       expect(tokenService.cleared, isTrue);
     });
+
+    test('initialization falls back to logged out state when token restore throws', () async {
+      final tokenService = _ThrowingTokenService(Exception('storage unavailable'));
+      final authService = _FakeAuthService(user: _student);
+      final provider = AuthProvider(tokenService, authService: authService);
+
+      await provider.initialize();
+
+      expect(provider.isReady, isTrue);
+      expect(provider.isAuthenticated, isFalse);
+      expect(provider.token, isNull);
+      expect(provider.user, isNull);
+      expect(provider.lastError, isNotNull);
+      expect(
+        provider.lastError?.message,
+        'Failed to restore your saved session.',
+      );
+      expect(tokenService.cleared, isTrue);
+    });
   });
 }
 
@@ -110,5 +129,22 @@ class _FakeAuthService extends AuthService {
     }
 
     return user!;
+  }
+}
+
+class _ThrowingTokenService extends TokenService {
+  _ThrowingTokenService(this.error) : super();
+
+  final Object error;
+  bool cleared = false;
+
+  @override
+  Future<String?> getToken() async {
+    throw error;
+  }
+
+  @override
+  Future<void> clearToken() async {
+    cleared = true;
   }
 }

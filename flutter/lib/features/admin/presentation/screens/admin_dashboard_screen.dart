@@ -7,14 +7,20 @@ import '../../../../core/services/admin_student_service.dart';
 import '../../../../shared/models/admin_dashboard_summary.dart';
 import '../../../../shared/models/admin_student_summary.dart';
 import '../../../../shared/models/admin_students_page.dart';
+import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
 import '../../../../shared/widgets/settings_shortcut_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   final String userName;
+  final DateTime Function()? clock;
 
-  const AdminDashboardScreen({super.key, required this.userName});
+  const AdminDashboardScreen({
+    super.key,
+    required this.userName,
+    this.clock,
+  });
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -40,7 +46,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final List<AdminStudentSummary> _students = <AdminStudentSummary>[];
 
   bool _isInitialLoading = true;
+  bool _isRefreshing = false;
+  bool _hasCompletedFirstLoad = false;
   bool _isPageLoading = false;
+  DateTime? _lastUpdated;
   String? _errorMessage;
   int _currentPage = 1;
   int _lastPage = 1;
@@ -50,6 +59,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   String _selectedSort = _sortAttentionFirst;
   String _searchQuery = '';
   AdminDashboardSummary? _dashboardSummary;
+
+  DateTime _now() => (widget.clock ?? DateTime.now)();
 
   @override
   void initState() {
@@ -90,18 +101,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (token.isEmpty) {
       setState(() {
         _isInitialLoading = false;
+        _isRefreshing = false;
+        _hasCompletedFirstLoad = true;
         _isPageLoading = false;
         _errorMessage = 'Missing authentication token. Please log in again.';
       });
       return;
     }
 
-    final isInitialRequest =
-        (_students.isEmpty || _dashboardSummary == null) && !_isPageLoading;
+    final showFullScreenLoader =
+        !_hasCompletedFirstLoad &&
+        (_students.isEmpty || _dashboardSummary == null);
+    final isRefreshRequest = page == 1;
 
-    if (isInitialRequest) {
+    if (showFullScreenLoader) {
       setState(() {
         _isInitialLoading = true;
+        _isRefreshing = false;
+        _isPageLoading = false;
         _errorMessage = null;
       });
     } else {
@@ -111,6 +128,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       setState(() {
         _isPageLoading = true;
+        _isRefreshing = isRefreshRequest;
         _errorMessage = null;
       });
     }
@@ -160,6 +178,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           _dashboardSummary = summary;
         }
 
+        _lastUpdated = _now();
         _errorMessage = _combineLoadErrors(
           studentError: studentError,
           summaryError: summaryError,
@@ -169,6 +188,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (mounted) {
         setState(() {
           _isInitialLoading = false;
+          _isRefreshing = false;
+          _hasCompletedFirstLoad = true;
           _isPageLoading = false;
         });
       }
@@ -339,67 +360,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         .toUpperCase();
   }
 
-  String _filterLabel(String filterKey) {
-    switch (filterKey) {
-      case _filterNeedsAttention:
-        return 'Needs Attention';
-      case _filterMissingProfile:
-        return 'Missing Profile';
-      case _filterMissingSupervisor:
-        return 'No Supervisor';
-      case _filterMissingAdviser:
-        return 'No Adviser';
-      case _filterAll:
-      default:
-        return 'All Students';
-    }
-  }
-
-  String _sortLabel(String sortKey) {
-    switch (sortKey) {
-      case _sortCompletionHigh:
-        return 'Completion High to Low';
-      case _sortCompletionLow:
-        return 'Completion Low to High';
-      case _sortNameAsc:
-        return 'Name A to Z';
-      case _sortNameDesc:
-        return 'Name Z to A';
-      case _sortAttentionFirst:
-      default:
-        return 'Needs Attention First';
-    }
-  }
-
-  String _studentStatusLine(AdminStudentSummary student) {
+  String _studentIssueSummary(AdminStudentSummary student) {
     if (!student.hasInternshipProfile) {
-      return 'Missing internship profile';
+      return 'Student has not completed the internship profile yet.';
     }
     if (!student.hasSupervisor && !student.hasAdviser) {
-      return 'Needs supervisor and adviser assignment';
+      return 'Student still needs both a supervisor and an adviser.';
     }
     if (!student.hasSupervisor) {
-      return 'Needs supervisor assignment';
+      return 'Student still needs a supervisor assigned.';
     }
     if (!student.hasAdviser) {
-      return 'Needs adviser assignment';
+      return 'Student still needs an adviser assigned.';
     }
 
-    return 'Setup complete';
-  }
-
-  String _actionHeadline(AdminDashboardSummary summary) {
-    if (summary.studentsWithoutAdviser > 0) {
-      return '${summary.studentsWithoutAdviser} students still need adviser assignments.';
-    }
-    if (summary.studentsWithoutSupervisor > 0) {
-      return '${summary.studentsWithoutSupervisor} students still need supervisors assigned.';
-    }
-    if (summary.studentsWithoutProfile > 0) {
-      return '${summary.studentsWithoutProfile} students still need internship profiles.';
-    }
-
-    return 'All current internship profiles already have advisers and supervisors assigned.';
+    return 'Student is ready for regular monitoring and progress follow-up.';
   }
 
   Widget _buildHeader(AuthProvider authProvider) {
@@ -458,6 +433,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     color: Color(0xFF4E6483),
                     height: 1.45,
                   ),
+                ),
+                const SizedBox(height: 8),
+                DashboardRefreshStatus(
+                  lastUpdated: _lastUpdated,
+                  isRefreshing: _isRefreshing,
+                  pullToRefreshLabel: 'Pull down to refresh dashboard data',
+                  refreshingLabel: 'Refreshing admin dashboard...',
                 ),
               ],
             ),
@@ -645,1118 +627,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  List<_SummaryItem> _summaryItems(AdminDashboardSummary summary) {
-    return <_SummaryItem>[
-      _SummaryItem(
-        label: 'Needs Attention',
-        value: '${summary.studentsRequiringAttention}',
-        icon: Icons.crisis_alert_outlined,
-        color: const Color(0xFFD92D20),
-        subtitle: 'Show highest-risk students first',
-        filterKey: _filterNeedsAttention,
-      ),
-      _SummaryItem(
-        label: 'Pending Logs',
-        value: '${summary.pendingLogs}',
-        icon: Icons.pending_actions_outlined,
-        color: const Color(0xFFB54708),
-        subtitle: 'Review queue still waiting',
-        filterKey: _filterNeedsAttention,
-      ),
-      _SummaryItem(
-        label: 'Missing Profiles',
-        value: '${summary.studentsWithoutProfile}',
-        icon: Icons.description_outlined,
-        color: const Color(0xFF9E4F15),
-        subtitle: 'Incomplete setup blocks progress',
-        filterKey: _filterMissingProfile,
-      ),
-      _SummaryItem(
-        label: 'No Supervisor',
-        value: '${summary.studentsWithoutSupervisor}',
-        icon: Icons.badge_outlined,
-        color: const Color(0xFF175CD3),
-        subtitle: 'Students still need reviewer coverage',
-        filterKey: _filterMissingSupervisor,
-      ),
-      _SummaryItem(
-        label: 'No Adviser',
-        value: '${summary.studentsWithoutAdviser}',
-        icon: Icons.school_outlined,
-        color: const Color(0xFF7A5AF8),
-        subtitle: 'Open adviser management quickly',
-        filterKey: _filterMissingAdviser,
-      ),
-    ];
-  }
-
-  // ignore: unused_element
-  Widget _buildSummaryGrid(AdminDashboardSummary summary) {
-    final items = _summaryItems(summary);
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 540) {
-          return Column(
-            children: [
-              for (var index = 0; index < items.length; index++) ...[
-                _buildSummaryCard(items[index], width: double.infinity),
-                if (index != items.length - 1) const SizedBox(height: 14),
-              ],
-            ],
-          );
-        }
-
-        final rows = <List<_SummaryItem>>[];
-        for (var index = 0; index < items.length; index += 2) {
-          rows.add(items.skip(index).take(2).toList());
-        }
-
-        final columnWidth = (constraints.maxWidth - 14) / 2;
-
-        return Column(
-          children: [
-            for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) ...[
-              if (rows[rowIndex].length == 1)
-                _buildSummaryCard(rows[rowIndex].first, width: double.infinity)
-              else
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildSummaryCard(rows[rowIndex][0], width: columnWidth),
-                    const SizedBox(width: 14),
-                    _buildSummaryCard(rows[rowIndex][1], width: columnWidth),
-                  ],
-                ),
-              if (rowIndex != rows.length - 1) const SizedBox(height: 14),
-            ],
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildSummaryCard(_SummaryItem item, {required double width}) {
-    final selected = item.filterKey == _selectedFilter;
-
-    return InkWell(
-      onTap: () => _setFilter(item.filterKey),
-      borderRadius: BorderRadius.circular(24),
-      child: AnimatedContainer(
-        constraints: const BoxConstraints(minHeight: 192),
-        duration: const Duration(milliseconds: 180),
-        width: width,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFF0F7F9) : Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: selected ? const Color(0xFF0F4C5C) : const Color(0xFFE4EBF4),
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0F0F172A),
-              blurRadius: 16,
-              offset: Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: item.color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(item.icon, color: item.color),
-                ),
-                const Spacer(),
-                if (selected)
-                  const Icon(
-                    Icons.check_circle_rounded,
-                    color: Color(0xFF0F4C5C),
-                    size: 20,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              item.label,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF49617D),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              item.value,
-              style: const TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF0D2250),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: Text(
-                item.subtitle,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF66798F),
-                  height: 1.45,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ignore: unused_element
-  Widget _buildActionPanel(AdminDashboardSummary summary) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFE3EAF3)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x100F172A),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Admin Actions',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF0D2250),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Use the dashboard to fix setup issues, not just monitor users.',
-            style: TextStyle(
-              fontSize: 15,
-              color: Color(0xFF5F738B),
-              height: 1.45,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5FAFF),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFD4E2FF)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _actionHeadline(summary),
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF12305B),
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'Use adviser management for assignments, then jump back here to review students with setup issues first.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF4C6682),
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    FilledButton.icon(
-                      onPressed: _openAdviserAssignment,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F4C5C),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 16,
-                        ),
-                      ),
-                      icon: const Icon(Icons.manage_accounts_outlined),
-                      label: const Text('Manage Advisers'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () => _setFilter(_filterNeedsAttention),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF0B3D5C),
-                        side: const BorderSide(color: Color(0xFFC8D7EA)),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 16,
-                        ),
-                      ),
-                      icon: const Icon(Icons.filter_alt_outlined),
-                      label: const Text('Show Attention Queue'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _refreshDashboard,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF0B3D5C),
-                        side: const BorderSide(color: Color(0xFFC8D7EA)),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 16,
-                        ),
-                      ),
-                      icon: const Icon(Icons.refresh_rounded),
-                      label: const Text('Refresh Data'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ignore: unused_element
-  Widget _buildOperationsPanel(List<AdminStudentSummary> visibleStudents) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: const Color(0xFFE3EAF3)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x100F172A),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            runSpacing: 14,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              const SizedBox(
-                width: 460,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Student Operations',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0D2250),
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Search, sort, and filter the current page so the attention queue rises to the top faster.',
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: Color(0xFF5F738B),
-                        height: 1.45,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F6FB),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: const Color(0xFFD8E4F0)),
-                ),
-                child: Text(
-                  '${visibleStudents.length} visible on page $_currentPage',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF35516E),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _buildControlRow(),
-          const SizedBox(height: 18),
-          _buildFilterChips(),
-          const SizedBox(height: 14),
-          Text(
-            'Active filter: ${_filterLabel(_selectedFilter)}${_searchQuery.trim().isEmpty ? '' : ' | Search: "${_searchQuery.trim()}"'} | Sort: ${_sortLabel(_selectedSort)}',
-            style: const TextStyle(fontSize: 13, color: Color(0xFF66798F)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildControlRow() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 980;
-
-        final searchField = TextField(
-          controller: _searchController,
-          onChanged: (value) {
-            setState(() {
-              _searchQuery = value;
-            });
-          },
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.search_rounded),
-            suffixIcon: _searchQuery.isEmpty
-                ? null
-                : IconButton(
-                    tooltip: 'Clear search',
-                    onPressed: _clearSearch,
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-            hintText: 'Search current page by student or company',
-            filled: true,
-            fillColor: const Color(0xFFF8FBFD),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 18,
-              vertical: 18,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
-              borderSide: const BorderSide(color: Color(0xFFD5E0EB)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
-              borderSide: const BorderSide(color: Color(0xFFD5E0EB)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
-              borderSide: const BorderSide(
-                color: Color(0xFF0F4C5C),
-                width: 1.4,
-              ),
-            ),
-          ),
-        );
-
-        final sortField = _buildLabeledField(
-          label: 'Sort students',
-          width: 240,
-          child: DropdownButtonFormField<String>(
-            initialValue: _selectedSort,
-            isExpanded: true,
-            decoration: _buildDropdownDecoration(),
-            items: const [
-              DropdownMenuItem(
-                value: _sortAttentionFirst,
-                child: Text(
-                  'Needs Attention First',
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              DropdownMenuItem(
-                value: _sortCompletionHigh,
-                child: Text(
-                  'Completion High to Low',
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              DropdownMenuItem(
-                value: _sortCompletionLow,
-                child: Text(
-                  'Completion Low to High',
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              DropdownMenuItem(value: _sortNameAsc, child: Text('Name A to Z')),
-              DropdownMenuItem(
-                value: _sortNameDesc,
-                child: Text('Name Z to A'),
-              ),
-            ],
-            onChanged: (value) {
-              if (value == null) return;
-              setState(() {
-                _selectedSort = value;
-              });
-            },
-          ),
-        );
-
-        final rowsField = _buildLabeledField(
-          label: 'Rows',
-          width: 150,
-          child: DropdownButtonFormField<int>(
-            initialValue: _itemsPerPage,
-            isExpanded: true,
-            decoration: _buildDropdownDecoration(),
-            items: const [
-              DropdownMenuItem(value: 10, child: Text('10 rows')),
-              DropdownMenuItem(value: 20, child: Text('20 rows')),
-              DropdownMenuItem(value: 40, child: Text('40 rows')),
-            ],
-            onChanged: (value) async {
-              if (value == null || value == _itemsPerPage) {
-                return;
-              }
-
-              setState(() {
-                _itemsPerPage = value;
-              });
-              await _loadDashboard(page: 1);
-            },
-          ),
-        );
-
-        final resetButton = OutlinedButton.icon(
-          onPressed: () {
-            _clearSearch();
-            setState(() {
-              _selectedFilter = _filterAll;
-              _selectedSort = _sortAttentionFirst;
-            });
-          },
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF0B3D5C),
-            side: const BorderSide(color: Color(0xFFD0DCE8)),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-          ),
-          icon: const Icon(Icons.layers_clear_outlined),
-          label: const Text('Reset View'),
-        );
-
-        if (isWide) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(child: searchField),
-              const SizedBox(width: 14),
-              sortField,
-              const SizedBox(width: 14),
-              rowsField,
-              const SizedBox(width: 14),
-              resetButton,
-            ],
-          );
-        }
-
-        return Wrap(
-          spacing: 14,
-          runSpacing: 14,
-          crossAxisAlignment: WrapCrossAlignment.end,
-          children: [
-            SizedBox(width: 360, child: searchField),
-            sortField,
-            rowsField,
-            resetButton,
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildLabeledField({
-    required String label,
-    required double width,
-    required Widget child,
-  }) {
-    return SizedBox(
-      width: width,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF4E6483),
-              ),
-            ),
-          ),
-          child,
-        ],
-      ),
-    );
-  }
-
-  InputDecoration _buildDropdownDecoration() {
-    return InputDecoration(
-      filled: true,
-      fillColor: const Color(0xFFF8FBFD),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Color(0xFFD5E0EB)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Color(0xFFD5E0EB)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Color(0xFF0F4C5C), width: 1.4),
-      ),
-    );
-  }
-
-  Widget _buildFilterChips() {
-    final filters = <_StudentFilter>[
-      const _StudentFilter(key: _filterAll, label: 'All Students'),
-      const _StudentFilter(
-        key: _filterNeedsAttention,
-        label: 'Needs Attention',
-      ),
-      const _StudentFilter(
-        key: _filterMissingProfile,
-        label: 'Missing Profile',
-      ),
-      const _StudentFilter(
-        key: _filterMissingSupervisor,
-        label: 'No Supervisor',
-      ),
-      const _StudentFilter(key: _filterMissingAdviser, label: 'No Adviser'),
-    ];
-
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: filters
-          .map(
-            (filter) => FilterChip(
-              label: Text(filter.label),
-              selected: _selectedFilter == filter.key,
-              onSelected: (_) => _setFilter(filter.key),
-              selectedColor: const Color(0xFFD9EEF2),
-              checkmarkColor: const Color(0xFF0F4C5C),
-              backgroundColor: Colors.white,
-              side: BorderSide(
-                color: _selectedFilter == filter.key
-                    ? const Color(0xFF0F4C5C)
-                    : const Color(0xFFD0D7E2),
-              ),
-              labelStyle: TextStyle(
-                color: _selectedFilter == filter.key
-                    ? const Color(0xFF0F4C5C)
-                    : const Color(0xFF334E68),
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            ),
-          )
-          .toList(),
-    );
-  }
-
-  // ignore: unused_element
-  Widget _buildStudentsWorkspace(
-    List<AdminStudentSummary> visibleStudents,
-    BoxConstraints constraints,
-  ) {
-    if (visibleStudents.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: const Color(0xFFE3EAF3)),
-        ),
-        child: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'No students matched this view.',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF0D2250),
-              ),
-            ),
-            SizedBox(height: 10),
-            Text(
-              'Try clearing the search field, changing the filter, or loading a different page size.',
-              style: TextStyle(
-                fontSize: 15,
-                color: Color(0xFF66798F),
-                height: 1.45,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final isWideTable = constraints.maxWidth >= 1080;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: const Color(0xFFE3EAF3)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D0F172A),
-            blurRadius: 16,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          if (isWideTable) _buildStudentTableHeader(),
-          ...visibleStudents.asMap().entries.map((entry) {
-            final index = entry.key;
-            final student = entry.value;
-
-            return Column(
-              children: [
-                if (isWideTable)
-                  _buildStudentTableRow(student)
-                else
-                  _buildStudentCompactCard(student),
-                if (index != visibleStudents.length - 1)
-                  const Divider(height: 1, color: Color(0xFFE6EDF5)),
-              ],
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStudentTableHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F8FC),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: const Row(
-        children: [
-          Expanded(flex: 4, child: Text('Student', style: _headerTextStyle)),
-          Expanded(flex: 3, child: Text('Progress', style: _headerTextStyle)),
-          Expanded(
-            flex: 2,
-            child: Text('Approved Hours', style: _headerTextStyle),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text('Company / Issues', style: _headerTextStyle),
-          ),
-          SizedBox(width: 170, child: Text('Action', style: _headerTextStyle)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStudentTableRow(AdminStudentSummary student) {
-    final progress = (student.completionPercentage / 100).clamp(0.0, 1.0);
-    final needsAttention = _needsAttention(student);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-      decoration: BoxDecoration(
-        color: needsAttention ? const Color(0xFFFFFBF8) : Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 4,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  student.name,
-                  style: const TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0D2250),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _buildStudentIssueBadges(student),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(999),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 12,
-                          backgroundColor: const Color(0xFFD9E2EC),
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            needsAttention
-                                ? const Color(0xFFB54708)
-                                : const Color(0xFF147D74),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      '${student.completionPercentage.round()}%',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0B3D5C),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  _studentStatusLine(student),
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: needsAttention
-                        ? const Color(0xFFB54708)
-                        : const Color(0xFF147D74),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              '${student.approvedHours} / ${student.requiredHours}',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF223A5E),
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  student.company?.isNotEmpty == true
-                      ? student.company!
-                      : 'Not assigned yet',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    color: Color(0xFF334E68),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _studentIssueSummary(student),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF66798F),
-                    height: 1.45,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            width: 170,
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: _buildStudentAction(student),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStudentCompactCard(AdminStudentSummary student) {
-    final progress = (student.completionPercentage / 100).clamp(0.0, 1.0);
-    final needsAttention = _needsAttention(student);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            alignment: WrapAlignment.spaceBetween,
-            children: [
-              SizedBox(
-                width: 420,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      student.name,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0D2250),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _buildStudentIssueBadges(student),
-                    ),
-                  ],
-                ),
-              ),
-              _buildStudentAction(student),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 14,
-                    backgroundColor: const Color(0xFFD9E2EC),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      needsAttention
-                          ? const Color(0xFFB54708)
-                          : const Color(0xFF147D74),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                '${student.completionPercentage.round()}%',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0B3D5C),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 22,
-            runSpacing: 8,
-            children: [
-              Text(
-                'Approved Hours: ${student.approvedHours} / ${student.requiredHours}',
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: Color(0xFF334E68),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              Text(
-                'Company: ${student.company?.isNotEmpty == true ? student.company! : 'Not assigned yet'}',
-                style: const TextStyle(fontSize: 15, color: Color(0xFF5F738B)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            _studentIssueSummary(student),
-            style: const TextStyle(fontSize: 14, color: Color(0xFF66798F)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _buildStudentIssueBadges(AdminStudentSummary student) {
-    if (!student.hasInternshipProfile) {
-      return [
-        _buildStatusBadge(
-          label: 'Missing Profile',
-          backgroundColor: const Color(0xFFFFF1E8),
-          foregroundColor: const Color(0xFFB54708),
-        ),
-      ];
-    }
-
-    final badges = <Widget>[];
-
-    if (!student.hasSupervisor) {
-      badges.add(
-        _buildStatusBadge(
-          label: 'No Supervisor',
-          backgroundColor: const Color(0xFFE8F1FF),
-          foregroundColor: const Color(0xFF175CD3),
-        ),
-      );
-    }
-    if (!student.hasAdviser) {
-      badges.add(
-        _buildStatusBadge(
-          label: 'No Adviser',
-          backgroundColor: const Color(0xFFF1EBFF),
-          foregroundColor: const Color(0xFF6941C6),
-        ),
-      );
-    }
-    if (badges.isEmpty) {
-      badges.add(
-        _buildStatusBadge(
-          label: 'Setup Complete',
-          backgroundColor: const Color(0xFFE7F6EC),
-          foregroundColor: const Color(0xFF067647),
-        ),
-      );
-    }
-
-    return badges;
-  }
-
-  String _studentIssueSummary(AdminStudentSummary student) {
-    if (!student.hasInternshipProfile) {
-      return 'Student has not completed the internship profile yet.';
-    }
-    if (!student.hasSupervisor && !student.hasAdviser) {
-      return 'Student still needs both a supervisor and an adviser.';
-    }
-    if (!student.hasSupervisor) {
-      return 'Student still needs a supervisor assigned.';
-    }
-    if (!student.hasAdviser) {
-      return 'Student still needs an adviser assigned.';
-    }
-
-    return 'Student is ready for regular monitoring and progress follow-up.';
-  }
-
-  Widget _buildStudentAction(AdminStudentSummary student) {
-    if (!student.hasAdviser) {
-      return FilledButton.icon(
-        onPressed: _openAdviserAssignment,
-        style: FilledButton.styleFrom(
-          backgroundColor: const Color(0xFF0F4C5C),
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        ),
-        icon: const Icon(Icons.manage_accounts_outlined, size: 18),
-        label: const Text('Assign Adviser'),
-      );
-    }
-
-    if (!student.hasInternshipProfile) {
-      return OutlinedButton.icon(
-        onPressed: () => _setFilter(_filterMissingProfile),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF9E4F15),
-          side: const BorderSide(color: Color(0xFFFFD7BA)),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        ),
-        icon: const Icon(Icons.warning_amber_rounded, size: 18),
-        label: const Text('Needs Profile'),
-      );
-    }
-
-    if (!student.hasSupervisor) {
-      return OutlinedButton.icon(
-        onPressed: () => _setFilter(_filterMissingSupervisor),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF175CD3),
-          side: const BorderSide(color: Color(0xFFC9DDFF)),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        ),
-        icon: const Icon(Icons.person_search_rounded, size: 18),
-        label: const Text('Review Setup'),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEAF7EF),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: const Text(
-        'Healthy',
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w800,
-          color: Color(0xFF067647),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge({
-    required String label,
-    required Color backgroundColor,
-    required Color foregroundColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-          color: foregroundColor,
-        ),
       ),
     );
   }
@@ -2217,42 +1087,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         child: Column(
           children: [
             _buildHeader(authProvider),
-            Expanded(child: _buildBody()),
+            Expanded(
+              child: _isInitialLoading && !_hasCompletedFirstLoad
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildBody(),
+            ),
           ],
         ),
       ),
     );
   }
 }
-
-class _SummaryItem {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final String subtitle;
-  final String filterKey;
-
-  const _SummaryItem({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-    required this.subtitle,
-    required this.filterKey,
-  });
-}
-
-class _StudentFilter {
-  final String key;
-  final String label;
-
-  const _StudentFilter({required this.key, required this.label});
-}
-
-const TextStyle _headerTextStyle = TextStyle(
-  fontSize: 12,
-  fontWeight: FontWeight.w800,
-  letterSpacing: 0.3,
-  color: Color(0xFF66798F),
-);

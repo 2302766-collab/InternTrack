@@ -1,5 +1,8 @@
 import 'package:dio/dio.dart';
 
+import 'package:flutter/foundation.dart';
+
+import '../config/api_config.dart';
 import 'api_exception.dart';
 
 /// Maps different error sources to standardized ApiException instances.
@@ -24,8 +27,7 @@ class ApiErrorMapper {
 
       case DioExceptionType.connectionError:
         return ApiException(
-          message:
-              'Unable to reach the server. Check your internet connection and try again.',
+          message: _unreachableApiMessage(),
           errorType: ApiErrorType.networkError,
           originalError: exception,
           isRecoverable: true,
@@ -44,7 +46,9 @@ class ApiErrorMapper {
 
       case DioExceptionType.unknown:
         return ApiException(
-          message: 'An unexpected error occurred. Please try again.',
+          message: kIsWeb
+              ? '${_unreachableApiMessage()} This can also happen when the browser blocks the API request.'
+              : 'An unexpected error occurred. Please try again.',
           errorType: ApiErrorType.unknown,
           originalError: exception,
           isRecoverable: true,
@@ -195,5 +199,10 @@ class ApiErrorMapper {
       originalError: exception,
       isRecoverable: true,
     );
+  }
+
+  static String _unreachableApiMessage() {
+    return 'Unable to reach the API at ${ApiConfig.baseUrl}. '
+        'Start the Laravel server, confirm the API host/port, or set API_BASE_URL.';
   }
 }

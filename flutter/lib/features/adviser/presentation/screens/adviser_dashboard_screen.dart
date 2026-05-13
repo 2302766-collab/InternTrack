@@ -6,6 +6,7 @@ import '../../../../core/constants/app_routes.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/intern_list_service.dart';
 import '../../../../shared/models/intern_list_item.dart';
+import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
 import '../../../../shared/widgets/settings_shortcut_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -14,8 +15,13 @@ import '../../../supervisor/presentation/screens/intern_list_screen.dart';
 
 class AdviserDashboardScreen extends StatefulWidget {
   final String userName;
+  final DateTime Function()? clock;
 
-  const AdviserDashboardScreen({super.key, required this.userName});
+  const AdviserDashboardScreen({
+    super.key,
+    required this.userName,
+    this.clock,
+  });
 
   @override
   State<AdviserDashboardScreen> createState() => _AdviserDashboardScreenState();
@@ -32,13 +38,18 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   final GlobalKey _alertsPanelKey = GlobalKey();
   final GlobalKey _expandedAlertsKey = GlobalKey();
 
-  bool _isLoading = true;
+  bool _isInitialLoading = true;
+  bool _isRefreshing = false;
+  bool _hasCompletedFirstLoad = false;
+  DateTime? _lastUpdated;
   bool _showAllAlerts = false;
   String? _errorMessage;
   String _searchQuery = '';
   _DashboardFilter _selectedFilter = _DashboardFilter.all;
   _DashboardSort _selectedSort = _DashboardSort.mostUrgent;
   List<InternListItem> _interns = <InternListItem>[];
+
+  DateTime _now() => (widget.clock ?? DateTime.now)();
 
   @override
   void initState() {
@@ -57,25 +68,31 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_isLoading && _interns.isEmpty) {
+    if (!_hasCompletedFirstLoad && _interns.isEmpty && !_isRefreshing) {
       _internListService = InternListService(context.read<ApiClient>());
       _loadDashboardData();
     }
   }
 
   Future<void> _loadDashboardData() async {
+    if (_isRefreshing) return;
+
     final token = context.read<AuthProvider>().token ?? '';
     if (token.isEmpty) {
       setState(() {
-        _isLoading = false;
+        _isInitialLoading = false;
+        _isRefreshing = false;
+        _hasCompletedFirstLoad = true;
         _errorMessage = 'Missing authentication token. Please log in again.';
       });
       return;
     }
 
+    final showFullScreenLoader = !_hasCompletedFirstLoad && _interns.isEmpty;
+
     setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+      _isInitialLoading = showFullScreenLoader;
+      _isRefreshing = !showFullScreenLoader;
     });
 
     try {
@@ -85,6 +102,8 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
 
       setState(() {
         _interns = interns;
+        _errorMessage = null;
+        _lastUpdated = _now();
       });
     } catch (e) {
       if (!mounted) return;
@@ -94,7 +113,9 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
     } finally {
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _isInitialLoading = false;
+          _isRefreshing = false;
+          _hasCompletedFirstLoad = true;
         });
       }
     }
@@ -1058,6 +1079,15 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                   color: secondaryTextColor,
                                 ),
                               ),
+                              const SizedBox(height: 8),
+                              DashboardRefreshStatus(
+                                lastUpdated: _lastUpdated,
+                                isRefreshing: _isRefreshing,
+                                pullToRefreshLabel:
+                                    'Pull down to refresh dashboard data',
+                                refreshingLabel:
+                                    'Refreshing adviser dashboard...',
+                              ),
                             ],
                           ),
                         ),
@@ -1101,6 +1131,14 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                               fontSize: 14,
                               color: secondaryTextColor,
                             ),
+                          ),
+                          const SizedBox(height: 8),
+                          DashboardRefreshStatus(
+                            lastUpdated: _lastUpdated,
+                            isRefreshing: _isRefreshing,
+                            pullToRefreshLabel:
+                                'Pull down to refresh dashboard data',
+                            refreshingLabel: 'Refreshing adviser dashboard...',
                           ),
                         ],
                       ),
@@ -3129,9 +3167,9 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
           children: [
             _buildHeader(authProvider),
             Expanded(
-              child: _isLoading
+              child: _isInitialLoading && !_hasCompletedFirstLoad
                   ? const Center(child: CircularProgressIndicator())
-                  : _errorMessage != null
+                  : _errorMessage != null && _interns.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,

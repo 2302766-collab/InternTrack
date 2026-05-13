@@ -6,6 +6,7 @@ import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/services/admin_student_service.dart';
 import '../../../../shared/models/admin_student_summary.dart';
 import '../../../../shared/models/adviser_info.dart';
+import '../../../../shared/models/student_adviser_assignment.dart';
 import '../providers/adviser_management_provider.dart';
 
 class StudentAdviserAssignmentScreen extends StatefulWidget {
