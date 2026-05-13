@@ -103,8 +103,12 @@ class InternTrackApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+<<<<<<< HEAD
         ChangeNotifierProvider<ThemeController>.value(value: themeController),
         Provider<TokenService>(create: (_) => const TokenService()),
+=======
+        Provider<TokenService>(create: (_) => TokenService()),
+>>>>>>> 6fbbe9d (Login issue)
         Provider<ApiClient>(
           create: (context) {
             final apiClient = ApiClient();

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/config/api_config.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/exceptions/api_exception.dart';
+<<<<<<< HEAD
 <<<<<<< MMP-103
 import '../../../../core/config/api_config.dart';
 =======
 >>>>>>> main
+=======
+>>>>>>> 6fbbe9d (Login issue)
 import '../../../../core/services/auth_service.dart';
 import '../../../../shared/models/app_user.dart';
 import '../../../../shared/widgets/auth_shell.dart';
@@ -29,6 +33,21 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _generalError;
   bool _obscurePassword = true;
+
+  String _messageForLoginError(Object error) {
+    if (error is ApiException) {
+      switch (error.errorType) {
+        case ApiErrorType.networkError:
+        case ApiErrorType.timeout:
+          return 'Unable to reach the login server at ${ApiConfig.baseUrl}. '
+              'Make sure the Laravel API is running, then try again.';
+        default:
+          return error.message;
+      }
+    }
+
+    return error.toString().replaceFirst('Exception: ', '');
+  }
 
   @override
   void initState() {
@@ -102,6 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       setState(() {
+<<<<<<< HEAD
         _generalError = e.message;
       });
     } catch (e) {
@@ -110,6 +130,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       setState(() {
         _generalError = _formatLoginError(e);
+=======
+        _generalError = _messageForLoginError(e);
+>>>>>>> 6fbbe9d (Login issue)
       });
     } finally {
       if (mounted) {
