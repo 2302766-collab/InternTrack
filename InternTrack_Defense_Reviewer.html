@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InternTrack Defense Reviewer</title>
+  <style>
+    :root {
+      --ink: #18222f;
+      --muted: #5f6f82;
+      --accent: #126782;
+      --accent-soft: #e5f4f8;
+      --line: #d8e2ea;
+      --paper: #ffffff;
+      --panel: #f7fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    @page {
+      size: A4;
+      margin: 0.6in;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.45;
+      font-size: 11pt;
+    }
+
+    .page {
+      max-width: 8.27in;
+      margin: 0 auto;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #0f4254, #126782 55%, #2f9ab7);
+      color: #fff;
+      border-radius: 18px;
+      padding: 28px 30px;
+      margin-bottom: 22px;
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      line-height: 1.1;
+    }
+
+    .hero p {
+      margin: 0;
+      font-size: 13px;
+      opacity: 0.95;
+    }
+
+    .section {
+      margin-bottom: 20px;
+      page-break-inside: avoid;
+    }
+
+    .section h2 {
+      margin: 0 0 10px;
+      color: var(--accent);
+      font-size: 18px;
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 6px;
+    }
+
+    .script {
+      background: var(--accent-soft);
+      border: 1px solid #c8e7ef;
+      border-radius: 14px;
+      padding: 16px 18px;
+      font-size: 11.5pt;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+      page-break-inside: avoid;
+    }
+
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: var(--ink);
+    }
+
+    ul {
+      margin: 8px 0 0 18px;
+      padding: 0;
+    }
+
+    li {
+      margin: 4px 0;
+    }
+
+    .qa {
+      margin-bottom: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      background: #fff;
+      page-break-inside: avoid;
+    }
+
+    .qa strong {
+      color: var(--accent);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .two-col-list {
+      columns: 2;
+      column-gap: 24px;
+    }
+
+    .tagline {
+      margin-top: 10px;
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.16);
+      font-size: 11px;
+      letter-spacing: 0.02em;
+    }
+
+    @media print {
+      .section,
+      .card,
+      .qa {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <h1>InternTrack Defense Reviewer</h1>
+      <p>A quick reviewer for project defense, recitation, and panel questions.</p>
+      <div class="tagline">Flutter + Laravel + MySQL + Provider + Sanctum</div>
+    </section>
+
+    <section class="section">
+      <h2>60-Second Defense Script</h2>
+      <div class="script">
+        InternTrack is a role-based internship monitoring system built with Flutter on the frontend and Laravel on the backend, with MySQL as the database. The Flutter app handles the user interface for students, supervisors, advisers, and admins, while the Laravel API handles authentication, validation, business logic, and database access. The frontend sends HTTP requests through Dio, and the backend returns structured JSON responses under <strong>/api/v1</strong>. Authentication is token-based using Laravel Sanctum, and the token is stored securely on the client. We used Provider and ChangeNotifier for state management, especially for authentication and shared UI state. The system includes internship profile management, daily time record tracking, logbook submission and review, notifications, reports, and adviser assignment. Based on the documented test baseline dated May 6, 2026, the project had 253 automated tests passing across frontend and backend.
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Project Summary</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Tech Stack</h3>
+          <ul>
+            <li>Frontend: Flutter with Dart</li>
+            <li>Backend: Laravel with PHP</li>
+            <li>Database: MySQL</li>
+            <li>State management: Provider + ChangeNotifier</li>
+            <li>HTTP client: Dio</li>
+            <li>Authentication: Laravel Sanctum</li>
+            <li>Testing: Flutter Test + PHPUnit</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Main User Roles</h3>
+          <ul>
+            <li>Student</li>
+            <li>Supervisor</li>
+            <li>Adviser</li>
+            <li>Admin</li>
+          </ul>
+          <h3 style="margin-top:12px;">Main Features</h3>
+          <ul>
+            <li>Authentication and role-based dashboards</li>
+            <li>Internship profile creation</li>
+            <li>Daily time record tracking</li>
+            <li>Student logbook submission</li>
+            <li>Supervisor review and approval</li>
+            <li>Notifications, reports, and exports</li>
+            <li>Admin adviser assignment</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>System Flow</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Frontend Flow</h3>
+          <ul>
+            <li>Screen calls a service</li>
+            <li>Service uses ApiClient</li>
+            <li>Dio sends the request to Laravel</li>
+            <li>Response is parsed into Flutter models</li>
+            <li>Provider updates state and refreshes the UI</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Backend Flow</h3>
+          <ul>
+            <li>API route receives the request</li>
+            <li>Middleware checks auth and role access</li>
+            <li>Controller validates input and runs business logic</li>
+            <li>Models and services access the database</li>
+            <li>Laravel returns structured JSON response</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Important Terms To Memorize</h2>
+      <div class="card two-col-list">
+        <ul>
+          <li>Authentication: verifies who the user is</li>
+          <li>Authorization: checks what the user can access</li>
+          <li>API: bridge between frontend and backend</li>
+          <li>State management: keeps changing data updated in the UI</li>
+          <li>Provider: state management package used in Flutter</li>
+          <li>Middleware: checks a request before allowing access</li>
+          <li>Controller: handles incoming API requests</li>
+          <li>Model: represents and accesses database data</li>
+          <li>Migration: defines database table structure</li>
+          <li>Sanctum: Laravel package for token-based authentication</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Database Overview</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Core Tables</h3>
+          <ul>
+            <li><strong>roles</strong> - stores role names</li>
+            <li><strong>users</strong> - stores user accounts</li>
+            <li><strong>internship_profiles</strong> - student internship details</li>
+            <li><strong>daily_time_records</strong> - attendance and work timing</li>
+            <li><strong>log_entries</strong> - student daily internship logs</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Supporting Tables</h3>
+          <ul>
+            <li><strong>attachments</strong> - proof files for logs</li>
+            <li><strong>log_actions</strong> - review history like approval or rejection</li>
+            <li><strong>notifications</strong> - in-app notifications</li>
+            <li><strong>personal_access_tokens</strong> - Sanctum login tokens</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Key Flows To Explain Well</h2>
+      <div class="card">
+        <ul>
+          <li><strong>Login flow:</strong> user submits credentials, Laravel validates, token is returned, Flutter stores it, then redirects by role.</li>
+          <li><strong>Internship profile flow:</strong> student creates a profile, selects a supervisor, and the system stores the internship details.</li>
+          <li><strong>DTR flow:</strong> student records time in, lunch out, lunch in, and time out, while the backend computes work minutes and status.</li>
+          <li><strong>Logbook flow:</strong> student submits a log, supervisor reviews it, and the system records the decision and sends notification or email.</li>
+          <li><strong>Admin flow:</strong> admin views dashboard data, student lists, and assigns advisers to students.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Security And Reliability</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Security</h3>
+          <ul>
+            <li>Token-based auth with Laravel Sanctum</li>
+            <li>Role-based access through middleware</li>
+            <li>Secure token storage on the Flutter client</li>
+            <li>Input sanitization for risky user input</li>
+            <li>Security headers for safer responses</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Reliability</h3>
+          <ul>
+            <li>Structured API error handling</li>
+            <li>Request tracing with X-Request-ID</li>
+            <li>Dashboard caching for faster responses</li>
+            <li>Automated test baseline: 253 passing tests</li>
+            <li>Documented performance optimization for supervisor log listing</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Common Panel Questions And Suggested Answers</h2>
+
+      <div class="qa">
+        <strong>What is the tech stack of your project?</strong>
+        Our project uses Flutter and Dart for the frontend, Laravel and PHP for the backend, MySQL for the database, Dio for API communication, Provider for state management, and Laravel Sanctum for authentication.
+      </div>
+
+      <div class="qa">
+        <strong>What is authentication and how is it used here?</strong>
+        Authentication is the process of verifying who the user is. In our system it is used in login, logout, token storage, and fetching the current user profile through secured API endpoints.
+      </div>
+
+      <div class="qa">
+        <strong>What is authorization?</strong>
+        Authorization determines what an authenticated user is allowed to access. In our project, this is role-based, so students, supervisors, advisers, and admins see different screens and API endpoints.
+      </div>
+
+      <div class="qa">
+        <strong>How does the frontend communicate with the backend?</strong>
+        The frontend uses Dio to send HTTP requests to Laravel API endpoints under <strong>/api/v1</strong>. Laravel processes the request and returns JSON, which Flutter converts into models for display.
+      </div>
+
+      <div class="qa">
+        <strong>What is state management in your app?</strong>
+        State management is how the app stores data that changes and keeps the UI updated. We use Provider and ChangeNotifier, especially through AuthProvider and AdviserManagementProvider.
+      </div>
+
+      <div class="qa">
+        <strong>Why did you choose Flutter?</strong>
+        Flutter gives a single codebase for the client side, fast UI development, and a consistent widget-based structure that is well suited for role-based dashboards and forms.
+      </div>
+
+      <div class="qa">
+        <strong>Why did you choose Laravel?</strong>
+        Laravel provides clean routing, strong validation, middleware, ORM relationships, token authentication, and strong testing support, which made backend development more organized and secure.
+      </div>
+
+      <div class="qa">
+        <strong>How does login work in your system?</strong>
+        The user enters email and password, Flutter sends the credentials to the login endpoint, Laravel validates them, creates a Sanctum token, and returns the token and user role. Flutter stores the token securely and redirects the user to the correct dashboard.
+      </div>
+
+      <div class="qa">
+        <strong>How is security handled?</strong>
+        We use Sanctum tokens, role middleware, secure token storage, input sanitization, security headers, request tracing, and validation rules to protect the system.
+      </div>
+
+      <div class="qa">
+        <strong>How did you test the project?</strong>
+        Based on the current testing baseline, we had 175 Laravel backend tests and 78 Flutter frontend tests passing, for a total of 253 automated tests.
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Quick Closing Line</h2>
+      <div class="script">
+        In summary, InternTrack is a full-stack role-based internship management system that combines Flutter for the client interface, Laravel for backend logic, MySQL for data storage, and Provider plus Sanctum for state and authentication. Its main strengths are role-based access, organized API structure, automated test coverage, and practical features for student internship monitoring.
+      </div>
+    </section>
+
+    <p class="small">Prepared from the current project structure and documented testing baseline in this repository.</p>
+  </div>
+</body>
+</html>

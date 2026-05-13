@@ -43,6 +43,13 @@ if [ ! -f vendor/autoload.php ]; then
     composer install
 fi
 
+# Package discovery/cache files can outlive dependency changes inside the
+# persisted Docker volume and block Artisan before the app server starts.
+if [ -f bootstrap/cache/packages.php ] || [ -f bootstrap/cache/services.php ]; then
+    echo "Clearing cached Laravel service manifests..."
+    rm -f bootstrap/cache/packages.php bootstrap/cache/services.php
+fi
+
 if [ "${AUTO_MIGRATE_AND_SEED:-true}" != "false" ]; then
     echo "Running migrations..."
     php artisan migrate --force

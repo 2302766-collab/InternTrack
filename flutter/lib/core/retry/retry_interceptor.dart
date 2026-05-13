@@ -22,6 +22,11 @@ import 'retry_policy.dart';
 class RetryInterceptor extends QueuedInterceptor {
   final Dio dio;
   final RetryPolicy policy;
+  static const Set<String> _defaultRetryableMethods = <String>{
+    'GET',
+    'HEAD',
+    'OPTIONS',
+  };
 
   RetryInterceptor(this.dio, this.policy);
 
@@ -30,6 +35,10 @@ class RetryInterceptor extends QueuedInterceptor {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
+    if (!_shouldRetryRequest(err.requestOptions)) {
+      return handler.next(err);
+    }
+
     // Get attempt count from request options
     int attemptNumber = (err.requestOptions.extra['retry_attempt'] ?? 0) as int;
     attemptNumber++;
@@ -41,6 +50,7 @@ class RetryInterceptor extends QueuedInterceptor {
         final backoff = policy.calculateBackoff(attemptNumber);
 
         _logRetryAttempt(
+          err.requestOptions.method,
           err.requestOptions.path,
           attemptNumber,
           backoff,
@@ -86,6 +96,7 @@ class RetryInterceptor extends QueuedInterceptor {
   }
 
   void _logRetryAttempt(
+    String method,
     String path,
     int attemptNumber,
     Duration backoff,
@@ -98,9 +109,18 @@ class RetryInterceptor extends QueuedInterceptor {
     // Use print for now - can be replaced with proper logging framework
     // ignore: avoid_print
     print(
-      '[RetryInterceptor] Attempt $attemptNumber: $path '
+      '[RetryInterceptor] Attempt $attemptNumber: $method $path '
       '($errorType, status: $statusCode) '
       'backing off for ${backoff.inSeconds}s',
     );
+  }
+
+  bool _shouldRetryRequest(RequestOptions options) {
+    final explicitRetryable = options.extra['retryable'];
+    if (explicitRetryable is bool) {
+      return explicitRetryable;
+    }
+
+    return _defaultRetryableMethods.contains(options.method.toUpperCase());
   }
 }

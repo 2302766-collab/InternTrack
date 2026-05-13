@@ -13,9 +13,13 @@ import '../../../../shared/models/internship_profile.dart';
 import '../../../../shared/models/log_entry.dart';
 import '../../../../shared/models/student_report.dart';
 import '../../../../shared/widgets/dashboard_info_card.dart';
+import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
 import '../../../../shared/widgets/settings_shortcut_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../widgets/student_scaffold.dart';
+
+enum _StudentDashboardSection { profile, report, logs }
 
 class StudentDashboardScreen extends StatefulWidget {
   final String userName;
@@ -24,6 +28,7 @@ class StudentDashboardScreen extends StatefulWidget {
   final InternshipService? internshipService;
   final LogbookService? logbookService;
   final StudentReportService? reportService;
+  final DateTime Function()? clock;
 
   const StudentDashboardScreen({
     super.key,
@@ -33,6 +38,7 @@ class StudentDashboardScreen extends StatefulWidget {
     this.internshipService,
     this.logbookService,
     this.reportService,
+    this.clock,
   });
 
   @override
@@ -48,12 +54,32 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   StudentReportData? _report;
   List<LogEntryItem> _logs = <LogEntryItem>[];
 
-  bool _isLoading = true;
+  bool _isInitialLoading = true;
+  bool _isRefreshing = false;
   bool _didLoadDashboard = false;
+  bool _hasCompletedFirstLoad = false;
   String? _dashboardError;
-  String? _profileError;
-  String? _reportError;
-  String? _logsError;
+  DateTime? _lastUpdated;
+
+  final Map<_StudentDashboardSection, bool> _sectionLoading =
+      <_StudentDashboardSection, bool>{
+        _StudentDashboardSection.profile: false,
+        _StudentDashboardSection.report: false,
+        _StudentDashboardSection.logs: false,
+      };
+
+  final Map<_StudentDashboardSection, String?> _sectionErrors =
+      <_StudentDashboardSection, String?>{
+        _StudentDashboardSection.profile: null,
+        _StudentDashboardSection.report: null,
+        _StudentDashboardSection.logs: null,
+      };
+
+  String? get _profileError => _sectionErrors[_StudentDashboardSection.profile];
+  String? get _reportError => _sectionErrors[_StudentDashboardSection.report];
+  String? get _logsError => _sectionErrors[_StudentDashboardSection.logs];
+
+  DateTime _now() => (widget.clock ?? DateTime.now)();
 
   @override
   void initState() {
@@ -74,67 +100,278 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   }
 
   Future<void> _loadDashboard() async {
+    if (_isRefreshing) return;
+
     final token = context.read<AuthProvider>().token ?? '';
     if (token.isEmpty) {
       setState(() {
-        _isLoading = false;
+        _isInitialLoading = false;
+        _isRefreshing = false;
+        _hasCompletedFirstLoad = true;
         _dashboardError = 'Your session has expired. Please log in again.';
-        _profileError = null;
+        _sectionErrors[_StudentDashboardSection.profile] = null;
+        _sectionErrors[_StudentDashboardSection.report] = null;
+        _sectionErrors[_StudentDashboardSection.logs] = null;
+        _sectionLoading[_StudentDashboardSection.profile] = false;
+        _sectionLoading[_StudentDashboardSection.report] = false;
+        _sectionLoading[_StudentDashboardSection.logs] = false;
       });
       return;
     }
 
+    final showFullScreenLoader = !_hasCompletedFirstLoad;
+
     setState(() {
-      _isLoading = true;
+      _isInitialLoading = showFullScreenLoader;
+      _isRefreshing = !showFullScreenLoader;
       _dashboardError = null;
-      _profileError = null;
-      _reportError = null;
-      _logsError = null;
+      _sectionErrors[_StudentDashboardSection.profile] = null;
+      _sectionErrors[_StudentDashboardSection.report] = null;
+      _sectionErrors[_StudentDashboardSection.logs] = null;
+      _sectionLoading[_StudentDashboardSection.profile] = true;
+      _sectionLoading[_StudentDashboardSection.report] = true;
+      _sectionLoading[_StudentDashboardSection.logs] = true;
     });
 
-    InternshipProfile? profile;
-    StudentReportData? report;
-    List<LogEntryItem> logs = <LogEntryItem>[];
-    String? profileError;
-    String? reportError;
-    String? logsError;
+    var successfulSections = 0;
 
-    try {
-      profile = await _internshipService.getInternshipProfile();
-    } catch (e) {
-      profileError = _readErrorMessage(e);
+    final profileResult = await _refreshProfileSection(markLoading: false);
+    if (!mounted) return;
+
+    if (profileResult.succeeded) {
+      successfulSections += 1;
     }
 
-    if (profile != null) {
-      try {
-        report = await _reportService.getReport();
-      } catch (e) {
-        reportError = _readErrorMessage(e);
-      }
+    if (profileResult.value == null && profileResult.succeeded) {
+      setState(() {
+        _report = null;
+        _logs = <LogEntryItem>[];
+        _sectionErrors[_StudentDashboardSection.report] = null;
+        _sectionErrors[_StudentDashboardSection.logs] = null;
+        _sectionLoading[_StudentDashboardSection.report] = false;
+        _sectionLoading[_StudentDashboardSection.logs] = false;
+      });
+    } else if (profileResult.value != null || _profile != null) {
+      final results = await Future.wait<_SectionRefreshResult<dynamic>>([
+        _refreshReportSection(markLoading: false),
+        _refreshLogsSection(markLoading: false),
+      ]);
 
-      try {
-        logs = await _logbookService.getLogs();
-      } catch (e) {
-        logsError = _readErrorMessage(e);
-      }
+      successfulSections += results.where((result) => result.succeeded).length;
+    } else {
+      setState(() {
+        _sectionLoading[_StudentDashboardSection.report] = false;
+        _sectionLoading[_StudentDashboardSection.logs] = false;
+      });
     }
 
     if (!mounted) return;
 
-    final dashboardError = profile == null && profileError != null
-        ? profileError
-        : null;
+    setState(() {
+      _isInitialLoading = false;
+      _isRefreshing = false;
+      _hasCompletedFirstLoad = true;
+      if (successfulSections > 0) {
+        _lastUpdated = _now();
+        _dashboardError = null;
+      } else {
+        _dashboardError =
+            _profileError ?? 'Unable to load student dashboard.';
+      }
+    });
+  }
+
+  Future<void> _refreshSection(_StudentDashboardSection section) async {
+    if (_sectionLoading[section] == true) return;
 
     setState(() {
-      _profile = profile;
-      _report = report;
-      _logs = _sortLogsNewestFirst(logs);
-      _dashboardError = dashboardError;
-      _profileError = profileError;
-      _reportError = reportError;
-      _logsError = logsError;
-      _isLoading = false;
+      _sectionLoading[section] = true;
+      _dashboardError = null;
     });
+
+    var succeeded = false;
+
+    switch (section) {
+      case _StudentDashboardSection.profile:
+        final result = await _refreshProfileSection(markLoading: false);
+        succeeded = result.succeeded;
+        if (result.succeeded && mounted) {
+          if (result.value == null) {
+            setState(() {
+              _report = null;
+              _logs = <LogEntryItem>[];
+              _sectionErrors[_StudentDashboardSection.report] = null;
+              _sectionErrors[_StudentDashboardSection.logs] = null;
+              _sectionLoading[_StudentDashboardSection.report] = false;
+              _sectionLoading[_StudentDashboardSection.logs] = false;
+            });
+          } else {
+            setState(() {
+              _sectionLoading[_StudentDashboardSection.report] = true;
+              _sectionLoading[_StudentDashboardSection.logs] = true;
+            });
+
+            final dependentResults =
+                await Future.wait<_SectionRefreshResult<dynamic>>([
+                  _refreshReportSection(markLoading: false),
+                  _refreshLogsSection(markLoading: false),
+                ]);
+
+            succeeded =
+                dependentResults.any((item) => item.succeeded) || succeeded;
+          }
+        }
+        break;
+      case _StudentDashboardSection.report:
+        succeeded = (await _refreshReportSection(markLoading: false)).succeeded;
+        break;
+      case _StudentDashboardSection.logs:
+        succeeded = (await _refreshLogsSection(markLoading: false)).succeeded;
+        break;
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      if (succeeded) {
+        _lastUpdated = _now();
+        _dashboardError = null;
+      }
+    });
+  }
+
+  Future<_SectionRefreshResult<InternshipProfile?>> _refreshProfileSection({
+    bool markLoading = true,
+  }) async {
+    if (markLoading && mounted) {
+      setState(() {
+        _sectionLoading[_StudentDashboardSection.profile] = true;
+      });
+    }
+
+    try {
+      final profile = await _internshipService.getInternshipProfile();
+      if (!mounted) {
+        return _SectionRefreshResult<InternshipProfile?>.failure();
+      }
+
+      setState(() {
+        _profile = profile;
+        _sectionErrors[_StudentDashboardSection.profile] = null;
+        _sectionLoading[_StudentDashboardSection.profile] = false;
+      });
+
+      return _SectionRefreshResult<InternshipProfile?>.success(profile);
+    } catch (e) {
+      if (!mounted) {
+        return _SectionRefreshResult<InternshipProfile?>.failure();
+      }
+
+      setState(() {
+        _sectionErrors[_StudentDashboardSection.profile] =
+            _readErrorMessage(e);
+        _sectionLoading[_StudentDashboardSection.profile] = false;
+      });
+
+      return _SectionRefreshResult<InternshipProfile?>.failure();
+    }
+  }
+
+  Future<_SectionRefreshResult<StudentReportData>> _refreshReportSection({
+    bool markLoading = true,
+  }) async {
+    if (_profile == null) {
+      if (mounted) {
+        setState(() {
+          _report = null;
+          _sectionErrors[_StudentDashboardSection.report] = null;
+          _sectionLoading[_StudentDashboardSection.report] = false;
+        });
+      }
+
+      return _SectionRefreshResult<StudentReportData>.failure();
+    }
+
+    if (markLoading && mounted) {
+      setState(() {
+        _sectionLoading[_StudentDashboardSection.report] = true;
+      });
+    }
+
+    try {
+      final report = await _reportService.getReport();
+      if (!mounted) {
+        return _SectionRefreshResult<StudentReportData>.failure();
+      }
+
+      setState(() {
+        _report = report;
+        _sectionErrors[_StudentDashboardSection.report] = null;
+        _sectionLoading[_StudentDashboardSection.report] = false;
+      });
+
+      return _SectionRefreshResult<StudentReportData>.success(report);
+    } catch (e) {
+      if (!mounted) {
+        return _SectionRefreshResult<StudentReportData>.failure();
+      }
+
+      setState(() {
+        _sectionErrors[_StudentDashboardSection.report] =
+            _readErrorMessage(e);
+        _sectionLoading[_StudentDashboardSection.report] = false;
+      });
+
+      return _SectionRefreshResult<StudentReportData>.failure();
+    }
+  }
+
+  Future<_SectionRefreshResult<List<LogEntryItem>>> _refreshLogsSection({
+    bool markLoading = true,
+  }) async {
+    if (_profile == null) {
+      if (mounted) {
+        setState(() {
+          _logs = <LogEntryItem>[];
+          _sectionErrors[_StudentDashboardSection.logs] = null;
+          _sectionLoading[_StudentDashboardSection.logs] = false;
+        });
+      }
+
+      return _SectionRefreshResult<List<LogEntryItem>>.failure();
+    }
+
+    if (markLoading && mounted) {
+      setState(() {
+        _sectionLoading[_StudentDashboardSection.logs] = true;
+      });
+    }
+
+    try {
+      final logs = await _logbookService.getLogs();
+      if (!mounted) {
+        return _SectionRefreshResult<List<LogEntryItem>>.failure();
+      }
+
+      setState(() {
+        _logs = _sortLogsNewestFirst(logs);
+        _sectionErrors[_StudentDashboardSection.logs] = null;
+        _sectionLoading[_StudentDashboardSection.logs] = false;
+      });
+
+      return _SectionRefreshResult<List<LogEntryItem>>.success(logs);
+    } catch (e) {
+      if (!mounted) {
+        return _SectionRefreshResult<List<LogEntryItem>>.failure();
+      }
+
+      setState(() {
+        _sectionErrors[_StudentDashboardSection.logs] = _readErrorMessage(e);
+        _sectionLoading[_StudentDashboardSection.logs] = false;
+      });
+
+      return _SectionRefreshResult<List<LogEntryItem>>.failure();
+    }
   }
 
   String _readErrorMessage(Object error) {
@@ -244,7 +481,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   List<LogEntryItem> get _recentLogs => _logs.take(4).toList();
 
   DateTime get _today {
-    final now = DateTime.now();
+    final now = _now();
     return DateTime(now.year, now.month, now.day);
   }
 
@@ -274,6 +511,24 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     return DateFormat('MMM d').format(parsed);
   }
 
+  String _formatLogDescription(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return 'Activity details not provided.';
+    }
+
+    final looksLikeSeedValue =
+        RegExp(r'^\d{1,2}:\d{2}$').hasMatch(trimmed) ||
+        RegExp(r'^\d{2}/\d{2}$').hasMatch(trimmed) ||
+        RegExp(r'^\d+(st|nd|rd|th)$', caseSensitive: false).hasMatch(trimmed);
+
+    if (looksLikeSeedValue) {
+      return 'Activity details not provided.';
+    }
+
+    return trimmed;
+  }
+
   List<LogEntryItem> _sortLogsNewestFirst(List<LogEntryItem> logs) {
     final sorted = List<LogEntryItem>.from(logs);
     sorted.sort((a, b) {
@@ -285,6 +540,80 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       return bDate.compareTo(aDate);
     });
     return sorted;
+  }
+
+  bool _isSectionLoading(_StudentDashboardSection section) {
+    return _sectionLoading[section] ?? false;
+  }
+
+  Widget _buildSectionRefreshingHint(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF6B7F99),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummarySkeleton() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const [
+        DashboardSkeletonBlock(height: 30, width: 160, radius: 999),
+        SizedBox(height: 14),
+        DashboardSkeletonBlock(height: 16),
+        SizedBox(height: 10),
+        DashboardSkeletonBlock(height: 16, width: 220),
+        SizedBox(height: 10),
+        DashboardSkeletonBlock(height: 16, width: 250),
+        SizedBox(height: 10),
+        DashboardSkeletonBlock(height: 16, width: 180),
+      ],
+    );
+  }
+
+  Widget _buildProgressSkeleton() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const [
+        DashboardSkeletonBlock(height: 24, width: 240),
+        SizedBox(height: 14),
+        DashboardSkeletonBlock(height: 12, radius: 999),
+        SizedBox(height: 16),
+        DashboardSkeletonBlock(height: 64),
+        SizedBox(height: 12),
+        DashboardSkeletonBlock(height: 16, width: 220),
+      ],
+    );
+  }
+
+  Widget _buildLogsSkeleton() {
+    return Column(
+      children: const [
+        DashboardSkeletonBlock(height: 72),
+        SizedBox(height: 12),
+        DashboardSkeletonBlock(height: 72),
+        SizedBox(height: 12),
+        DashboardSkeletonBlock(height: 72),
+      ],
+    );
   }
 
   void _openRoute(String route) {
@@ -385,35 +714,44 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 640;
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Welcome, ${widget.userName}',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                color: const Color(0xFF102A56),
-                fontWeight: FontWeight.w800,
-                fontSize: isCompact ? 28 : null,
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(isCompact ? 20 : 24),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FBFF),
+            border: Border.all(color: const Color(0xFFDCE6F2)),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Welcome, ${widget.userName}',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  color: const Color(0xFF102A56),
+                  fontWeight: FontWeight.w800,
+                  fontSize: isCompact ? 28 : 30,
+                ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _profile == null
-                  ? 'Set up your internship details, submit logs, and keep your approved hours moving.'
-                  : 'Track what needs attention today, monitor pace, and jump back into the internship workflow.',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: const Color(0xFF4A6480),
+              const SizedBox(height: 8),
+              Text(
+                _profile == null
+                    ? 'Set up your internship details, submit logs, and keep your approved hours moving.'
+                    : 'Track what needs attention today, monitor pace, and jump back into the internship workflow.',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: const Color(0xFF4A6480),
+                  height: 1.45,
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Pull down to refresh dashboard data',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF6B7F99),
-                fontWeight: FontWeight.w600,
+              const SizedBox(height: 10),
+              DashboardRefreshStatus(
+                lastUpdated: _lastUpdated,
+                isRefreshing: _isRefreshing,
+                pullToRefreshLabel: 'Pull down to refresh dashboard data',
+                refreshingLabel: 'Refreshing student dashboard...',
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
@@ -642,35 +980,37 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   }
 
   Widget _buildInternshipSummary() {
-    if (_isLoading) {
-      return const SizedBox(
-        height: 80,
-        child: Center(child: CircularProgressIndicator()),
-      );
+    final isLoading = _isSectionLoading(_StudentDashboardSection.profile);
+
+    if (isLoading &&
+        _profile == null &&
+        (_profileError != null || !_hasCompletedFirstLoad)) {
+      return _buildSummarySkeleton();
     }
 
-    if (_profileError != null) {
+    if (_profileError != null && _profile == null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            _profileError!,
-            style: const TextStyle(color: Color(0xFFB42318)),
-          ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: _loadDashboard,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
+          DashboardInlineNotice(
+            message: _profileError!,
+            onRetry: _loadDashboard,
           ),
         ],
       );
     }
 
     if (_profile == null) {
-      return const Text(
-        'No internship profile is active yet. Complete the profile to unlock progress tracking, adviser visibility, and report generation.',
-        style: TextStyle(color: Color(0xFF4A6480), height: 1.4),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'No internship profile is active yet. Complete the profile to unlock progress tracking, adviser visibility, and report generation.',
+            style: TextStyle(color: Color(0xFF4A6480), height: 1.4),
+          ),
+          if (isLoading)
+            _buildSectionRefreshingHint('Checking internship profile...'),
+        ],
       );
     }
 
@@ -737,11 +1077,20 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           label: 'Adviser',
           value: adviserAssigned ? 'Assigned' : 'Not assigned',
         ),
+        if (_profileError != null) ...[
+          const SizedBox(height: 12),
+          DashboardInlineNotice(
+            message: _profileError!,
+            onRetry: () => _refreshSection(_StudentDashboardSection.profile),
+          ),
+        ] else if (isLoading)
+          _buildSectionRefreshingHint('Refreshing internship profile...'),
       ],
     );
   }
 
   Widget _buildProgressAndPaceSection() {
+    final isLoading = _isSectionLoading(_StudentDashboardSection.report);
     final progressRatio = _requiredHours > 0
         ? (_approvedHours / _requiredHours).clamp(0.0, 1.0)
         : 0.0;
@@ -760,53 +1109,40 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     return DashboardInfoCard(
       title: 'Progress and Pace',
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isCompact = constraints.maxWidth < 640;
-          final paceTileWidth = isCompact
-              ? constraints.maxWidth
-              : constraints.maxWidth >= 920
-              ? (constraints.maxWidth - 36) / 4
-              : (constraints.maxWidth - 12) / 2;
+      child: _profile != null && _report == null && isLoading
+          ? _buildProgressSkeleton()
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 640;
+                final paceTileWidth = isCompact
+                    ? constraints.maxWidth
+                    : constraints.maxWidth >= 920
+                    ? (constraints.maxWidth - 36) / 4
+                    : (constraints.maxWidth - 12) / 2;
 
-          final progressBadge = Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: progressBadgeTone.$1,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              '${(progressRatio * 100).round()}%',
-              style: TextStyle(
-                color: progressBadgeTone.$2,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          );
-
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (isCompact) ...[
-                Text(
-                  _requiredHours > 0
-                      ? 'Approved Hours: $_approvedHours / $_requiredHours hours'
-                      : 'Approved Hours: $_approvedHours hours',
-                  style: const TextStyle(
-                    color: Color(0xFF102A56),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                final progressBadge = Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
                   ),
-                ),
-                const SizedBox(height: 10),
-                progressBadge,
-              ] else
-                Row(
+                  decoration: BoxDecoration(
+                    color: progressBadgeTone.$1,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '${(progressRatio * 100).round()}%',
+                    style: TextStyle(
+                      color: progressBadgeTone.$2,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                );
+
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
+                    if (isCompact) ...[
+                      Text(
                         _requiredHours > 0
                             ? 'Approved Hours: $_approvedHours / $_requiredHours hours'
                             : 'Approved Hours: $_approvedHours hours',
@@ -816,106 +1152,141 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
+                      const SizedBox(height: 10),
+                      progressBadge,
+                    ] else
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _requiredHours > 0
+                                  ? 'Approved Hours: $_approvedHours / $_requiredHours hours'
+                                  : 'Approved Hours: $_approvedHours hours',
+                              style: const TextStyle(
+                                color: Color(0xFF102A56),
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          progressBadge,
+                        ],
+                      ),
+                    const SizedBox(height: 14),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        minHeight: 12,
+                        value: progressRatio,
+                        backgroundColor: const Color(0xFFD8E2EC),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Color(0xFF0F4C5C),
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: 12),
-                    progressBadge,
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        _PaceTile(
+                          width: paceTileWidth,
+                          label: 'Expected by Today',
+                          value: _expectedHoursByToday != null
+                              ? '${_expectedHoursByToday!} h'
+                              : 'N/A',
+                        ),
+                        _PaceTile(
+                          width: paceTileWidth,
+                          label: 'Approved',
+                          value: '$_approvedHours h',
+                        ),
+                        _PaceTile(
+                          width: paceTileWidth,
+                          label: 'Pending Review',
+                          value: '$_pendingHours h',
+                        ),
+                        _PaceTile(
+                          width: paceTileWidth,
+                          label: 'Pace After Pending',
+                          value: () {
+                            final paceDelta = _paceDeltaAfterPending;
+                            if (paceDelta == null) return 'N/A';
+                            if (paceDelta < 0) {
+                              return 'Behind by ${paceDelta.abs()} h';
+                            }
+                            if (paceDelta > 0) {
+                              return 'Ahead by $paceDelta h';
+                            }
+                            return 'On pace';
+                          }(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      () {
+                        if (_requiredHours <= 0) {
+                          return 'Progress tracking will improve once required hours are available.';
+                        }
+
+                        final approvedDelta = _paceDelta;
+                        final pendingDelta = _paceDeltaAfterPending;
+                        if (approvedDelta != null &&
+                            pendingDelta != null &&
+                            approvedDelta < 0 &&
+                            _pendingHours > 0) {
+                          final pendingStatus = pendingDelta < 0
+                              ? 'behind by ${pendingDelta.abs()} hours'
+                              : pendingDelta > 0
+                              ? 'ahead by $pendingDelta hours'
+                              : 'on pace';
+
+                          return 'You are ${approvedDelta.abs()} approved hours behind today. Pending review ($_pendingHours h) could move you to $pendingStatus once reviewed.';
+                        }
+
+                        return 'Remaining: ${math.max(0, _requiredHours - _approvedHours)} hours';
+                      }(),
+                      style: const TextStyle(
+                        color: Color(0xFF4A6480),
+                        fontSize: 16,
+                      ),
+                    ),
+                    if (_reportError != null) ...[
+                      const SizedBox(height: 14),
+                      DashboardInlineNotice(
+                        message: _reportError!,
+                        onRetry: () =>
+                            _refreshSection(_StudentDashboardSection.report),
+                      ),
+                    ] else if (isLoading)
+                      _buildSectionRefreshingHint(
+                        'Refreshing progress metrics...',
+                      ),
                   ],
-                ),
-              const SizedBox(height: 14),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: LinearProgressIndicator(
-                  minHeight: 12,
-                  value: progressRatio,
-                  backgroundColor: const Color(0xFFD8E2EC),
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    Color(0xFF0F4C5C),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  _PaceTile(
-                    width: paceTileWidth,
-                    label: 'Expected by Today',
-                    value: _expectedHoursByToday != null
-                        ? '${_expectedHoursByToday!} h'
-                        : 'N/A',
-                  ),
-                  _PaceTile(
-                    width: paceTileWidth,
-                    label: 'Approved',
-                    value: '$_approvedHours h',
-                  ),
-                  _PaceTile(
-                    width: paceTileWidth,
-                    label: 'Pending Review',
-                    value: '$_pendingHours h',
-                  ),
-                  _PaceTile(
-                    width: paceTileWidth,
-                    label: 'Pace After Pending',
-                    value: () {
-                      final paceDelta = _paceDeltaAfterPending;
-                      if (paceDelta == null) return 'N/A';
-                      if (paceDelta < 0) {
-                        return 'Behind by ${paceDelta.abs()} h';
-                      }
-                      if (paceDelta > 0) return 'Ahead by $paceDelta h';
-                      return 'On pace';
-                    }(),
-                  ),
-                ],
-              ),
-              if (_reportError != null) ...[
-                const SizedBox(height: 14),
-                Text(
-                  _reportError!,
-                  style: const TextStyle(color: Color(0xFFB42318)),
-                ),
-              ] else ...[
-                const SizedBox(height: 12),
-                Text(() {
-                  if (_requiredHours <= 0) {
-                    return 'Progress tracking will improve once required hours are available.';
-                  }
-
-                  final approvedDelta = _paceDelta;
-                  final pendingDelta = _paceDeltaAfterPending;
-                  if (approvedDelta != null &&
-                      pendingDelta != null &&
-                      approvedDelta < 0 &&
-                      _pendingHours > 0) {
-                    final pendingStatus = pendingDelta < 0
-                        ? 'behind by ${pendingDelta.abs()} hours'
-                        : pendingDelta > 0
-                        ? 'ahead by $pendingDelta hours'
-                        : 'on pace';
-
-                    return 'You are ${approvedDelta.abs()} approved hours behind today. Pending review ($_pendingHours h) could move you to $pendingStatus once reviewed.';
-                  }
-
-                  return 'Remaining: ${math.max(0, _requiredHours - _approvedHours)} hours';
-                }(), style: const TextStyle(color: Color(0xFF4A6480), fontSize: 16)),
-              ],
-            ],
-          );
-        },
-      ),
+                );
+              },
+            ),
     );
   }
 
   Widget _buildRecentLogsSection() {
+    final isLoading = _isSectionLoading(_StudentDashboardSection.logs);
+
     return DashboardInfoCard(
       title: 'Recent Logs',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_logsError != null)
-            Text(_logsError!, style: const TextStyle(color: Color(0xFFB42318)))
+          if (isLoading && _logs.isEmpty && _profile != null)
+            _buildLogsSkeleton()
+          else if (_logsError != null && _logs.isEmpty)
+            DashboardInlineNotice(
+              message: _logsError!,
+              onRetry: () => _refreshSection(_StudentDashboardSection.logs),
+            )
           else if (_recentLogs.isEmpty)
             const Text(
               'No logs submitted yet. Start with today\'s entry so your dashboard can reflect current activity.',
@@ -964,7 +1335,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            log.taskDescription,
+                            _formatLogDescription(log.taskDescription),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -1014,6 +1385,14 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 ],
               );
             }),
+          if (_logsError != null && _logs.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            DashboardInlineNotice(
+              message: _logsError!,
+              onRetry: () => _refreshSection(_StudentDashboardSection.logs),
+            ),
+          ] else if (isLoading)
+            _buildSectionRefreshingHint('Refreshing recent logs...'),
         ],
       ),
     );
@@ -1123,7 +1502,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   Widget build(BuildContext context) {
     final token = context.watch<AuthProvider>().token ?? '';
 
-    return Scaffold(
+    return StudentScaffold(
+      currentRoute: AppRoutes.studentDashboard,
       appBar: AppBar(
         title: const Text('InternTrack'),
         actions: [
@@ -1151,6 +1531,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             final horizontalPadding = constraints.maxWidth < 640 ? 12.0 : 16.0;
 
             return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: EdgeInsets.all(horizontalPadding),
               children: [
                 Center(
@@ -1161,12 +1542,15 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       children: [
                         _buildHeader(context),
                         const SizedBox(height: 20),
-                        if (_isLoading)
+                        if (_isInitialLoading && !_hasCompletedFirstLoad)
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 32),
                             child: Center(child: CircularProgressIndicator()),
                           )
-                        else if (_dashboardError != null)
+                        else if (_dashboardError != null &&
+                            _profile == null &&
+                            _report == null &&
+                            _logs.isEmpty)
                           _buildDashboardErrorState()
                         else ...[
                           _buildNextActionSection(),
@@ -1221,6 +1605,21 @@ class _SummaryRow extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _SectionRefreshResult<T> {
+  const _SectionRefreshResult._({required this.succeeded, this.value});
+
+  final bool succeeded;
+  final T? value;
+
+  factory _SectionRefreshResult.success(T? value) {
+    return _SectionRefreshResult<T>._(succeeded: true, value: value);
+  }
+
+  factory _SectionRefreshResult.failure() {
+    return _SectionRefreshResult<T>._(succeeded: false);
   }
 }
 

@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class RoleMiddleware
 {
@@ -19,9 +20,29 @@ class RoleMiddleware
             ], 401);
         }
 
-        $roleName = \DB::table('roles')->where('id', $user->role_id)->value('name');
+        $roleName = $user->loadMissing('role')->role?->name;
+        if (!is_string($roleName) || trim($roleName) === '') {
+            Log::error('Role middleware blocked a request because the user role could not be resolved.', [
+                'user_id' => $user->getAuthIdentifier(),
+                'expected_role' => $role,
+                'path' => $request->path(),
+            ]);
 
-        if (!$roleName || strcasecmp($roleName, $role) !== 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Account role is not configured. Contact support.',
+                'data' => null,
+            ], 500);
+        }
+
+        if (strcasecmp($roleName, $role) !== 0) {
+            Log::warning('Role authorization failed.', [
+                'user_id' => $user->getAuthIdentifier(),
+                'expected_role' => $role,
+                'actual_role' => $roleName,
+                'path' => $request->path(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => $message ?? 'Forbidden: insufficient role.',
