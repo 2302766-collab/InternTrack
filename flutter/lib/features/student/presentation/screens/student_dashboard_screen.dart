@@ -81,6 +81,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   DateTime _now() => (widget.clock ?? DateTime.now)();
 
+  String _userFacingErrorMessage(Object error) {
+    if (error is ApiException) return error.message;
+    return error.toString().replaceFirst('Exception: ', '');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -175,8 +180,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         _lastUpdated = _now();
         _dashboardError = null;
       } else {
-        _dashboardError =
-            _profileError ?? 'Unable to load student dashboard.';
+        _dashboardError = _profileError ?? 'Unable to load student dashboard.';
       }
     });
   }
@@ -269,7 +273,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
       setState(() {
         _sectionErrors[_StudentDashboardSection.profile] =
-            _readErrorMessage(e);
+            _userFacingErrorMessage(e);
         _sectionLoading[_StudentDashboardSection.profile] = false;
       });
 
@@ -318,7 +322,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
       setState(() {
         _sectionErrors[_StudentDashboardSection.report] =
-            _readErrorMessage(e);
+            _userFacingErrorMessage(e);
         _sectionLoading[_StudentDashboardSection.report] = false;
       });
 
@@ -366,20 +370,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       }
 
       setState(() {
-        _sectionErrors[_StudentDashboardSection.logs] = _readErrorMessage(e);
+        _sectionErrors[_StudentDashboardSection.logs] =
+            _userFacingErrorMessage(e);
         _sectionLoading[_StudentDashboardSection.logs] = false;
       });
 
       return _SectionRefreshResult<List<LogEntryItem>>.failure();
     }
-  }
-
-  String _readErrorMessage(Object error) {
-    if (error is ApiException) {
-      return error.message;
-    }
-
-    return error.toString().replaceFirst('Exception: ', '');
   }
 
   int get _approvedHours => _report?.summary.approvedHours ?? 0;
@@ -1241,8 +1238,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           final pendingStatus = pendingDelta < 0
                               ? 'behind by ${pendingDelta.abs()} hours'
                               : pendingDelta > 0
-                              ? 'ahead by $pendingDelta hours'
-                              : 'on pace';
+                                  ? 'ahead by $pendingDelta hours'
+                                  : 'on pace';
 
                           return 'You are ${approvedDelta.abs()} approved hours behind today. Pending review ($_pendingHours h) could move you to $pendingStatus once reviewed.';
                         }
@@ -1407,8 +1404,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           final actionWidth = isCompact
               ? constraints.maxWidth
               : constraints.maxWidth >= 920
-              ? (constraints.maxWidth - 36) / 4
-              : (constraints.maxWidth - 12) / 2;
+                  ? (constraints.maxWidth - 36) / 4
+                  : (constraints.maxWidth - 12) / 2;
 
           return Wrap(
             spacing: 12,
@@ -1483,8 +1480,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            _dashboardError ??
-                'An unexpected error occurred. Please try again.',
+            _dashboardError ?? 'An unexpected error occurred. Please try again.',
             style: const TextStyle(color: Color(0xFFB42318), height: 1.4),
           ),
           const SizedBox(height: 16),

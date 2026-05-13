@@ -30,6 +30,7 @@ import 'features/auth/presentation/screens/register_screen.dart';
 import 'features/internship/presentation/screens/internship_profile_screen.dart';
 import 'features/logbook/presentation/screens/logbook_screen.dart';
 import 'features/settings/presentation/screens/settings_screen.dart';
+import 'features/student/navigation/student_notification_routing.dart';
 import 'features/student/presentation/screens/student_dashboard_screen.dart';
 import 'features/student/presentation/screens/student_dtr_screen.dart';
 import 'features/student/presentation/screens/student_report_screen.dart';
@@ -260,7 +261,15 @@ class InternTrackApp extends StatelessWidget {
                 return _guardRoleRoute(
                   authProvider,
                   'student',
-                  const LogbookScreen(),
+                  Builder(
+                    builder: (context) {
+                      final raw =
+                          ModalRoute.of(context)?.settings.arguments;
+                      final int? focusId =
+                          raw is LogbookNavArgs ? raw.logId : null;
+                      return LogbookScreen(initialFocusLogId: focusId);
+                    },
+                  ),
                 );
               },
 

@@ -4,6 +4,8 @@ class AppNotification {
   final String message;
   final bool isRead;
   final DateTime? createdAt;
+  final String? type;
+  final Map<String, dynamic>? meta;
 
   const AppNotification({
     required this.id,
@@ -11,6 +13,8 @@ class AppNotification {
     required this.message,
     required this.isRead,
     required this.createdAt,
+    this.type,
+    this.meta,
   });
 
   factory AppNotification.fromJson(Map<String, dynamic> json) {
@@ -20,7 +24,26 @@ class AppNotification {
       message: json['message']?.toString() ?? '',
       isRead: _parseBool(json['is_read']),
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
+      type: () {
+        final raw = json['type']?.toString().trim();
+        if (raw == null || raw.isEmpty) return null;
+        return raw;
+      }(),
+      meta: _parseMeta(json['meta']),
     );
+  }
+
+  static Map<String, dynamic>? _parseMeta(Object? value) {
+    if (value == null) return null;
+    if (value is Map<String, dynamic>) return Map<String, dynamic>.from(value);
+    if (value is Map) {
+      try {
+        return value.map((k, v) => MapEntry(k.toString(), v));
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
   }
 
   static int _parseInt(Object? value) {
@@ -42,6 +65,8 @@ class AppNotification {
     String? message,
     bool? isRead,
     DateTime? createdAt,
+    String? type,
+    Map<String, dynamic>? meta,
   }) {
     return AppNotification(
       id: id ?? this.id,
@@ -49,6 +74,8 @@ class AppNotification {
       message: message ?? this.message,
       isRead: isRead ?? this.isRead,
       createdAt: createdAt ?? this.createdAt,
+      type: type ?? this.type,
+      meta: meta ?? this.meta,
     );
   }
 }

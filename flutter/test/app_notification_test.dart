@@ -19,6 +19,21 @@ void main() {
       expect(notification.createdAt, isNotNull);
     });
 
+    test('parses optional type and meta map', () {
+      final notification = AppNotification.fromJson({
+        'id': 1,
+        'title': 'Log approved',
+        'message': 'Done',
+        'is_read': false,
+        'created_at': '2026-04-20T12:30:00Z',
+        'type': 'log_approved',
+        'meta': {'log_id': 55},
+      });
+
+      expect(notification.type, 'log_approved');
+      expect(notification.meta, {'log_id': 55});
+    });
+
     test('parses numeric read status and falls back safely for bad id', () {
       final notification = AppNotification.fromJson({
         'id': null,
