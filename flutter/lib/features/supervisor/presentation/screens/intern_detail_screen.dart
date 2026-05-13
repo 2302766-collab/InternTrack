@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/constants/app_routes.dart';
+import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/intern_reporting_service.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/file_download_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_download_web.dart'
     as file_download;
@@ -16,6 +19,7 @@ import '../../../../shared/models/supervisor_log_item.dart';
 import '../../../../shared/widgets/dashboard_info_card.dart';
 import '../../../../shared/widgets/dtr_export_dialog.dart';
 import '../../../../shared/widgets/progress_widget.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import 'intern_report_screen.dart';
 import 'supervisor_log_detail_screen.dart';
 
@@ -24,12 +28,10 @@ typedef RecentLogReviewScreenBuilder =
       BuildContext context,
       LogEntryItem log,
       SupervisorLogService service,
-      String token,
       InternDetailItem intern,
     );
 
 class InternDetailScreen extends StatefulWidget {
-  final String token;
   final String role;
   final int profileId;
   final InternListItem? initialIntern;
@@ -39,7 +41,6 @@ class InternDetailScreen extends StatefulWidget {
 
   const InternDetailScreen({
     super.key,
-    required this.token,
     required this.role,
     required this.profileId,
     this.initialIntern,
@@ -87,6 +88,24 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
     _loadIntern();
   }
 
+  Future<void> _handleExpiredSession() async {
+    final authProvider = Provider.of<AuthProvider?>(context, listen: false);
+    await authProvider?.logout();
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Your session has expired. Please log in again.'),
+      ),
+    );
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.login,
+      (route) => false,
+    );
+  }
+
   Future<void> _loadIntern() async {
     setState(() {
       _isLoading = true;
@@ -103,6 +122,16 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
 
       setState(() {
         _intern = intern;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+        await _handleExpiredSession();
+        return;
+      }
+
+      setState(() {
+        _errorMessage = e.message;
       });
     } catch (e) {
       if (!mounted) return;
@@ -137,7 +166,6 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => InternReportScreen(
-          token: widget.token,
           role: widget.role,
           studentId: intern.studentId,
           studentName: intern.studentName,
@@ -157,7 +185,6 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
           context,
           log,
           _logService,
-          widget.token,
           intern,
         ),
       ),
@@ -220,6 +247,16 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
                 : 'Export is ready, but direct file actions are only available on web in this build.',
           ),
         ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+        await _handleExpiredSession();
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
       );
     } catch (e) {
       if (!mounted) return;
@@ -382,6 +419,7 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
   Widget _buildRecentLogCard(InternDetailItem intern, int index) {
     final log = intern.recentLogs[index];
     final statusColor = _statusColor(log.status);
+    final dateLabel = DateFormatter.formatApiDate(log.date);
     final role = widget.role.toLowerCase();
     final isLogDetailContext = role == 'supervisor' || role == 'adviser';
     final canOpenLog = isLogDetailContext && log.id > 0;
@@ -422,7 +460,7 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        log.date,
+                        dateLabel,
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
                     ),
@@ -490,11 +528,9 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
     BuildContext context,
     LogEntryItem log,
     SupervisorLogService service,
-    String token,
     InternDetailItem intern,
   ) {
     return SupervisorLogDetailScreen(
-      token: token,
       logId: log.id,
       readOnly: widget.role.toLowerCase() == 'adviser',
       title: widget.role.toLowerCase() == 'adviser' ? 'Log Details' : null,
@@ -523,6 +559,12 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
     final roleTitle = widget.role.isNotEmpty
         ? '${widget.role[0].toUpperCase()}${widget.role.substring(1).toLowerCase()}'
         : 'Role';
+    final startDate = (intern.startDate ?? '').trim();
+    final endDate = (intern.endDate ?? '').trim();
+    final hasSchedule = startDate.isNotEmpty && endDate.isNotEmpty;
+    final scheduleLabel = hasSchedule
+        ? '${DateFormatter.formatApiDate(startDate)} to ${DateFormatter.formatApiDate(endDate)}'
+        : null;
 
     return RefreshIndicator(
       onRefresh: _loadIntern,
@@ -546,11 +588,7 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
                 Text('Company: ${intern.companyName}'),
                 if (intern.companyAddress.isNotEmpty)
                   Text('Address: ${intern.companyAddress}'),
-                if ((intern.startDate ?? '').isNotEmpty &&
-                    (intern.endDate ?? '').isNotEmpty)
-                  Text(
-                    'Internship Dates: ${intern.startDate} to ${intern.endDate}',
-                  ),
+                if (scheduleLabel != null) Text('Internship Dates: $scheduleLabel'),
                 const SizedBox(height: 8),
                 Text(
                   'Supervisor: ${intern.supervisorName?.trim().isNotEmpty == true ? intern.supervisorName : intern.supervisorId?.toString() ?? "Not assigned"}',

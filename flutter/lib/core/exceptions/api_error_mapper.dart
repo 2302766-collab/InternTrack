@@ -6,7 +6,7 @@ import '../config/api_config.dart';
 import 'api_exception.dart';
 
 /// Maps different error sources to standardized ApiException instances.
-/// 
+///
 /// This utility handles:
 /// - DioException (network, timeout, response errors)
 /// - Generic exceptions
@@ -19,7 +19,7 @@ class ApiErrorMapper {
       case DioExceptionType.receiveTimeout:
       case DioExceptionType.sendTimeout:
         return ApiException(
-          message: 'Request timed out. Please check your connection.',
+          message: 'Network timeout. Please try again.',
           errorType: ApiErrorType.timeout,
           originalError: exception,
           isRecoverable: true,
@@ -34,10 +34,7 @@ class ApiErrorMapper {
         );
 
       case DioExceptionType.badResponse:
-        return _mapStatusCodeError(
-          exception.response,
-          exception,
-        );
+        return _mapStatusCodeError(exception.response, exception);
 
       case DioExceptionType.cancel:
         return ApiException(
@@ -74,6 +71,7 @@ class ApiErrorMapper {
   ) {
     final statusCode = response?.statusCode ?? 0;
     final responseData = response?.data;
+    final requestPath = originalException.requestOptions.path;
 
     // Extract server message if available
     String? serverMessage;
@@ -93,9 +91,13 @@ class ApiErrorMapper {
         );
 
       case 401:
+        final isAuthRequest = requestPath.startsWith('/auth/');
         return ApiException(
           message:
-              serverMessage ?? 'Your session has expired. Please log in again.',
+              serverMessage ??
+              (isAuthRequest
+                  ? 'Invalid email or password.'
+                  : 'Your session has expired. Please log in again.'),
           statusCode: statusCode,
           errorType: ApiErrorType.unauthorized,
           originalError: originalException,
@@ -104,8 +106,7 @@ class ApiErrorMapper {
 
       case 403:
         return ApiException(
-          message:
-              'You do not have permission to perform this action.',
+          message: 'You do not have permission to perform this action.',
           statusCode: statusCode,
           errorType: ApiErrorType.forbidden,
           originalError: originalException,
@@ -123,7 +124,8 @@ class ApiErrorMapper {
 
       case 409:
         return ApiException(
-          message: serverMessage ??
+          message:
+              serverMessage ??
               'This resource already exists or there is a conflict.',
           statusCode: statusCode,
           errorType: ApiErrorType.conflict,
@@ -157,8 +159,11 @@ class ApiErrorMapper {
 
       case >= 500:
         return ApiException(
-          message: serverMessage ??
-              'Server error. Our team has been notified. Please try again later.',
+          message:
+              serverMessage ??
+              ((statusCode == 502 || statusCode == 503 || statusCode == 504)
+                  ? 'Server unavailable. Please try again later.'
+                  : 'Server error. Please try again later.'),
           statusCode: statusCode,
           errorType: ApiErrorType.serverError,
           originalError: originalException,
@@ -167,7 +172,8 @@ class ApiErrorMapper {
 
       default:
         return ApiException(
-          message: serverMessage ??
+          message:
+              serverMessage ??
               'An unexpected error occurred. Please try again.',
           statusCode: statusCode,
           errorType: ApiErrorType.unknown,

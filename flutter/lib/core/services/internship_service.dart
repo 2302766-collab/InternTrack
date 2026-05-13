@@ -105,6 +105,56 @@ class InternshipService extends BaseService {
     }
   }
 
+  Future<InternshipProfile> updateInternshipProfile({
+    required String companyName,
+    required String companyAddress,
+    required int requiredHours,
+    required String startDate,
+    required String endDate,
+  }) async {
+    try {
+      return await _apiClient.patch<InternshipProfile>(
+        path: '/student/internship',
+        data: {
+          'company_name': companyName,
+          'company_address': companyAddress,
+          'required_hours': requiredHours,
+          'start_date': startDate,
+          'end_date': endDate,
+        },
+        converter: (data) {
+          if (data is! Map<String, dynamic>) {
+            throw ApiException(
+              message: 'Invalid internship profile response format.',
+              errorType: ApiErrorType.unknown,
+            );
+          }
+
+          final profileData = data['data'];
+          if (profileData is! Map<String, dynamic>) {
+            throw ApiException(
+              message: 'Invalid internship profile response format.',
+              errorType: ApiErrorType.unknown,
+            );
+          }
+
+          try {
+            return InternshipProfile.fromJson(profileData);
+          } catch (e) {
+            throw ApiException(
+              message: 'Failed to parse internship profile.',
+              errorType: ApiErrorType.unknown,
+              originalError: e,
+            );
+          }
+        },
+      );
+    } on ApiException catch (e) {
+      handleApiError(e);
+      rethrow;
+    }
+  }
+
   Future<List<SupervisorOption>> getSupervisors() async {
     try {
       return await _apiClient.get<List<SupervisorOption>>(

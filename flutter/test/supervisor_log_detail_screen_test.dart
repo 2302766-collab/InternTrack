@@ -186,7 +186,6 @@ Future<void> _openReviewScreen(
                     context,
                     MaterialPageRoute(
                       builder: (_) => SupervisorLogDetailScreen(
-                        token: 'token',
                         logId: 1,
                         service: service,
                         readOnly: readOnly,

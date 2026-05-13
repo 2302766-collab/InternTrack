@@ -22,9 +22,13 @@ class AdminDashboardTest extends TestCase
         $studentOne = $this->createUserWithRole('Student');
         $studentTwo = $this->createUserWithRole('Student');
         $studentThree = $this->createUserWithRole('Student');
+        $adviser = $this->createUserWithRole('Adviser');
 
         $profileOne = $this->createInternshipProfileFor($studentOne, $supervisor, 40);
         $profileTwo = $this->createInternshipProfileFor($studentTwo, $supervisor, 20);
+        $profileTwo->update([
+            'adviser_id' => $adviser->id,
+        ]);
 
         $this->createLogEntryFor($profileOne, 'APPROVED', 8, '2026-03-01');
         $this->createLogEntryFor($profileOne, 'APPROVED', 8, '2026-03-02');
@@ -43,6 +47,10 @@ class AdminDashboardTest extends TestCase
             ->assertJsonPath('data.total_students', 3)
             ->assertJsonPath('data.pending_logs', 2)
             ->assertJsonPath('data.approved_logs', 3)
+            ->assertJsonPath('data.students_without_profile', 1)
+            ->assertJsonPath('data.students_without_supervisor', 0)
+            ->assertJsonPath('data.students_without_adviser', 1)
+            ->assertJsonPath('data.students_requiring_attention', 2)
             ->assertJsonPath('data.average_completion_percentage', 30);
     }
 
