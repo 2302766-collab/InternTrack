@@ -339,6 +339,10 @@ class SupervisorLogController extends Controller
             'user_id' => $studentId,
             'title' => $isApproved ? 'Log approved' : 'Log rejected',
             'message' => $message,
+            'type' => $isApproved ? 'log_approved' : 'log_rejected',
+            'meta' => [
+                'log_id' => $log->id,
+            ],
             'is_read' => false,
         ]);
     }
