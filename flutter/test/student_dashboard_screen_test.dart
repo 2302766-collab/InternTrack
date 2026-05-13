@@ -204,6 +204,101 @@ void main() {
     expect(find.text('Last updated: 11:00 AM'), findsOneWidget);
   });
 
+  testWidgets('complete refresh failure preserves data and last updated time', (
+    tester,
+  ) async {
+    final authProvider = await _buildAuthProvider();
+    final clock = _FakeClock(DateTime(2026, 5, 10, 9, 0));
+
+    await tester.pumpWidget(
+      _buildApp(
+        authProvider: authProvider,
+        internshipService: _QueuedInternshipService(
+          responses: Queue.of([
+            () async => _sampleProfile(),
+            () => Future<InternshipProfile?>.error(
+              ApiException(
+                message: 'Profile refresh failed.',
+                errorType: ApiErrorType.networkError,
+              ),
+            ),
+          ]),
+        ),
+        reportService: _QueuedStudentReportService(
+          responses: Queue.of([
+            () async => _sampleReport(),
+            () => Future<StudentReportData>.error(
+              ApiException(
+                message: 'Report refresh failed.',
+                errorType: ApiErrorType.networkError,
+              ),
+            ),
+          ]),
+        ),
+        logbookService: _QueuedLogbookService(
+          responses: Queue.of([
+            () async => _sampleLogs(),
+            () => Future<List<LogEntryItem>>.error(
+              ApiException(
+                message: 'Logs refresh failed.',
+                errorType: ApiErrorType.networkError,
+              ),
+            ),
+          ]),
+        ),
+        clock: clock.call,
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.text('Last updated: 9:00 AM'), findsOneWidget);
+    expect(find.text('Completed daily development tasks.'), findsOneWidget);
+
+    clock.current = DateTime(2026, 5, 10, 16, 0);
+    await _triggerRefresh(tester);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Last updated: 9:00 AM'), findsOneWidget);
+    expect(find.text('Completed daily development tasks.'), findsOneWidget);
+    expect(find.text('Profile refresh failed.'), findsOneWidget);
+    expect(find.text('Report refresh failed.'), findsOneWidget);
+    expect(find.text('Logs refresh failed.'), findsOneWidget);
+  });
+
+  testWidgets('last updated appears only after first successful load completes', (
+    tester,
+  ) async {
+    final authProvider = await _buildAuthProvider();
+    final profileCompleter = Completer<InternshipProfile?>();
+    final clock = _FakeClock(DateTime(2026, 5, 10, 7, 15));
+
+    await tester.pumpWidget(
+      _buildApp(
+        authProvider: authProvider,
+        internshipService: _QueuedInternshipService(
+          responses: Queue.of([
+            () => profileCompleter.future,
+          ]),
+        ),
+        reportService: _QueuedStudentReportService(
+          responses: Queue.of([() async => _sampleReport()]),
+        ),
+        logbookService: _QueuedLogbookService(
+          responses: Queue.of([() async => _sampleLogs()]),
+        ),
+        clock: clock.call,
+      ),
+    );
+
+    await tester.pump();
+    expect(find.textContaining('Last updated'), findsNothing);
+
+    profileCompleter.complete(_sampleProfile());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Last updated: 7:15 AM'), findsOneWidget);
+  });
+
   testWidgets('section without cached data shows skeleton while retry refresh is in progress', (
     tester,
   ) async {

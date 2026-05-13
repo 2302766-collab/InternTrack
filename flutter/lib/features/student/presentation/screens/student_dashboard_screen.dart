@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_routes.dart';
+import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/internship_service.dart';
 import '../../../../core/services/logbook_service.dart';
 import '../../../../core/services/student_report_service.dart';
@@ -76,6 +77,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   String? get _logsError => _sectionErrors[_StudentDashboardSection.logs];
 
   DateTime _now() => (widget.clock ?? DateTime.now)();
+
+  String _userFacingErrorMessage(Object error) {
+    if (error is ApiException) return error.message;
+    return error.toString().replaceFirst('Exception: ', '');
+  }
 
   @override
   void initState() {
@@ -241,9 +247,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       if (!mounted) return _SectionRefreshResult<InternshipProfile?>.failure();
 
       setState(() {
-        _sectionErrors[_StudentDashboardSection.profile] = e
-            .toString()
-            .replaceFirst('Exception: ', '');
+        _sectionErrors[_StudentDashboardSection.profile] =
+            _userFacingErrorMessage(e);
         _sectionLoading[_StudentDashboardSection.profile] = false;
       });
 
@@ -286,9 +291,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       if (!mounted) return _SectionRefreshResult<StudentReportData>.failure();
 
       setState(() {
-        _sectionErrors[_StudentDashboardSection.report] = e
-            .toString()
-            .replaceFirst('Exception: ', '');
+        _sectionErrors[_StudentDashboardSection.report] =
+            _userFacingErrorMessage(e);
         _sectionLoading[_StudentDashboardSection.report] = false;
       });
 
@@ -331,9 +335,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       if (!mounted) return _SectionRefreshResult<List<LogEntryItem>>.failure();
 
       setState(() {
-        _sectionErrors[_StudentDashboardSection.logs] = e
-            .toString()
-            .replaceFirst('Exception: ', '');
+        _sectionErrors[_StudentDashboardSection.logs] =
+            _userFacingErrorMessage(e);
         _sectionLoading[_StudentDashboardSection.logs] = false;
       });
 
