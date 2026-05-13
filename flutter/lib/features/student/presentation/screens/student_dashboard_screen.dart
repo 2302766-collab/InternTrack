@@ -40,6 +40,8 @@ class StudentDashboardScreen extends StatefulWidget {
 }
 
 class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
+  static const double _dashboardMaxWidth = 1120;
+
   late final InternshipService _internshipService;
   late final LogbookService _logbookService;
   late final StudentReportService _reportService;
@@ -54,6 +56,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   String? _profileError;
   String? _reportError;
   String? _logsError;
+  DateTime? _lastUpdatedAt;
 
   @override
   void initState() {
@@ -134,6 +137,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       _reportError = reportError;
       _logsError = logsError;
       _isLoading = false;
+      _lastUpdatedAt = DateTime.now();
     });
   }
 
@@ -274,6 +278,24 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     return DateFormat('MMM d').format(parsed);
   }
 
+  String _formatLogDescription(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return 'Activity details not provided.';
+    }
+
+    final looksLikeSeedValue =
+        RegExp(r'^\d{1,2}:\d{2}$').hasMatch(trimmed) ||
+        RegExp(r'^\d{2}/\d{2}$').hasMatch(trimmed) ||
+        RegExp(r'^\d+(st|nd|rd|th)$', caseSensitive: false).hasMatch(trimmed);
+
+    if (looksLikeSeedValue) {
+      return 'Activity details not provided.';
+    }
+
+    return trimmed;
+  }
+
   List<LogEntryItem> _sortLogsNewestFirst(List<LogEntryItem> logs) {
     final sorted = List<LogEntryItem>.from(logs);
     sorted.sort((a, b) {
@@ -353,7 +375,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       return 'Add your company, schedule, and supervisor details so progress tracking and reporting can work.';
     }
     if (!_hasTodayLog) {
-      return 'You haven\'t added today\'s log yet. Submit it now so your internship record stays current.';
+      return 'You haven\'t added today\'s log yet.';
     }
     if (_pendingLogsCount > 0) {
       return 'Your recent submissions are waiting for supervisor review. You can still open the logbook to inspect them.';
@@ -378,6 +400,94 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     return const Color(0xFF027A48);
   }
 
+  String get _refreshLabel {
+    if (_lastUpdatedAt == null) {
+      return 'Pull down to refresh';
+    }
+    return 'Last updated: ${DateFormat('MMM d, yyyy').format(_lastUpdatedAt!)} - Pull down to refresh';
+  }
+
+  PreferredSizeWidget _buildTopBar(String token) {
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(78),
+      child: Material(
+        color: Theme.of(context).colorScheme.surface,
+        child: SafeArea(
+          bottom: false,
+          child: Container(
+            height: 78,
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).dividerColor.withValues(alpha: 0.7),
+                ),
+              ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x0A0F172A),
+                  blurRadius: 10,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: _dashboardMaxWidth),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'InternTrack',
+                              style: TextStyle(
+                                color: Color(0xFF102A56),
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Student dashboard',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF4A6480),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SettingsShortcutButton(),
+                      NotificationBellButton(token: token),
+                      IconButton(
+                        tooltip: 'Logout',
+                        onPressed: () async {
+                          await context.read<AuthProvider>().logout();
+                          if (!context.mounted) return;
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            AppRoutes.login,
+                            (route) => false,
+                          );
+                        },
+                        icon: const Icon(Icons.logout_rounded),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildHeader(BuildContext context) {
     final theme = Theme.of(context);
 
@@ -385,35 +495,45 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 640;
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Welcome, ${widget.userName}',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                color: const Color(0xFF102A56),
-                fontWeight: FontWeight.w800,
-                fontSize: isCompact ? 28 : null,
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(isCompact ? 20 : 24),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FBFF),
+            border: Border.all(color: const Color(0xFFDCE6F2)),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Welcome back, ${widget.userName}',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  color: const Color(0xFF102A56),
+                  fontWeight: FontWeight.w800,
+                  fontSize: isCompact ? 28 : 30,
+                ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _profile == null
-                  ? 'Set up your internship details, submit logs, and keep your approved hours moving.'
-                  : 'Track what needs attention today, monitor pace, and jump back into the internship workflow.',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: const Color(0xFF4A6480),
+              const SizedBox(height: 8),
+              Text(
+                _profile == null
+                    ? 'Complete your internship details so progress tracking and reporting can work properly.'
+                    : 'Here is your internship progress and pending activity for today.',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: const Color(0xFF4A6480),
+                  height: 1.45,
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Pull down to refresh dashboard data',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF6B7F99),
-                fontWeight: FontWeight.w600,
+              const SizedBox(height: 10),
+              Text(
+                _refreshLabel,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: const Color(0xFF6B7F99),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
@@ -454,10 +574,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 attentionChip,
               ] else
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Text(
@@ -469,20 +590,26 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     attentionChip,
                   ],
                 ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
                 _nextActionDescription,
-                style: const TextStyle(color: Color(0xFF4A6480), height: 1.4),
+                style: const TextStyle(
+                  color: Color(0xFF4A6480),
+                  height: 1.45,
+                ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               SizedBox(
                 width: isCompact ? double.infinity : null,
                 child: FilledButton.icon(
                   onPressed: _handlePrimaryAction,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 42),
+                  ),
                   icon: Icon(_primaryActionIcon),
                   label: Text(_primaryActionLabel),
                 ),
@@ -492,31 +619,32 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
           return Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: _nextActionColor.withValues(alpha: 0.08),
+              color: _nextActionColor.withValues(alpha: 0.05),
               border: Border.all(
-                color: _nextActionColor.withValues(alpha: 0.18),
+                color: _nextActionColor.withValues(alpha: 0.16),
               ),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: isCompact
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        width: 40,
-                        height: 40,
+                        width: 36,
+                        height: 36,
                         decoration: BoxDecoration(
-                          color: _nextActionColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
+                          color: _nextActionColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(
                           _primaryActionIcon,
                           color: _nextActionColor,
+                          size: 20,
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
                       content,
                     ],
                   )
@@ -524,18 +652,19 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        width: 40,
-                        height: 40,
+                        width: 36,
+                        height: 36,
                         decoration: BoxDecoration(
-                          color: _nextActionColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
+                          color: _nextActionColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(
                           _primaryActionIcon,
                           color: _nextActionColor,
+                          size: 20,
                         ),
                       ),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: 12),
                       Expanded(child: content),
                     ],
                   ),
@@ -549,10 +678,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final summaryWidth = constraints.maxWidth >= 980
-            ? (constraints.maxWidth - 16) * 0.4
+            ? (constraints.maxWidth - 16) * 0.42
             : constraints.maxWidth;
         final metricsWidth = constraints.maxWidth >= 980
-            ? (constraints.maxWidth - 16) * 0.6
+            ? (constraints.maxWidth - 16) * 0.58
             : constraints.maxWidth;
 
         return Wrap(
@@ -572,7 +701,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 title: 'Internship Status',
                 child: LayoutBuilder(
                   builder: (context, metricConstraints) {
-                    final isWideMetrics = metricConstraints.maxWidth >= 620;
+                    final isWideMetrics = metricConstraints.maxWidth >= 540;
                     final tileWidth = isWideMetrics
                         ? (metricConstraints.maxWidth - 12) / 2
                         : metricConstraints.maxWidth;
@@ -589,7 +718,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           icon: Icons.verified_outlined,
                           tone: const _TileTone(
                             background: Color(0xFFF3FBF7),
-                            border: Color(0xFFCDEEDC),
+                            border: Color(0xFFD5ECDC),
                             icon: Color(0xFF027A48),
                           ),
                         ),
@@ -601,7 +730,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           icon: Icons.pending_actions_outlined,
                           tone: const _TileTone(
                             background: Color(0xFFFFF8ED),
-                            border: Color(0xFFFFE1B3),
+                            border: Color(0xFFF8E5C1),
                             icon: Color(0xFFB54708),
                           ),
                         ),
@@ -613,7 +742,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           icon: Icons.report_gmailerrorred_outlined,
                           tone: const _TileTone(
                             background: Color(0xFFFFF4F4),
-                            border: Color(0xFFFBCACA),
+                            border: Color(0xFFF2D6D6),
                             icon: Color(0xFFB42318),
                           ),
                         ),
@@ -625,7 +754,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           icon: Icons.calendar_month_outlined,
                           tone: const _TileTone(
                             background: Color(0xFFF5F8FF),
-                            border: Color(0xFFD6E1FF),
+                            border: Color(0xFFDCE5F8),
                             icon: Color(0xFF325EA8),
                           ),
                         ),
@@ -717,9 +846,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         _SummaryRow(label: 'Company', value: profile.companyName),
-        _SummaryRow(label: 'Required Hours', value: '${profile.requiredHours}'),
+        _SummaryRow(
+          label: 'Required Hours',
+          value: '${profile.requiredHours} hours',
+        ),
         _SummaryRow(
           label: 'Schedule',
           value:
@@ -731,11 +863,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               ? (profile.supervisorName?.trim().isNotEmpty == true
                     ? profile.supervisorName!
                     : 'Assigned')
-              : 'Not assigned',
+              : 'Not yet assigned',
         ),
         _SummaryRow(
           label: 'Adviser',
-          value: adviserAssigned ? 'Assigned' : 'Not assigned',
+          value: adviserAssigned ? 'Assigned in system' : 'Not yet assigned',
         ),
       ],
     );
@@ -776,14 +908,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
-              '${(progressRatio * 100).round()}%',
+              '${(progressRatio * 100).round()}% completed',
               style: TextStyle(
                 color: progressBadgeTone.$2,
                 fontWeight: FontWeight.w800,
               ),
             ),
           );
-
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -825,7 +956,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(999),
                 child: LinearProgressIndicator(
-                  minHeight: 12,
+                  minHeight: 14,
                   value: progressRatio,
                   backgroundColor: const Color(0xFFD8E2EC),
                   valueColor: const AlwaysStoppedAnimation<Color>(
@@ -878,28 +1009,29 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 ),
               ] else ...[
                 const SizedBox(height: 12),
-                Text(() {
-                  if (_requiredHours <= 0) {
-                    return 'Progress tracking will improve once required hours are available.';
-                  }
+                Text(
+                  () {
+                    if (_requiredHours <= 0) {
+                      return 'Progress tracking will improve once required hours are available.';
+                    }
 
-                  final approvedDelta = _paceDelta;
-                  final pendingDelta = _paceDeltaAfterPending;
-                  if (approvedDelta != null &&
-                      pendingDelta != null &&
-                      approvedDelta < 0 &&
-                      _pendingHours > 0) {
-                    final pendingStatus = pendingDelta < 0
-                        ? 'behind by ${pendingDelta.abs()} hours'
-                        : pendingDelta > 0
-                        ? 'ahead by $pendingDelta hours'
-                        : 'on pace';
+                    final approvedDelta = _paceDelta;
+                    final pendingDelta = _paceDeltaAfterPending;
+                    if (approvedDelta != null &&
+                        pendingDelta != null &&
+                        approvedDelta < 0 &&
+                        _pendingHours > 0) {
+                      return 'You are currently ${approvedDelta.abs()} approved hours behind the expected pace. If your $_pendingHours pending hours are approved, the gap will decrease to ${pendingDelta.abs()} hours.';
+                    }
 
-                    return 'You are ${approvedDelta.abs()} approved hours behind today. Pending review ($_pendingHours h) could move you to $pendingStatus once reviewed.';
-                  }
-
-                  return 'Remaining: ${math.max(0, _requiredHours - _approvedHours)} hours';
-                }(), style: const TextStyle(color: Color(0xFF4A6480), fontSize: 16)),
+                    return 'Remaining: ${math.max(0, _requiredHours - _approvedHours)} hours';
+                  }(),
+                  style: const TextStyle(
+                    color: Color(0xFF4A6480),
+                    fontSize: 15,
+                    height: 1.4,
+                  ),
+                ),
               ],
             ],
           );
@@ -917,9 +1049,28 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           if (_logsError != null)
             Text(_logsError!, style: const TextStyle(color: Color(0xFFB42318)))
           else if (_recentLogs.isEmpty)
-            const Text(
-              'No logs submitted yet. Start with today\'s entry so your dashboard can reflect current activity.',
-              style: TextStyle(color: Color(0xFF4A6480), height: 1.4),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'No recent logs yet.',
+                  style: TextStyle(
+                    color: Color(0xFF102A56),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Start by adding today\'s log entry.',
+                  style: TextStyle(color: Color(0xFF4A6480), height: 1.4),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: () => _openRoute(AppRoutes.logbook),
+                  icon: const Icon(Icons.edit_note),
+                  label: const Text('Add Today\'s Log'),
+                ),
+              ],
             )
           else
             ..._recentLogs.asMap().entries.map((entry) {
@@ -964,7 +1115,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            log.taskDescription,
+                            _formatLogDescription(log.taskDescription),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -1045,7 +1196,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               ),
               SizedBox(
                 width: actionWidth,
-                child: FilledButton.icon(
+                child: OutlinedButton.icon(
                   onPressed: () => _openRoute(AppRoutes.studentDtr),
                   icon: const Icon(Icons.punch_clock_rounded),
                   label: const Text('Continue DTR'),
@@ -1124,38 +1275,19 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     final token = context.watch<AuthProvider>().token ?? '';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('InternTrack'),
-        actions: [
-          const SettingsShortcutButton(),
-          NotificationBellButton(token: token),
-          IconButton(
-            tooltip: 'Logout',
-            onPressed: () async {
-              await context.read<AuthProvider>().logout();
-              if (!context.mounted) return;
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                AppRoutes.login,
-                (route) => false,
-              );
-            },
-            icon: const Icon(Icons.logout),
-          ),
-        ],
-      ),
+      appBar: _buildTopBar(token),
       body: RefreshIndicator(
         onRefresh: _loadDashboard,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final horizontalPadding = constraints.maxWidth < 640 ? 12.0 : 16.0;
+            final horizontalPadding = constraints.maxWidth < 640 ? 16.0 : 24.0;
 
             return ListView(
               padding: EdgeInsets.all(horizontalPadding),
               children: [
                 Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1220),
+                    constraints: const BoxConstraints(maxWidth: _dashboardMaxWidth),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1170,13 +1302,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           _buildDashboardErrorState()
                         else ...[
                           _buildNextActionSection(),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
                           _buildSummaryAndMetricsSection(),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
                           _buildProgressAndPaceSection(),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
                           _buildRecentLogsSection(),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
                           _buildQuickActionsSection(),
                         ],
                       ],
@@ -1201,12 +1333,12 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 10),
       child: RichText(
         text: TextSpan(
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
             color: const Color(0xFF4A6480),
-            height: 1.4,
+            height: 1.45,
           ),
           children: [
             TextSpan(
@@ -1245,11 +1377,12 @@ class _MetricTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: width,
+      constraints: const BoxConstraints(minHeight: 124),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: tone.background,
         border: Border.all(color: tone.border),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1269,7 +1402,7 @@ class _MetricTile extends StatelessWidget {
             value,
             style: const TextStyle(
               color: Color(0xFF102A56),
-              fontSize: 24,
+              fontSize: 28,
               fontWeight: FontWeight.w800,
             ),
           ),
