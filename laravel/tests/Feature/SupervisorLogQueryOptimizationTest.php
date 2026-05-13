@@ -75,13 +75,10 @@ class SupervisorLogQueryOptimizationTest extends TestCase
         $response->assertJsonCount(10, 'data');
 
         $this->assertLessThanOrEqual(
-            5,
+            7,
             $queryCount,
-            "Query count should stay <=5, but was {$queryCount}. Queries: " . implode(', ', array_column($queries, 'query'))
-        // Verify query count is reasonable and constant (no N+1 growth).
-        $this->assertLessThanOrEqual(7, $queryCount, 
-            "Query count should be ≤7, but was {$queryCount}. Queries: " . 
-            implode(', ', array_column($queries, 'query'))
+            "Query count should be <=7, but was {$queryCount}. Queries: " .
+                implode(', ', array_column($queries, 'query'))
         );
 
         $response->assertJsonStructure([
@@ -127,11 +124,8 @@ class SupervisorLogQueryOptimizationTest extends TestCase
         $this->assertLessThanOrEqual(
             6,
             $queryCount,
-            "Query count should stay <=6, but was {$queryCount}. Queries: " . implode(', ', array_column($queries, 'query'))
-        // Verify query count is reasonable and constant (no N+1 growth).
-        $this->assertLessThanOrEqual(6, $queryCount, 
-            "Query count should be ≤6, but was {$queryCount}. Queries: " . 
-            implode(', ', array_column($queries, 'query'))
+            "Query count should be <=6, but was {$queryCount}. Queries: " .
+                implode(', ', array_column($queries, 'query'))
         );
     }
 
@@ -155,9 +149,6 @@ class SupervisorLogQueryOptimizationTest extends TestCase
             3,
             $queryCount,
             "Empty list should use <=3 queries, but was {$queryCount}"
-        // Should use minimal queries for empty result
-        $this->assertLessThanOrEqual(3, $queryCount, 
-            "Empty list should use ≤3 queries, but was {$queryCount}"
         );
     }
 
@@ -185,12 +176,9 @@ class SupervisorLogQueryOptimizationTest extends TestCase
         $response->assertJsonCount(50, 'data');
 
         $this->assertLessThanOrEqual(
-            5,
+            7,
             $queryCount,
-            "Query count should stay <=5 even with 50 logs, but was {$queryCount}"
-        // Query count should remain constant regardless of dataset size.
-        $this->assertLessThanOrEqual(7, $queryCount, 
-            "Query count should be ≤7 even with 50 logs, but was {$queryCount}"
+            "Query count should be <=7 even with 50 logs, but was {$queryCount}"
         );
     }
 }

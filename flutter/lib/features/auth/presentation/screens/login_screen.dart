@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_routes.dart';
+import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../shared/models/app_user.dart';
 import '../../../../shared/widgets/auth_shell.dart';
@@ -82,6 +83,12 @@ class _LoginScreenState extends State<LoginScreen> {
         authProvider.dashboardRoute,
         (route) => false,
       );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _generalError = e.message;
+      });
     } catch (e) {
       if (!mounted) return;
 

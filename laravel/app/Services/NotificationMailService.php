@@ -16,7 +16,7 @@ class NotificationMailService
     {
         try {
             $student = $log->internshipProfile?->student;
-            
+
             if (!$student) {
                 Log::warning('Cannot send log pending approval email: student not found', [
                     'log_id' => $log->id,
@@ -25,13 +25,8 @@ class NotificationMailService
             }
 
             $mailable = (new \App\Mail\LogPendingApproval($log, $supervisor))
-            $mailable = new \App\Mail\LogPendingApproval($log, $supervisor);
-            
-            Mail::to($supervisor->email)->queue($mailable)
                 ->onConnection('database')
                 ->onQueue('default');
-
-            $mailable->build();
             Mail::to($supervisor->email)->queue($mailable);
 
             Log::info('Log pending approval email queued', [
@@ -55,7 +50,7 @@ class NotificationMailService
     {
         try {
             $student = $log->internshipProfile?->student;
-            
+
             if (!$student) {
                 Log::warning('Cannot send log approved email: student not found', [
                     'log_id' => $log->id,
@@ -64,13 +59,8 @@ class NotificationMailService
             }
 
             $mailable = (new \App\Mail\LogApproved($log, $supervisorName))
-            $mailable = new \App\Mail\LogApproved($log, $supervisorName);
-            
-            Mail::to($student->email)->queue($mailable)
                 ->onConnection('database')
                 ->onQueue('default');
-
-            $mailable->build();
             Mail::to($student->email)->queue($mailable);
 
             Log::info('Log approved email queued', [
@@ -93,7 +83,7 @@ class NotificationMailService
     {
         try {
             $student = $log->internshipProfile?->student;
-            
+
             if (!$student) {
                 Log::warning('Cannot send log rejected email: student not found', [
                     'log_id' => $log->id,
@@ -102,13 +92,8 @@ class NotificationMailService
             }
 
             $mailable = (new \App\Mail\LogRejected($log, $supervisorName, $comment))
-            $mailable = new \App\Mail\LogRejected($log, $supervisorName, $comment);
-            
-            Mail::to($student->email)->queue($mailable)
                 ->onConnection('database')
                 ->onQueue('default');
-
-            $mailable->build();
             Mail::to($student->email)->queue($mailable);
 
             Log::info('Log rejected email queued', [

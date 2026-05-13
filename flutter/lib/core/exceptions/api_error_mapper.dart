@@ -67,6 +67,7 @@ class ApiErrorMapper {
   ) {
     final statusCode = response?.statusCode ?? 0;
     final responseData = response?.data;
+    final requestPath = originalException.requestOptions.path;
 
     // Extract server message if available
     String? serverMessage;
@@ -86,8 +87,13 @@ class ApiErrorMapper {
         );
 
       case 401:
+        final isAuthRequest = requestPath.startsWith('/auth/');
         return ApiException(
-          message: 'Your session has expired. Please log in again.',
+          message:
+              serverMessage ??
+              (isAuthRequest
+                  ? 'Invalid email or password.'
+                  : 'Your session has expired. Please log in again.'),
           statusCode: statusCode,
           errorType: ApiErrorType.unauthorized,
           originalError: originalException,

@@ -26,6 +26,8 @@ class SupervisorDashboardScreen extends StatefulWidget {
 }
 
 class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
+  static const double _maxContentWidth = 1360;
+
   late final SupervisorLogService _logService;
   late final SupervisorDashboardService _dashboardService;
 
@@ -291,6 +293,12 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 900;
         final isCompact = constraints.maxWidth < 520;
+        final horizontalPadding = isNarrow
+            ? 16.0
+            : constraints.maxWidth >= 1440
+            ? 40.0
+            : 28.0;
+        final profileMaxWidth = constraints.maxWidth >= 1280 ? 420.0 : 360.0;
 
         final profileSection = Row(
           children: [
@@ -340,9 +348,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
         return Container(
           padding: EdgeInsets.fromLTRB(
-            isNarrow ? 16 : 28,
+            horizontalPadding,
             20,
-            isNarrow ? 16 : 28,
+            horizontalPadding,
             20,
           ),
           decoration: BoxDecoration(
@@ -389,7 +397,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     ),
                     const SizedBox(height: 16),
                     ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 360),
+                      constraints: BoxConstraints(maxWidth: profileMaxWidth),
                       child: profileSection,
                     ),
                   ],
@@ -428,7 +436,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     ),
                     const SizedBox(width: 12),
                     ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 360),
+                      constraints: BoxConstraints(maxWidth: profileMaxWidth),
                       child: profileSection,
                     ),
                   ],
@@ -944,23 +952,31 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final viewportWidth = constraints.maxWidth
-              .clamp(0.0, 1240.0)
+              .clamp(0.0, _maxContentWidth)
               .toDouble();
-          final isNarrow = viewportWidth < 900;
-          final statCardWidth = viewportWidth >= 1080
-              ? (viewportWidth - 24) / 3
-              : viewportWidth >= 700
-              ? (viewportWidth - 12) / 2
-              : viewportWidth;
+          final horizontalPadding = constraints.maxWidth < 640
+              ? 16.0
+              : constraints.maxWidth >= 1440
+              ? 40.0
+              : 30.0;
+          final contentWidth = (viewportWidth - (horizontalPadding * 2))
+              .clamp(0.0, viewportWidth)
+              .toDouble();
+          final isNarrow = contentWidth < 900;
+          final statCardWidth = contentWidth >= 1140
+              ? (contentWidth - 24) / 3
+              : contentWidth >= 720
+              ? (contentWidth - 12) / 2
+              : contentWidth;
 
           return Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1240),
+              constraints: const BoxConstraints(maxWidth: _maxContentWidth),
               child: ListView(
                 padding: EdgeInsets.fromLTRB(
-                  constraints.maxWidth < 640 ? 16 : 30,
+                  horizontalPadding,
                   isNarrow ? 20 : 28,
-                  constraints.maxWidth < 640 ? 16 : 30,
+                  horizontalPadding,
                   isNarrow ? 20 : 30,
                 ),
                 children: [
