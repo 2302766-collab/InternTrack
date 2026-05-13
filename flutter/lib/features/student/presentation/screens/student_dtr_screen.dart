@@ -251,10 +251,13 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
   String _successMessageFor(DailyTimeRecord record) {
     return switch (record.status) {
       'WORKING' when record.lunchInAt == null =>
-        'Time In recorded successfully.',
-      'ON_BREAK' => 'Lunch Out recorded successfully.',
-      'WORKING' => 'Lunch In recorded successfully.',
-      'COMPLETED' => 'Time Out recorded successfully.',
+        'Time In recorded successfully at ${_formatTime(record.timeInAt)}.',
+      'ON_BREAK' =>
+        'Time Out recorded successfully at ${_formatTime(record.lunchOutAt)}.',
+      'WORKING' =>
+        'Time In recorded successfully at ${_formatTime(record.lunchInAt)}.',
+      'COMPLETED' =>
+        'Time Out recorded successfully. Your total rendered time is ${_formatMinutes(record.totalWorkMinutes)}.',
       _ => 'Attendance updated successfully.',
     };
   }
@@ -398,10 +401,41 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     };
   }
 
+  String _statusDisplayLabel(String status) {
+    return switch (status) {
+      'WORKING' => 'Timed In',
+      'ON_BREAK' => 'Timed Out',
+      'COMPLETED' => 'Completed',
+      _ => 'Not Started',
+    };
+  }
+
+  String _statusHeadline(DailyTimeRecord record) {
+    return switch (record.status) {
+      'WORKING' => 'Timed In',
+      'ON_BREAK' => 'Timed Out',
+      'COMPLETED' => 'Completed',
+      _ => 'Not Started',
+    };
+  }
+
+  String _statusDescription(DailyTimeRecord record) {
+    return switch (record.status) {
+      'WORKING' when record.lunchInAt == null =>
+        'You are currently timed in. Press Time Out when you start your break.',
+      'WORKING' =>
+        'You are currently timed in. Press Time Out when you finish your day.',
+      'ON_BREAK' =>
+        'You are currently timed out. Press Time In when you return.',
+      'COMPLETED' => 'Your DTR for today is complete.',
+      _ => 'You have not timed in yet. Press Time In to start your day.',
+    };
+  }
+
   Widget _buildStatusCard(DailyTimeRecord record) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -425,11 +459,20 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  record.currentStateLabel,
+                  _statusHeadline(record),
                   style: const TextStyle(
-                    fontSize: 28,
+                    fontSize: 26,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF102A56),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _statusDescription(record),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.45,
+                    color: Color(0xFF667085),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -443,7 +486,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    record.status,
+                    _statusDisplayLabel(record.status),
                     style: TextStyle(
                       color: _statusColor(record.status),
                       fontWeight: FontWeight.w700,
@@ -481,7 +524,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: <Color>[Color(0xFF102A56), Color(0xFF1D4E89)],
@@ -501,7 +544,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
           Text(
             _formatDuration(_liveElapsed),
             style: const TextStyle(
-              fontSize: 34,
+              fontSize: 32,
               fontWeight: FontWeight.w800,
               color: Colors.white,
               letterSpacing: 1.2,
@@ -512,10 +555,10 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
             isRunning
                 ? 'Timer is running while you are actively working.'
                 : record.status == 'ON_BREAK'
-                ? 'Timer paused during lunch break.'
+                ? 'Timer paused while you are timed out.'
                 : record.status == 'COMPLETED'
                 ? 'Daily time record has been completed.'
-                : 'Start your day with Time In to begin the live timer.',
+                : 'Time in to start tracking your rendered hours.',
             style: const TextStyle(fontSize: 14, color: Color(0xFFD8E7FF)),
           ),
         ],
@@ -527,13 +570,16 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     required String label,
     required DateTime? timestamp,
     required bool isNext,
+    String? actionLabel,
+    VoidCallback? onAction,
+    bool isSubmitting = false,
   }) {
     final isDone = timestamp != null;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDone || isNext ? Colors.white : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isNext ? const Color(0xFF0F4C5C) : const Color(0xFFE4E7EC),
@@ -573,38 +619,58 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF102A56),
+                    color: isDone || isNext
+                        ? const Color(0xFF102A56)
+                        : const Color(0xFF98A2B3),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   _formatTime(timestamp),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF667085),
+                    color: isDone || isNext
+                        ? const Color(0xFF667085)
+                        : const Color(0xFF98A2B3),
                   ),
                 ),
               ],
             ),
           ),
-          Text(
-            isDone
-                ? 'Completed'
-                : isNext
-                ? 'Next'
-                : 'Locked',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: isDone
-                  ? const Color(0xFF039855)
-                  : isNext
-                  ? const Color(0xFF0F4C5C)
-                  : const Color(0xFF98A2B3),
+          if (isDone)
+            const Text(
+              'Recorded',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF039855),
+              ),
+            )
+          else if (isNext)
+            FilledButton.icon(
+              onPressed: isSubmitting ? null : onAction,
+              icon: isSubmitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.fingerprint_rounded),
+              label: Text(isSubmitting ? 'Saving...' : (actionLabel ?? label)),
+            )
+          else
+            const Text(
+              'Locked',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF98A2B3),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -615,7 +681,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     final second = _displayedSecondMinutes(record);
     final total = _displayedTotalMinutes(record);
 
-    Widget summaryItem(String label, int minutes) {
+    Widget summaryItem(String label, String detail, int minutes) {
       return Expanded(
         child: Container(
           padding: const EdgeInsets.all(16),
@@ -629,6 +695,14 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
               Text(
                 label,
                 style: const TextStyle(fontSize: 13, color: Color(0xFF667085)),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                detail,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF98A2B3),
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -673,9 +747,9 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
           const SizedBox(height: 16),
           Row(
             children: [
-              summaryItem('First Segment', first),
+              summaryItem('First Segment', 'Time In -> Time Out', first),
               const SizedBox(width: 12),
-              summaryItem('Second Segment', second),
+              summaryItem('Second Segment', 'Time In -> Time Out', second),
             ],
           ),
           const SizedBox(height: 12),
@@ -713,8 +787,8 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
   String _actionLabel(String? nextAction) {
     return switch (nextAction) {
       'TIME_IN' => 'Time In',
-      'LUNCH_OUT' => 'Lunch Out',
-      'LUNCH_IN' => 'Lunch In',
+      'LUNCH_OUT' => 'Time Out',
+      'LUNCH_IN' => 'Time In',
       'TIME_OUT' => 'Time Out',
       _ => 'Completed',
     };
@@ -851,85 +925,101 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(18, 18, 18, 26),
                 children: [
-                  Text(
-                    _formatDate(record.date),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Color(0xFF667085),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildStatusCard(record),
-                  const SizedBox(height: 16),
-                  _buildLiveTimerCard(record),
-                  const SizedBox(height: 16),
-                  _buildExportCard(),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Punch Sequence',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF102A56),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildPunchRow(
-                    label: 'Time In',
-                    timestamp: record.timeInAt,
-                    isNext: record.nextAction == 'TIME_IN',
-                  ),
-                  const SizedBox(height: 10),
-                  _buildPunchRow(
-                    label: 'Lunch Out',
-                    timestamp: record.lunchOutAt,
-                    isNext: record.nextAction == 'LUNCH_OUT',
-                  ),
-                  const SizedBox(height: 10),
-                  _buildPunchRow(
-                    label: 'Lunch In',
-                    timestamp: record.lunchInAt,
-                    isNext: record.nextAction == 'LUNCH_IN',
-                  ),
-                  const SizedBox(height: 10),
-                  _buildPunchRow(
-                    label: 'Time Out',
-                    timestamp: record.timeOutAt,
-                    isNext: record.nextAction == 'TIME_OUT',
-                  ),
-                  const SizedBox(height: 16),
-                  _buildSummaryCard(record),
-                  if (_errorMessage != null) ...[
-                    const SizedBox(height: 14),
-                    Text(
-                      _errorMessage!,
-                      style: const TextStyle(color: Color(0xFFB42318)),
-                    ),
-                  ],
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: record.nextAction == null || _isSubmitting
-                          ? null
-                          : _submitPunch,
-                      icon: _isSubmitting
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.fingerprint_rounded),
-                      label: Text(
-                        _isSubmitting
-                            ? 'Submitting...'
-                            : _actionLabel(record.nextAction),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(54),
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1020),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _formatDate(record.date),
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF102A56),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Track your daily attendance by completing each punch in order.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF667085),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          _buildStatusCard(record),
+                          const SizedBox(height: 16),
+                          _buildLiveTimerCard(record),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Punch Sequence',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF102A56),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Complete each step in order to calculate your rendered time.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF667085),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildPunchRow(
+                            label: 'Time In',
+                            timestamp: record.timeInAt,
+                            isNext: record.nextAction == 'TIME_IN',
+                            actionLabel: _actionLabel(record.nextAction),
+                            onAction: _submitPunch,
+                            isSubmitting: _isSubmitting &&
+                                record.nextAction == 'TIME_IN',
+                          ),
+                          const SizedBox(height: 10),
+                          _buildPunchRow(
+                            label: 'Time Out',
+                            timestamp: record.lunchOutAt,
+                            isNext: record.nextAction == 'LUNCH_OUT',
+                            actionLabel: _actionLabel(record.nextAction),
+                            onAction: _submitPunch,
+                            isSubmitting: _isSubmitting &&
+                                record.nextAction == 'LUNCH_OUT',
+                          ),
+                          const SizedBox(height: 10),
+                          _buildPunchRow(
+                            label: 'Time In',
+                            timestamp: record.lunchInAt,
+                            isNext: record.nextAction == 'LUNCH_IN',
+                            actionLabel: _actionLabel(record.nextAction),
+                            onAction: _submitPunch,
+                            isSubmitting: _isSubmitting &&
+                                record.nextAction == 'LUNCH_IN',
+                          ),
+                          const SizedBox(height: 10),
+                          _buildPunchRow(
+                            label: 'Time Out',
+                            timestamp: record.timeOutAt,
+                            isNext: record.nextAction == 'TIME_OUT',
+                            actionLabel: _actionLabel(record.nextAction),
+                            onAction: _submitPunch,
+                            isSubmitting: _isSubmitting &&
+                                record.nextAction == 'TIME_OUT',
+                          ),
+                          const SizedBox(height: 16),
+                          _buildSummaryCard(record),
+                          const SizedBox(height: 16),
+                          _buildExportCard(),
+                          if (_errorMessage != null) ...[
+                            const SizedBox(height: 14),
+                            Text(
+                              _errorMessage!,
+                              style: const TextStyle(color: Color(0xFFB42318)),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ),
