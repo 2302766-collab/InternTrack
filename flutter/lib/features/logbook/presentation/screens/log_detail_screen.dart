@@ -206,6 +206,15 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
     return parts.isNotEmpty ? parts.last : path;
   }
 
+  String _friendlyAttachmentName(LogAttachment attachment, int index) {
+    final extension = attachment.fileType.trim().toLowerCase();
+    if (extension.isEmpty) {
+      return 'Proof Attachment ${index + 1}';
+    }
+
+    return 'Proof Attachment ${index + 1}.$extension';
+  }
+
   String _formatTimestamp(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'Not available';
@@ -228,6 +237,37 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
       default:
         return action;
     }
+  }
+
+  String _statusDescription(String status) {
+    switch (status.toUpperCase()) {
+      case 'APPROVED':
+        return 'This log has been approved by your supervisor.';
+      case 'REJECTED':
+        return 'This log needs correction before it can be accepted.';
+      case 'PENDING':
+        return 'This log is waiting for supervisor review.';
+      default:
+        return 'Status information is currently unavailable.';
+    }
+  }
+
+  String _formatTaskDescription(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return 'Activity details were not provided for this submission.';
+    }
+
+    final looksLikeSeedValue =
+        RegExp(r'^\d{1,2}:\d{2}$').hasMatch(trimmed) ||
+        RegExp(r'^\d{2}/\d{2}$').hasMatch(trimmed) ||
+        RegExp(r'^\d+(st|nd|rd|th)$', caseSensitive: false).hasMatch(trimmed);
+
+    if (looksLikeSeedValue) {
+      return 'Activity details were not provided for this submission.';
+    }
+
+    return trimmed;
   }
 
   bool _isImageAttachment(LogAttachment attachment) {
@@ -356,6 +396,33 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
     );
   }
 
+  Widget _buildSectionHeader({
+    required String title,
+    required String subtitle,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF102A56),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF667085),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSummaryCard() {
     return _buildSectionCard(
       padding: const EdgeInsets.all(24),
@@ -369,6 +436,16 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const Text(
+                      'Daily Log Entry',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                        color: Color(0xFF667085),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                     Text(
                       DateFormatter.formatApiDate(_log.date),
                       style: const TextStyle(
@@ -385,58 +462,142 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                         color: Color(0xFF667085),
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    Text(
+                      _statusDescription(_log.status),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        height: 1.45,
+                        color: Color(0xFF344054),
+                      ),
+                    ),
                   ],
                 ),
               ),
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: _statusBackground(_log.status),
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: Text(
-                  _log.status.toUpperCase(),
-                  style: TextStyle(
-                    color: _statusColor(_log.status),
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.3,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _statusIcon(_log.status),
+                      size: 16,
+                      color: _statusColor(_log.status),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _log.status.toUpperCase(),
+                      style: TextStyle(
+                        color: _statusColor(_log.status),
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 22),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final itemWidth = constraints.maxWidth >= 760
+                  ? (constraints.maxWidth - 24) / 3
+                  : constraints.maxWidth >= 520
+                      ? (constraints.maxWidth - 12) / 2
+                      : constraints.maxWidth;
+
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  SizedBox(
+                    width: itemWidth,
+                    child: _buildMetricPanel(
+                      label: 'Hours Rendered',
+                      value: '${_log.hoursRendered} h',
+                    ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _buildMetricPanel(
+                      label: 'Attachments',
+                      value: '${_log.attachments.length}',
+                    ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _buildMetricPanel(
+                      label: 'Review Events',
+                      value: '${_log.reviewHistory.length}',
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricPanel({
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6F8FB),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+      ),
+      child: _SummaryMetric(label: label, value: value),
+    );
+  }
+
+  Widget _buildTaskDescriptionCard() {
+    return _buildSectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader(
+            title: 'Work Summary',
+            subtitle: 'A quick view of what was accomplished for this day.',
+          ),
+          const SizedBox(height: 14),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF6F8FB),
-              borderRadius: BorderRadius.circular(20),
+              color: const Color(0xFFF9FBFD),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFDCE6F2)),
             ),
-            child: Wrap(
-              spacing: 18,
-              runSpacing: 18,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: 160,
-                  child: _SummaryMetric(
-                    label: 'Hours Rendered',
-                    value: '${_log.hoursRendered}',
+                const Text(
+                  'Task Completed',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                    color: Color(0xFF667085),
                   ),
                 ),
-                SizedBox(
-                  width: 160,
-                  child: _SummaryMetric(
-                    label: 'Attachments',
-                    value: '${_log.attachments.length}',
-                  ),
-                ),
-                SizedBox(
-                  width: 160,
-                  child: _SummaryMetric(
-                    label: 'Review Events',
-                    value: '${_log.reviewHistory.length}',
+                const SizedBox(height: 8),
+                Text(
+                  _formatTaskDescription(_log.taskDescription),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    height: 1.6,
+                    color: Color(0xFF344054),
                   ),
                 ),
               ],
@@ -447,77 +608,63 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
     );
   }
 
-  Widget _buildTaskDescriptionCard() {
-    return _buildSectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Work Summary',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF102A56),
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'A quick view of what was accomplished for this day.',
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF667085),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFE4E7EC)),
-            ),
-            child: Text(
-              _log.taskDescription,
-              style: const TextStyle(
-                fontSize: 15,
-                height: 1.6,
-                color: Color(0xFF344054),
-              ),
-            ),
-          ),
-        ],
-      ),
+  Widget _buildFooterButtons({
+    Widget? primary,
+    Widget? secondary,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 560;
+        final buttons = <Widget>[
+          if (secondary != null) secondary,
+          if (primary != null) primary,
+        ];
+
+        if (isCompact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < buttons.length; i++) ...[
+                SizedBox(width: double.infinity, child: buttons[i]),
+                if (i != buttons.length - 1) const SizedBox(height: 10),
+              ],
+            ],
+          );
+        }
+
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          alignment: WrapAlignment.end,
+          children: buttons,
+        );
+      },
+    );
+  }
+
+  Widget _buildBackToLogbookButton() {
+    return OutlinedButton.icon(
+      onPressed: () => Navigator.maybePop(context, true),
+      icon: const Icon(Icons.arrow_back_rounded),
+      label: const Text('Back to Logbook'),
     );
   }
 
   Widget _buildReviewHistorySection() {
     if (_log.reviewHistory.isEmpty) {
       return _buildSectionCard(
-        child: const Column(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Review History',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF102A56),
-              ),
+            _buildSectionHeader(
+              title: 'Review History',
+              subtitle: 'Feedback and approval activity for this submission.',
             ),
-            SizedBox(height: 4),
-            Text(
-              'Feedback and approval activity for this submission.',
-              style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFF667085),
-              ),
-            ),
-            SizedBox(height: 14),
+            const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
               child: DecoratedBox(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.all(Radius.circular(18)),
                   border: Border.fromBorderSide(
@@ -525,18 +672,20 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                   ),
                 ),
                 child: Padding(
-                  padding: EdgeInsets.all(18),
+                  padding: const EdgeInsets.all(18),
                   child: Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.mark_email_read_outlined,
                         color: Color(0xFF98A2B3),
                       ),
-                      SizedBox(width: 12),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'No supervisor feedback yet.',
-                          style: TextStyle(
+                          _log.isPending
+                              ? 'No supervisor feedback yet. This log is still waiting for review.'
+                              : 'No supervisor feedback is available for this submission yet.',
+                          style: const TextStyle(
                             fontSize: 14,
                             color: Color(0xFF667085),
                           ),
@@ -556,21 +705,9 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Review History',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF102A56),
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Feedback and approval activity for this submission.',
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF667085),
-            ),
+          _buildSectionHeader(
+            title: 'Review History',
+            subtitle: 'Feedback and approval activity for this submission.',
           ),
           const SizedBox(height: 18),
           ..._log.reviewHistory.asMap().entries.map((entry) {
@@ -805,9 +942,11 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
     );
   }
 
-  Widget _buildAttachmentItem(LogAttachment attachment) {
+  Widget _buildAttachmentItem(LogAttachment attachment, int index) {
     final isImage = _isImageAttachment(attachment);
     final isPdf = _isPdfAttachment(attachment);
+    final originalName = _shortFileName(attachment.filePath);
+    final displayName = _friendlyAttachmentName(attachment, index);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -880,16 +1019,24 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      _shortFileName(attachment.filePath),
+                      displayName,
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF102A56),
                       ),
                     ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Original file: $originalName',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF667085),
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Text(
-                      '${attachment.fileType.toUpperCase()} • ${_formatFileSize(attachment.fileSize)}',
+                      '${attachment.fileType.toUpperCase()} | ${_formatFileSize(attachment.fileSize)}',
                       style: const TextStyle(
                         fontSize: 13,
                         color: Color(0xFF667085),
@@ -921,38 +1068,41 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
             ],
           ),
           const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              if (isImage)
-                ElevatedButton.icon(
-                  onPressed: () => _previewImage(attachment),
-                  icon: const Icon(Icons.visibility_outlined),
-                  label: const Text('Preview'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFEFF8FF),
-                    foregroundColor: const Color(0xFF175CD3),
-                    elevation: 0,
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                if (isImage)
+                  ElevatedButton.icon(
+                    onPressed: () => _previewImage(attachment),
+                    icon: const Icon(Icons.visibility_outlined),
+                    label: const Text('Preview'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEFF8FF),
+                      foregroundColor: const Color(0xFF175CD3),
+                      elevation: 0,
+                    ),
                   ),
-                ),
-              if (isPdf)
-                ElevatedButton.icon(
-                  onPressed: () => _previewPdf(attachment),
-                  icon: const Icon(Icons.open_in_new_rounded),
-                  label: const Text('View'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFF4E5),
-                    foregroundColor: const Color(0xFFB54708),
-                    elevation: 0,
+                if (isPdf)
+                  ElevatedButton.icon(
+                    onPressed: () => _previewPdf(attachment),
+                    icon: const Icon(Icons.open_in_new_rounded),
+                    label: const Text('View'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFF4E5),
+                      foregroundColor: const Color(0xFFB54708),
+                      elevation: 0,
+                    ),
                   ),
+                OutlinedButton.icon(
+                  onPressed: () => _downloadAttachment(attachment),
+                  icon: const Icon(Icons.download_rounded),
+                  label: const Text('Download'),
                 ),
-              OutlinedButton.icon(
-                onPressed: () => _downloadAttachment(attachment),
-                icon: const Icon(Icons.download_rounded),
-                label: const Text('Download'),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -964,21 +1114,10 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Attachments (${_log.attachments.length})',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF102A56),
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Preview uploaded proof, open supported files, or download originals.',
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF667085),
-            ),
+          _buildSectionHeader(
+            title: 'Attachments (${_log.attachments.length})',
+            subtitle:
+                'Preview uploaded proof, open supported files, or download originals.',
           ),
           const SizedBox(height: 14),
           if (_log.attachments.isEmpty)
@@ -999,7 +1138,9 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
               ),
             )
           else
-            ..._log.attachments.map(_buildAttachmentItem),
+            ..._log.attachments.asMap().entries.map(
+                  (entry) => _buildAttachmentItem(entry.value, entry.key),
+                ),
         ],
       ),
     );
@@ -1007,12 +1148,57 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
 
   Widget _buildFooterAction() {
     if (_log.isPending) {
-      return SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          onPressed: _openEdit,
-          icon: const Icon(Icons.edit_outlined),
-          label: const Text('Edit Log'),
+      return _buildSectionCard(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF8FF),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.edit_note_rounded,
+                color: Color(0xFF175CD3),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Need to make changes?',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF102A56),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'You can still update this log while it is pending supervisor review.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.5,
+                      color: Color(0xFF344054),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _buildFooterButtons(
+                    secondary: _buildBackToLogbookButton(),
+                    primary: FilledButton.icon(
+                      onPressed: _openEdit,
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Edit Log'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -1038,9 +1224,13 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Editing locked',
-                  style: TextStyle(
+                Text(
+                  _log.status.toUpperCase() == 'APPROVED'
+                      ? 'Log approved'
+                      : _log.status.toUpperCase() == 'REJECTED'
+                          ? 'Log needs correction'
+                          : 'Editing locked',
+                  style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF102A56),
@@ -1049,15 +1239,19 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                 const SizedBox(height: 6),
                 Text(
                   _log.status.toUpperCase() == 'APPROVED'
-                      ? 'This log is locked because it has already been approved.'
+                      ? 'This log has been accepted and can no longer be edited.'
                       : _log.status.toUpperCase() == 'REJECTED'
-                          ? 'This log is locked because it has already been rejected.'
+                          ? 'Please review the supervisor feedback above. This entry cannot be edited here because only pending logs can be updated.'
                           : 'Editing is disabled because this log is no longer pending review.',
                   style: const TextStyle(
                     fontSize: 14,
                     height: 1.5,
                     color: Color(0xFF344054),
                   ),
+                ),
+                const SizedBox(height: 14),
+                _buildFooterButtons(
+                  primary: _buildBackToLogbookButton(),
                 ),
               ],
             ),
@@ -1095,11 +1289,11 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
 
   Widget _buildContent() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       child: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 980),
+          constraints: const BoxConstraints(maxWidth: 1020),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
