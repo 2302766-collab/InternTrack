@@ -1,79 +1,67 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/services/admin_dashboard_service.dart';
 import '../../../../core/services/admin_student_service.dart';
+import '../../../../core/utils/file_picker_helper_stub.dart'
+    if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
+    as file_picker;
 import '../../../../shared/models/admin_dashboard_summary.dart';
 import '../../../../shared/models/admin_student_summary.dart';
 import '../../../../shared/models/admin_students_page.dart';
-import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
+import '../../../../shared/models/app_user.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
-import '../../../../shared/widgets/settings_shortcut_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   final String userName;
-  final DateTime Function()? clock;
 
-  const AdminDashboardScreen({
-    super.key,
-    required this.userName,
-    this.clock,
-  });
+  const AdminDashboardScreen({super.key, required this.userName});
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  static const int _itemsPerPage = 10;
   static const String _filterAll = 'all';
   static const String _filterNeedsAttention = 'needs_attention';
   static const String _filterMissingProfile = 'missing_profile';
   static const String _filterMissingSupervisor = 'missing_supervisor';
   static const String _filterMissingAdviser = 'missing_adviser';
 
-  static const String _sortAttentionFirst = 'attention_first';
-  static const String _sortCompletionHigh = 'completion_high';
-  static const String _sortCompletionLow = 'completion_low';
-  static const String _sortNameAsc = 'name_asc';
-  static const String _sortNameDesc = 'name_desc';
+  static const Color _pageBackground = Color(0xFFF3F6FB);
+  static const Color _surfaceColor = Colors.white;
+  static const Color _borderColor = Color(0xFFD8E2EC);
+  static const Color _textPrimary = Color(0xFF0F254A);
+  static const Color _textSecondary = Color(0xFF5E718D);
+  static const Color _brandPrimary = Color(0xFF123C73);
+  static const Color _brandSecondary = Color(0xFF0F766E);
+  static const Color _accentGold = Color(0xFFF4B740);
 
   late final AdminStudentService _studentService;
   late final AdminDashboardService _dashboardService;
-  late final TextEditingController _searchController;
 
   final List<AdminStudentSummary> _students = <AdminStudentSummary>[];
+  final GlobalKey _profileMenuAnchorKey = GlobalKey();
 
   bool _isInitialLoading = true;
-  bool _isRefreshing = false;
-  bool _hasCompletedFirstLoad = false;
   bool _isPageLoading = false;
-  DateTime? _lastUpdated;
   String? _errorMessage;
   int _currentPage = 1;
   int _lastPage = 1;
   int _totalStudents = 0;
-  int _itemsPerPage = 10;
   String _selectedFilter = _filterAll;
-  String _selectedSort = _sortAttentionFirst;
-  String _searchQuery = '';
   AdminDashboardSummary? _dashboardSummary;
-
-  DateTime _now() => (widget.clock ?? DateTime.now)();
 
   @override
   void initState() {
     super.initState();
     _studentService = context.read<AdminStudentService>();
     _dashboardService = context.read<AdminDashboardService>();
-    _searchController = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   @override
@@ -101,24 +89,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (token.isEmpty) {
       setState(() {
         _isInitialLoading = false;
-        _isRefreshing = false;
-        _hasCompletedFirstLoad = true;
         _isPageLoading = false;
         _errorMessage = 'Missing authentication token. Please log in again.';
       });
       return;
     }
 
-    final showFullScreenLoader =
-        !_hasCompletedFirstLoad &&
-        (_students.isEmpty || _dashboardSummary == null);
-    final isRefreshRequest = page == 1;
+    final isInitialRequest =
+        (_students.isEmpty || _dashboardSummary == null) && !_isPageLoading;
 
-    if (showFullScreenLoader) {
+    if (isInitialRequest) {
       setState(() {
         _isInitialLoading = true;
-        _isRefreshing = false;
-        _isPageLoading = false;
         _errorMessage = null;
       });
     } else {
@@ -128,91 +110,45 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       setState(() {
         _isPageLoading = true;
-        _isRefreshing = isRefreshRequest;
         _errorMessage = null;
       });
     }
 
-    AdminStudentsPage? studentsPage;
-    AdminDashboardSummary? summary;
-    String? studentError;
-    String? summaryError;
-
     try {
-      await Future.wait<void>([
-        Future<void>(() async {
-          try {
-            studentsPage = await _studentService.fetchStudents(
-              page: page,
-              perPage: _itemsPerPage,
-            );
-          } catch (e) {
-            studentError = _readErrorMessage(e);
-          }
-        }),
-        Future<void>(() async {
-          try {
-            summary = await _dashboardService.getSummary();
-          } catch (e) {
-            summaryError = _readErrorMessage(e);
-          }
-        }),
+      final results = await Future.wait<dynamic>([
+        _studentService.fetchStudents(page: page, perPage: _itemsPerPage),
+        _dashboardService.getSummary(),
       ]);
 
       if (!mounted) return;
 
+      final studentsPage = results[0] as AdminStudentsPage;
+      final summary = results[1] as AdminDashboardSummary;
+
       setState(() {
-        if (studentsPage != null) {
-          _currentPage = studentsPage!.currentPage;
-          _lastPage = studentsPage!.lastPage == 0 ? 1 : studentsPage!.lastPage;
-          _totalStudents = studentsPage!.total;
-          _itemsPerPage = studentsPage!.perPage == 0
-              ? _itemsPerPage
-              : studentsPage!.perPage;
-          _students
-            ..clear()
-            ..addAll(studentsPage!.students);
-        }
+        _currentPage = studentsPage.currentPage;
+        _lastPage = studentsPage.lastPage == 0 ? 1 : studentsPage.lastPage;
+        _totalStudents = studentsPage.total;
+        _dashboardSummary = summary;
+        _errorMessage = null;
+        _students
+          ..clear()
+          ..addAll(studentsPage.students);
+      });
+    } catch (e) {
+      if (!mounted) return;
 
-        if (summary != null) {
-          _dashboardSummary = summary;
-        }
-
-        _lastUpdated = _now();
-        _errorMessage = _combineLoadErrors(
-          studentError: studentError,
-          summaryError: summaryError,
-        );
+      setState(() {
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
     } finally {
       if (mounted) {
         setState(() {
           _isInitialLoading = false;
-          _isRefreshing = false;
-          _hasCompletedFirstLoad = true;
           _isPageLoading = false;
         });
       }
     }
-  }
-
-  String _readErrorMessage(Object error) {
-    return error.toString().replaceFirst('Exception: ', '');
-  }
-
-  String? _combineLoadErrors({
-    required String? studentError,
-    required String? summaryError,
-  }) {
-    if (studentError == null && summaryError == null) {
-      return null;
-    }
-
-    if (studentError != null && summaryError != null) {
-      return 'Student list: $studentError\nDashboard summary: $summaryError';
-    }
-
-    return studentError ?? summaryError;
   }
 
   Future<void> _openAdviserAssignment() async {
@@ -233,41 +169,51 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  void _setFilter(String filterKey) {
-    setState(() {
-      _selectedFilter = filterKey;
-    });
+  Future<void> _pickProfilePhoto() async {
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final file = await file_picker.pickSingleFile(
+        allowedExtensions: const <String>['jpg', 'jpeg', 'png'],
+      );
+      if (file == null) {
+        return;
+      }
+
+      await authProvider.updateAvatarBytes(file.bytes);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to update profile photo right now.'),
+        ),
+      );
+    }
   }
 
-  void _clearSearch() {
-    _searchController.clear();
-    setState(() {
-      _searchQuery = '';
-    });
+  Future<void> _removeProfilePhoto() async {
+    await context.read<AuthProvider>().updateAvatarBase64(null);
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Profile photo removed.')));
   }
 
-  List<AdminStudentSummary> get _visibleStudents {
-    final query = _searchQuery.trim().toLowerCase();
-    final filtered =
-        _students.where((student) => _matchesSelectedFilter(student)).where((
-          student,
-        ) {
-          if (query.isEmpty) {
-            return true;
-          }
-
-          final company = student.company?.toLowerCase() ?? '';
-          return student.name.toLowerCase().contains(query) ||
-              company.contains(query);
-        }).toList()..sort(_compareStudents);
-
-    return filtered;
+  List<AdminStudentSummary> get _filteredStudents {
+    return _students.where(_matchesSelectedFilter).toList();
   }
 
   bool _matchesSelectedFilter(AdminStudentSummary student) {
     switch (_selectedFilter) {
       case _filterNeedsAttention:
-        return _needsAttention(student);
+        return !student.hasInternshipProfile ||
+            !student.hasSupervisor ||
+            !student.hasAdviser;
       case _filterMissingProfile:
         return !student.hasInternshipProfile;
       case _filterMissingSupervisor:
@@ -278,73 +224,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       default:
         return true;
     }
-  }
-
-  int _compareStudents(AdminStudentSummary left, AdminStudentSummary right) {
-    switch (_selectedSort) {
-      case _sortCompletionHigh:
-        return _compareByCompletion(right, left);
-      case _sortCompletionLow:
-        return _compareByCompletion(left, right);
-      case _sortNameAsc:
-        return left.name.toLowerCase().compareTo(right.name.toLowerCase());
-      case _sortNameDesc:
-        return right.name.toLowerCase().compareTo(left.name.toLowerCase());
-      case _sortAttentionFirst:
-      default:
-        final urgencyCompare = _studentUrgencyScore(
-          right,
-        ).compareTo(_studentUrgencyScore(left));
-        if (urgencyCompare != 0) {
-          return urgencyCompare;
-        }
-
-        final completionCompare = _compareByCompletion(left, right);
-        if (completionCompare != 0) {
-          return completionCompare;
-        }
-
-        return left.name.toLowerCase().compareTo(right.name.toLowerCase());
-    }
-  }
-
-  int _compareByCompletion(
-    AdminStudentSummary left,
-    AdminStudentSummary right,
-  ) {
-    final completionCompare = left.completionPercentage.compareTo(
-      right.completionPercentage,
-    );
-    if (completionCompare != 0) {
-      return completionCompare;
-    }
-
-    return left.name.toLowerCase().compareTo(right.name.toLowerCase());
-  }
-
-  bool _needsAttention(AdminStudentSummary student) {
-    return !student.hasInternshipProfile ||
-        !student.hasSupervisor ||
-        !student.hasAdviser;
-  }
-
-  int _studentUrgencyScore(AdminStudentSummary student) {
-    var score = 0;
-
-    if (!student.hasInternshipProfile) {
-      score += 4;
-    }
-    if (!student.hasSupervisor) {
-      score += 2;
-    }
-    if (!student.hasAdviser) {
-      score += 2;
-    }
-    if (student.completionPercentage < 25) {
-      score += 1;
-    }
-
-    return score;
   }
 
   String _initialsFor(String name) {
@@ -360,110 +239,505 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         .toUpperCase();
   }
 
-  String _studentIssueSummary(AdminStudentSummary student) {
-    if (!student.hasInternshipProfile) {
-      return 'Student has not completed the internship profile yet.';
-    }
-    if (!student.hasSupervisor && !student.hasAdviser) {
-      return 'Student still needs both a supervisor and an adviser.';
-    }
-    if (!student.hasSupervisor) {
-      return 'Student still needs a supervisor assigned.';
-    }
-    if (!student.hasAdviser) {
-      return 'Student still needs an adviser assigned.';
+  ImageProvider<Object>? _avatarImageProviderFor(String? avatarBase64) {
+    if (avatarBase64 == null || avatarBase64.isEmpty) {
+      return null;
     }
 
-    return 'Student is ready for regular monitoring and progress follow-up.';
+    try {
+      return MemoryImage(base64Decode(avatarBase64));
+    } catch (_) {
+      return null;
+    }
   }
 
-  Widget _buildHeader(AuthProvider authProvider) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(28, 22, 28, 22),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFD9E3EE))),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          IconButton(
-            tooltip: 'Logout',
-            onPressed: _logout,
-            icon: const Icon(Icons.arrow_back),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDDEEF1),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: const Text(
-                    'Admin Web Console',
-                    style: TextStyle(
-                      color: Color(0xFF0F4C5C),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Admin Dashboard',
-                  style: TextStyle(
-                    fontSize: 38,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0D2250),
-                    height: 1,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'Run student setup, monitor approvals, and resolve internship gaps.',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF4E6483),
-                    height: 1.45,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                DashboardRefreshStatus(
-                  lastUpdated: _lastUpdated,
-                  isRefreshing: _isRefreshing,
-                  pullToRefreshLabel: 'Pull down to refresh dashboard data',
-                  refreshingLabel: 'Refreshing admin dashboard...',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 24),
-          Row(
+  Widget _buildAvatar({
+    required AppUser? user,
+    required double radius,
+    double fontSize = 16,
+  }) {
+    final imageProvider = _avatarImageProviderFor(user?.avatarBase64);
+    final name = user?.name ?? widget.userName;
+
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: const Color(0xFFE2ECF8),
+      backgroundImage: imageProvider,
+      child: imageProvider == null
+          ? Text(
+              _initialsFor(name),
+              style: TextStyle(
+                color: _brandPrimary,
+                fontSize: fontSize,
+                fontWeight: FontWeight.w800,
+              ),
+            )
+          : null,
+    );
+  }
+
+  String _greetingForHour() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return 'Good morning';
+    }
+    if (hour < 18) {
+      return 'Good afternoon';
+    }
+    return 'Good evening';
+  }
+
+  Future<void> _openProfilePanel() async {
+    final anchorContext = _profileMenuAnchorKey.currentContext;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final anchorBox = anchorContext?.findRenderObject() as RenderBox?;
+    final anchorOffset = anchorBox?.localToGlobal(
+      Offset.zero,
+      ancestor: overlay,
+    );
+    final anchorSize = anchorBox?.size ?? const Size(280, 64);
+
+    await showGeneralDialog<void>(
+      context: context,
+      barrierLabel: 'Admin profile',
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.18),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        final authProvider = dialogContext.watch<AuthProvider>();
+        final user = authProvider.user;
+
+        return SafeArea(
+          child: Stack(
             children: [
-              const SettingsShortcutButton(),
-              const SizedBox(width: 10),
-              NotificationBellButton(token: authProvider.token ?? ''),
-              const SizedBox(width: 12),
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: const Color(0xFF0F4C5C),
-                child: Text(
-                  _initialsFor(widget.userName),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
+              Positioned(
+                top: (anchorOffset?.dy ?? 86) + anchorSize.height + 10,
+                left: (() {
+                  final desiredLeft =
+                      (anchorOffset?.dx ?? (overlay.size.width - 344)) -
+                      (344 - anchorSize.width);
+                  final maxLeft = overlay.size.width > 376
+                      ? overlay.size.width - 360.0
+                      : 16.0;
+                  return desiredLeft.clamp(16.0, maxLeft);
+                })(),
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    width: 344,
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+                    decoration: BoxDecoration(
+                      color: _surfaceColor,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: _borderColor),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x260F172A),
+                          blurRadius: 34,
+                          offset: Offset(0, 18),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Stack(
+                              children: [
+                                _buildAvatar(
+                                  user: user,
+                                  radius: 30,
+                                  fontSize: 20,
+                                ),
+                                Positioned(
+                                  right: -2,
+                                  bottom: -2,
+                                  child: Material(
+                                    color: _brandSecondary,
+                                    shape: const CircleBorder(),
+                                    child: InkWell(
+                                      customBorder: const CircleBorder(),
+                                      onTap: () async {
+                                        Navigator.of(dialogContext).pop();
+                                        await _pickProfilePhoto();
+                                      },
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(6),
+                                        child: Icon(
+                                          Icons.camera_alt_rounded,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    user?.name.isNotEmpty == true
+                                        ? user!.name
+                                        : widget.userName,
+                                    style: const TextStyle(
+                                      fontSize: 21,
+                                      fontWeight: FontWeight.w800,
+                                      color: _textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    user?.email.isNotEmpty == true
+                                        ? user!.email
+                                        : 'No email available',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: _textSecondary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _buildMiniTag(
+                                    label:
+                                        (user?.role.isNotEmpty == true
+                                                ? user!.role
+                                                : 'Administrator')
+                                            .toUpperCase(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        _buildProfileActionTile(
+                          icon: Icons.edit_outlined,
+                          title: 'Change profile photo',
+                          subtitle: 'Upload a JPG or PNG image for this admin.',
+                          onTap: () async {
+                            Navigator.of(dialogContext).pop();
+                            await _pickProfilePhoto();
+                          },
+                        ),
+                        if ((user?.avatarBase64 ?? '').isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          _buildProfileActionTile(
+                            icon: Icons.hide_image_outlined,
+                            title: 'Remove profile photo',
+                            subtitle:
+                                'Switch back to the generated initials avatar.',
+                            onTap: () async {
+                              Navigator.of(dialogContext).pop();
+                              await _removeProfilePhoto();
+                            },
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        _buildProfileInfoCard(user),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              Navigator.of(dialogContext).pop();
+                              await _logout();
+                            },
+                            icon: const Icon(Icons.logout_rounded),
+                            label: const Text('Log out'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFB42318),
+                              side: const BorderSide(color: Color(0xFFF0C4C0)),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMiniTag({required String label}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF2FF),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: _brandPrimary,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileActionTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: const Color(0xFFF7F9FC),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: _brandPrimary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: _textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: _textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileInfoCard(AppUser? user) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _borderColor),
+      ),
+      child: Column(
+        children: [
+          _buildInfoRow(
+            icon: Icons.badge_outlined,
+            label: 'Administrator',
+            value: user?.name.isNotEmpty == true ? user!.name : widget.userName,
+          ),
+          const SizedBox(height: 10),
+          _buildInfoRow(
+            icon: Icons.alternate_email_rounded,
+            label: 'Email',
+            value: user?.email.isNotEmpty == true
+                ? user!.email
+                : 'Not available',
+          ),
+          const SizedBox(height: 10),
+          _buildInfoRow(
+            icon: Icons.verified_user_outlined,
+            label: 'Role',
+            value: user?.role.isNotEmpty == true ? user!.role : 'Administrator',
+          ),
+          const SizedBox(height: 10),
+          _buildInfoRow(
+            icon: Icons.fingerprint_rounded,
+            label: 'Account ID',
+            value: user != null ? '#${user.id}' : 'Unavailable',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, size: 18, color: _brandPrimary),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: _textSecondary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: _textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeader(AuthProvider authProvider) {
+    final user = authProvider.user;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 18, 22, 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${_greetingForHour()}, ${user?.name.split(' ').first ?? 'Admin'}',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Administrative Command Center',
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Monitor internship operations, resolve student setup gaps, and keep approvals moving from one place.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withValues(alpha: 0.82),
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          NotificationBellButton(token: authProvider.token ?? ''),
+          const SizedBox(width: 10),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              key: _profileMenuAnchorKey,
+              onTap: _openProfilePanel,
+              borderRadius: BorderRadius.circular(22),
+              child: Ink(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildAvatar(user: user, radius: 22, fontSize: 14),
+                    const SizedBox(width: 10),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 180),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user?.name.isNotEmpty == true
+                                ? user!.name
+                                : widget.userName,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            user?.role.isNotEmpty == true
+                                ? user!.role
+                                : 'Administrator',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: Colors.white,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -471,20 +745,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildHeroCard(AdminDashboardSummary summary) {
+    final attentionRate = summary.totalStudents == 0
+        ? 0
+        : ((summary.studentsRequiringAttention / summary.totalStudents) * 100)
+              .round();
+
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: <Color>[Color(0xFF0E586A), Color(0xFF1B8EA2)],
+          colors: <Color>[Color(0xFF17396B), Color(0xFF0E5E78)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(30),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x1A0F172A),
-            blurRadius: 24,
-            offset: Offset(0, 12),
+            color: Color(0x220F172A),
+            blurRadius: 28,
+            offset: Offset(0, 18),
           ),
         ],
       ),
@@ -492,55 +772,73 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Expanded(
-                child: Text(
-                  'Operations Snapshot',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFD5F0F5),
-                  ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text(
+                        'Live Operations Snapshot',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      '${summary.studentsRequiringAttention} students need action from admin',
+                      style: const TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        height: 1.12,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '${summary.pendingLogs} logs are still pending review, and $attentionRate% of active students have setup items that need attention.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withValues(alpha: 0.84),
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 18),
               Container(
-                width: 72,
-                height: 72,
+                width: 76,
+                height: 76,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
+                  color: Colors.white.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.14),
+                    color: Colors.white.withValues(alpha: 0.12),
                   ),
                 ),
                 child: const Icon(
-                  Icons.space_dashboard_rounded,
+                  Icons.admin_panel_settings_rounded,
                   color: Colors.white,
-                  size: 34,
+                  size: 38,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            '${summary.studentsRequiringAttention} students need admin attention',
-            style: const TextStyle(
-              fontSize: 34,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              height: 1.1,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            '${summary.pendingLogs} pending logs are still waiting in the review flow.',
-            style: const TextStyle(
-              fontSize: 15,
-              color: Color(0xFFE8F7F9),
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 22),
           Wrap(
             spacing: 12,
             runSpacing: 12,
@@ -550,7 +848,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 value: '${summary.totalStudents}',
               ),
               _buildHeroStatChip(
-                label: 'Average Completion',
+                label: 'Completion',
                 value:
                     '${summary.averageCompletionPercentage.toStringAsFixed(0)}%',
               ),
@@ -558,38 +856,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 label: 'Approved Logs',
                 value: '${summary.approvedLogs}',
               ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              FilledButton.icon(
-                onPressed: () => _setFilter(_filterNeedsAttention),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF0F4C5C),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                ),
-                icon: const Icon(Icons.priority_high_rounded),
-                label: const Text('Review Students'),
-              ),
-              OutlinedButton.icon(
-                onPressed: _openAdviserAssignment,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: BorderSide(color: Colors.white.withValues(alpha: 0.45)),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                ),
-                icon: const Icon(Icons.manage_accounts_outlined),
-                label: const Text('Manage Advisers'),
+              _buildHeroStatChip(
+                label: 'Pending Review',
+                value: '${summary.pendingLogs}',
+                highlight: true,
               ),
             ],
           ),
@@ -598,21 +868,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildHeroStatChip({required String label, required String value}) {
+  Widget _buildHeroStatChip({
+    required String label,
+    required String value,
+    bool highlight = false,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
+        color: highlight
+            ? _accentGold.withValues(alpha: 0.18)
+            : Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFFD5F0F5),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.8),
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -622,11 +898,558 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             value,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 21,
+              fontSize: 19,
               fontWeight: FontWeight.w800,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryGrid(AdminDashboardSummary summary) {
+    final items = <_SummaryItem>[
+      _SummaryItem(
+        label: 'Pending Logs',
+        value: '${summary.pendingLogs}',
+        subtitle: 'Waiting in the review flow',
+        icon: Icons.pending_actions_rounded,
+        color: const Color(0xFFB54708),
+      ),
+      _SummaryItem(
+        label: 'Missing Profiles',
+        value: '${summary.studentsWithoutProfile}',
+        subtitle: 'Students who still need setup',
+        icon: Icons.description_outlined,
+        color: const Color(0xFF9E4F15),
+      ),
+      _SummaryItem(
+        label: 'No Supervisor',
+        value: '${summary.studentsWithoutSupervisor}',
+        subtitle: 'Internship profiles without supervision',
+        icon: Icons.badge_outlined,
+        color: const Color(0xFF175CD3),
+      ),
+      _SummaryItem(
+        label: 'No Adviser',
+        value: '${summary.studentsWithoutAdviser}',
+        subtitle: 'Students who need adviser assignment',
+        icon: Icons.school_outlined,
+        color: const Color(0xFF6941C6),
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 740;
+        final itemWidth = isCompact
+            ? constraints.maxWidth
+            : (constraints.maxWidth - 18) / 2;
+
+        return Wrap(
+          spacing: 18,
+          runSpacing: 18,
+          children: items
+              .map(
+                (item) =>
+                    SizedBox(width: itemWidth, child: _buildSummaryCard(item)),
+              )
+              .toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildSummaryCard(_SummaryItem item) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _surfaceColor,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: _borderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x120F172A),
+            blurRadius: 20,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: item.color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(item.icon, color: item.color),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.label,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: _textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  item.value,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: _textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  item.subtitle,
+                  style: const TextStyle(fontSize: 12.5, color: _textSecondary),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionPanel(AdminDashboardSummary summary) {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: _surfaceColor,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: _borderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x120F172A),
+            blurRadius: 20,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stacked = constraints.maxWidth < 760;
+
+          return Flex(
+            direction: stacked ? Axis.vertical : Axis.horizontal,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: stacked ? 0 : 6,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Admin Actions',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: _textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'The dashboard should help you complete work, not only watch metrics. Use these actions to clear assignments and fix onboarding gaps quickly.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: _textSecondary,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        FilledButton.icon(
+                          onPressed: _openAdviserAssignment,
+                          icon: const Icon(Icons.manage_accounts_outlined),
+                          label: const Text('Manage Advisers'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _brandPrimary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _selectedFilter = _filterNeedsAttention;
+                            });
+                          },
+                          icon: const Icon(Icons.filter_alt_outlined),
+                          label: const Text('Attention Queue'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _brandPrimary,
+                            side: const BorderSide(color: Color(0xFFC5D4EA)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              if (!stacked) const SizedBox(width: 18),
+              if (stacked) const SizedBox(height: 18),
+              Expanded(
+                flex: stacked ? 0 : 5,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: <Color>[Color(0xFFF8FBFF), Color(0xFFF4F8FD)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: const Color(0xFFD7E4F4)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEAF2FF),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(
+                              Icons.insights_rounded,
+                              color: _brandPrimary,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Text(
+                              'Priority Insight',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: _textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        summary.studentsWithoutAdviser > 0
+                            ? '${summary.studentsWithoutAdviser} students still need adviser assignment.'
+                            : 'All current internship profiles already have adviser coverage.',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: _textPrimary,
+                          height: 1.3,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Use adviser management to assign, update, and remove adviser links without leaving the admin workspace.',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          color: _textSecondary,
+                          height: 1.45,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSectionCard({
+    required Widget child,
+    EdgeInsets padding = const EdgeInsets.all(22),
+  }) {
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: _surfaceColor,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: _borderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x120F172A),
+            blurRadius: 20,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildFilterChips() {
+    final filters = <_StudentFilter>[
+      const _StudentFilter(key: _filterAll, label: 'All Students'),
+      const _StudentFilter(
+        key: _filterNeedsAttention,
+        label: 'Needs Attention',
+      ),
+      const _StudentFilter(
+        key: _filterMissingProfile,
+        label: 'Missing Profile',
+      ),
+      const _StudentFilter(
+        key: _filterMissingSupervisor,
+        label: 'No Supervisor',
+      ),
+      const _StudentFilter(key: _filterMissingAdviser, label: 'No Adviser'),
+    ];
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: filters
+          .map(
+            (filter) => ChoiceChip(
+              label: Text(filter.label),
+              selected: _selectedFilter == filter.key,
+              onSelected: (_) {
+                setState(() {
+                  _selectedFilter = filter.key;
+                });
+              },
+              backgroundColor: const Color(0xFFF8FAFC),
+              selectedColor: const Color(0xFFDCEBFF),
+              side: BorderSide(
+                color: _selectedFilter == filter.key
+                    ? _brandPrimary
+                    : const Color(0xFFD0D5DD),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
+              ),
+              labelStyle: TextStyle(
+                color: _selectedFilter == filter.key
+                    ? _brandPrimary
+                    : const Color(0xFF475467),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  Widget _buildStudentCard(AdminStudentSummary student) {
+    final progress = (student.completionPercentage / 100).clamp(0.0, 1.0);
+    final issues = <Widget>[
+      if (!student.hasInternshipProfile)
+        _buildStatusBadge(
+          label: 'Missing internship profile',
+          backgroundColor: const Color(0xFFFFF4E5),
+          foregroundColor: const Color(0xFFB54708),
+        ),
+      if (student.hasInternshipProfile && !student.hasSupervisor)
+        _buildStatusBadge(
+          label: 'No supervisor assigned',
+          backgroundColor: const Color(0xFFE8F1FF),
+          foregroundColor: const Color(0xFF175CD3),
+        ),
+      if (student.hasInternshipProfile && !student.hasAdviser)
+        _buildStatusBadge(
+          label: 'No adviser assigned',
+          backgroundColor: const Color(0xFFF1EBFF),
+          foregroundColor: const Color(0xFF6941C6),
+        ),
+      if (student.hasInternshipProfile &&
+          student.hasSupervisor &&
+          student.hasAdviser)
+        _buildStatusBadge(
+          label: 'Setup complete',
+          backgroundColor: const Color(0xFFE7F6EC),
+          foregroundColor: const Color(0xFF067647),
+        ),
+    ];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBFDFF),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      student.name,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: _textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(spacing: 8, runSpacing: 8, children: issues),
+                  ],
+                ),
+              ),
+              if (student.hasInternshipProfile && !student.hasAdviser)
+                TextButton.icon(
+                  onPressed: _openAdviserAssignment,
+                  icon: const Icon(Icons.open_in_new_rounded),
+                  label: const Text('Assign Adviser'),
+                  style: TextButton.styleFrom(foregroundColor: _brandPrimary),
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 12,
+                    backgroundColor: const Color(0xFFDCE3EB),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      _brandSecondary,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '${student.completionPercentage.round()}%',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: _brandSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 14,
+            runSpacing: 10,
+            children: [
+              _buildStudentMeta(
+                icon: Icons.business_outlined,
+                label: 'Company',
+                value: student.company?.isNotEmpty == true
+                    ? student.company!
+                    : 'Not assigned yet',
+              ),
+              _buildStudentMeta(
+                icon: Icons.schedule_rounded,
+                label: 'Approved Hours',
+                value: '${student.approvedHours} / ${student.requiredHours}',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStudentMeta({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: _brandPrimary),
+          const SizedBox(width: 8),
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(fontFamily: 'inherit'),
+              children: [
+                TextSpan(
+                  text: '$label: ',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: _textSecondary,
+                  ),
+                ),
+                TextSpan(
+                  text: value,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: _textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge({
+    required String label,
+    required Color backgroundColor,
+    required Color foregroundColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: foregroundColor,
+        ),
       ),
     );
   }
@@ -636,9 +1459,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       return const <int>[1];
     }
 
-    final radius = isCompact ? 1 : 2;
-    final start = (_currentPage - radius).clamp(1, _lastPage);
-    final end = (_currentPage + radius).clamp(1, _lastPage);
+    if (isCompact) {
+      final pages = <int>{_currentPage};
+      if (_currentPage > 1) {
+        pages.add(_currentPage - 1);
+      }
+      if (_currentPage < _lastPage) {
+        pages.add(_currentPage + 1);
+      }
+      final sorted = pages.toList()..sort();
+      return sorted;
+    }
+
+    final start = (_currentPage - 2).clamp(1, _lastPage);
+    final end = (_currentPage + 2).clamp(1, _lastPage);
     final pages = <int>[];
     for (var page = start; page <= end; page++) {
       pages.add(page);
@@ -651,7 +1485,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     required bool selected,
     required bool compact,
   }) {
-    final size = compact ? 42.0 : 50.0;
+    final size = compact ? 40.0 : 42.0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -664,13 +1498,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           height: size,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFF1976D2) : Colors.transparent,
+            color: selected ? _brandPrimary : Colors.transparent,
             shape: BoxShape.circle,
           ),
           child: Text(
             '$page',
             style: TextStyle(
-              fontSize: compact ? 17 : 19,
+              fontSize: compact ? 16 : 18,
               fontWeight: FontWeight.w800,
               color: selected ? Colors.white : const Color(0xFF344054),
             ),
@@ -683,9 +1517,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _buildArrowButton({
     required IconData icon,
     required VoidCallback? onPressed,
+    bool compact = false,
   }) {
     return IconButton(
-      tooltip: 'Pagination',
+      tooltip: compact ? null : 'Pagination',
       onPressed: _isPageLoading ? null : onPressed,
       icon: Icon(
         icon,
@@ -701,43 +1536,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       return const SizedBox.shrink();
     }
 
-    final isCompact = constraints.maxWidth < 900;
+    final isCompact = constraints.maxWidth < 600;
     final visiblePages = _visiblePages(isCompact);
     final startItem = _totalStudents == 0
         ? 0
         : ((_currentPage - 1) * _itemsPerPage) + 1;
     final endItem = (_currentPage * _itemsPerPage).clamp(0, _totalStudents);
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: const Color(0xFFE3EAF3)),
-      ),
-      child: Wrap(
-        alignment: WrapAlignment.spaceBetween,
-        runSpacing: 14,
-        crossAxisAlignment: WrapCrossAlignment.center,
+    if (isCompact) {
+      return Column(
         children: [
-          Text(
-            '$startItem-$endItem of $_totalStudents students',
-            style: const TextStyle(
-              fontSize: 15,
-              color: Color(0xFF66798F),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
           Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _buildArrowButton(
-                icon: Icons.keyboard_double_arrow_left_rounded,
-                onPressed: _currentPage > 1 ? () => _goToPage(1) : null,
-              ),
-              _buildArrowButton(
                 icon: Icons.chevron_left_rounded,
+                compact: true,
                 onPressed: _currentPage > 1
                     ? () => _goToPage(_currentPage - 1)
                     : null,
@@ -746,25 +1560,68 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 (page) => _buildPageButton(
                   page: page,
                   selected: page == _currentPage,
-                  compact: isCompact,
+                  compact: true,
                 ),
               ),
               _buildArrowButton(
                 icon: Icons.chevron_right_rounded,
+                compact: true,
                 onPressed: _currentPage < _lastPage
                     ? () => _goToPage(_currentPage + 1)
                     : null,
               ),
-              _buildArrowButton(
-                icon: Icons.keyboard_double_arrow_right_rounded,
-                onPressed: _currentPage < _lastPage
-                    ? () => _goToPage(_lastPage)
-                    : null,
-              ),
             ],
           ),
+          const SizedBox(height: 8),
+          Text(
+            '$startItem-$endItem of $_totalStudents items',
+            style: const TextStyle(fontSize: 14, color: _textSecondary),
+          ),
         ],
-      ),
+      );
+    }
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 4,
+      runSpacing: 10,
+      children: [
+        _buildArrowButton(
+          icon: Icons.keyboard_double_arrow_left_rounded,
+          onPressed: _currentPage > 1 ? () => _goToPage(1) : null,
+        ),
+        _buildArrowButton(
+          icon: Icons.chevron_left_rounded,
+          onPressed: _currentPage > 1
+              ? () => _goToPage(_currentPage - 1)
+              : null,
+        ),
+        ...visiblePages.map(
+          (page) => _buildPageButton(
+            page: page,
+            selected: page == _currentPage,
+            compact: false,
+          ),
+        ),
+        _buildArrowButton(
+          icon: Icons.chevron_right_rounded,
+          onPressed: _currentPage < _lastPage
+              ? () => _goToPage(_currentPage + 1)
+              : null,
+        ),
+        _buildArrowButton(
+          icon: Icons.keyboard_double_arrow_right_rounded,
+          onPressed: _currentPage < _lastPage
+              ? () => _goToPage(_lastPage)
+              : null,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$startItem-$endItem of $_totalStudents items',
+          style: const TextStyle(fontSize: 16, color: _textSecondary),
+        ),
+      ],
     );
   }
 
@@ -779,300 +1636,119 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _errorMessage!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF475467)),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: _refreshDashboard,
-                child: const Text('Retry'),
-              ),
-            ],
+          child: _buildSectionCard(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: _textSecondary),
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: _refreshDashboard,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _brandPrimary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
     final summary = _dashboardSummary;
-    final visibleStudents = _visibleStudents;
+    final filteredStudents = _filteredStudents;
 
     return RefreshIndicator(
       onRefresh: _refreshDashboard,
       child: LayoutBuilder(
-        builder: (context, constraints) {
-          return ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(22, 24, 22, 30),
-            children: [
-              if (summary != null)
-                _buildHeroCard(summary)
-              else ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xFFE3EAF3)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Admin summary is not available yet.',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF102A56),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _errorMessage ??
-                            'You can still review the current student page below.',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF667085),
-                          height: 1.45,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      ElevatedButton(
-                        onPressed: _refreshDashboard,
-                        child: const Text('Retry Dashboard'),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+        builder: (context, constraints) => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 30),
+          children: [
+            if (summary != null) _buildHeroCard(summary),
+            if (summary != null) ...[
               const SizedBox(height: 22),
-              if (summary != null)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xFFE3EAF3)),
-                  ),
-                  child: Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      _buildQuickMetric(
-                        'Students',
-                        '${summary.totalStudents}',
-                        const Color(0xFF0F4C5C),
-                      ),
-                      _buildQuickMetric(
-                        'Pending Logs',
-                        '${summary.pendingLogs}',
-                        const Color(0xFFB54708),
-                      ),
-                      _buildQuickMetric(
-                        'No Adviser',
-                        '${summary.studentsWithoutAdviser}',
-                        const Color(0xFF6941C6),
-                      ),
-                      _buildQuickMetric(
-                        'No Supervisor',
-                        '${summary.studentsWithoutSupervisor}',
-                        const Color(0xFF175CD3),
-                      ),
-                    ],
-                  ),
-                ),
-              if (summary != null) const SizedBox(height: 22),
-              const Text(
-                'Student Operations',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF102A56),
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Filter the current page to find missing setup and follow-up work quickly.',
-                style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
-              ),
-              const SizedBox(height: 18),
-              if (_errorMessage != null &&
-                  (_students.isNotEmpty || _dashboardSummary != null))
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF4F4),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFFBCACA)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _errorMessage!,
-                          style: const TextStyle(color: Color(0xFFB42318)),
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: () => _loadDashboard(page: _currentPage),
-                          child: const Text('Try loading again'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
+              _buildSummaryGrid(summary),
+              const SizedBox(height: 22),
+              _buildActionPanel(summary),
+            ],
+            const SizedBox(height: 22),
+            _buildSectionCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ChoiceChip(
-                    label: const Text('All Students'),
-                    selected: _selectedFilter == _filterAll,
-                    onSelected: (_) => _setFilter(_filterAll),
+                  const Text(
+                    'Student Operations',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: _textPrimary,
+                    ),
                   ),
-                  ChoiceChip(
-                    label: const Text('Needs Attention'),
-                    selected: _selectedFilter == _filterNeedsAttention,
-                    onSelected: (_) => _setFilter(_filterNeedsAttention),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Review the current page of students, filter unresolved setup issues, and jump into adviser assignment when needed.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _textSecondary,
+                      height: 1.45,
+                    ),
                   ),
-                  ChoiceChip(
-                    label: const Text('Missing Profile'),
-                    selected: _selectedFilter == _filterMissingProfile,
-                    onSelected: (_) => _setFilter(_filterMissingProfile),
-                  ),
-                  ChoiceChip(
-                    label: const Text('No Supervisor'),
-                    selected: _selectedFilter == _filterMissingSupervisor,
-                    onSelected: (_) => _setFilter(_filterMissingSupervisor),
-                  ),
-                  ChoiceChip(
-                    label: const Text('No Adviser'),
-                    selected: _selectedFilter == _filterMissingAdviser,
-                    onSelected: (_) => _setFilter(_filterMissingAdviser),
-                  ),
+                  const SizedBox(height: 18),
+                  _buildFilterChips(),
+                  const SizedBox(height: 20),
+                  if (filteredStudents.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 36),
+                      child: Text(
+                        'No students matched this filter on the current page.',
+                        style: TextStyle(fontSize: 15, color: _textSecondary),
+                      ),
+                    )
+                  else
+                    ...filteredStudents.map(_buildStudentCard),
+                  if (_errorMessage != null &&
+                      (_students.isNotEmpty || _dashboardSummary != null))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8, bottom: 12),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Text(
+                              _errorMessage!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Color(0xFFB42318)),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton(
+                              onPressed: () =>
+                                  _loadDashboard(page: _currentPage),
+                              child: const Text('Try loading again'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (_isPageLoading)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8, bottom: 18),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  if (_students.isNotEmpty || _totalStudents > 0) ...[
+                    const SizedBox(height: 10),
+                    _buildPaginationControls(constraints),
+                  ],
                 ],
               ),
-              const SizedBox(height: 18),
-              if (_isPageLoading)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 18),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              if (visibleStudents.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 36),
-                  child: Text(
-                    'No students matched this filter on the current page.',
-                    style: TextStyle(fontSize: 15, color: Color(0xFF667085)),
-                  ),
-                )
-              else
-                ...visibleStudents.map(_buildBasicStudentCard),
-              if (_students.isNotEmpty || _totalStudents > 0) ...[
-                const SizedBox(height: 12),
-                _buildPaginationControls(constraints),
-              ],
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildQuickMetric(String label, String value, Color color) {
-    return Container(
-      width: 180,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE3EAF3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF667085),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBasicStudentCard(AdminStudentSummary student) {
-    final needsAttention = _needsAttention(student);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: needsAttention
-              ? const Color(0xFFFFD7BA)
-              : const Color(0xFFE3EAF3),
+          ],
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            student.name,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF102A56),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _studentIssueSummary(student),
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF667085),
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Company: ${student.company?.isNotEmpty == true ? student.company! : 'Not assigned yet'}',
-            style: const TextStyle(fontSize: 14, color: Color(0xFF475467)),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Approved Hours: ${student.approvedHours} / ${student.requiredHours}',
-            style: const TextStyle(fontSize: 14, color: Color(0xFF475467)),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Completion: ${student.completionPercentage.round()}%',
-            style: const TextStyle(fontSize: 14, color: Color(0xFF475467)),
-          ),
-        ],
       ),
     );
   }
@@ -1082,19 +1758,85 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final authProvider = context.watch<AuthProvider>();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F7FB),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(authProvider),
-            Expanded(
-              child: _isInitialLoading && !_hasCompletedFirstLoad
-                  ? const Center(child: CircularProgressIndicator())
-                  : _buildBody(),
+      backgroundColor: _pageBackground,
+      body: Stack(
+        children: [
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 240,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: <Color>[
+                    Color(0xFF0F2D57),
+                    Color(0xFF0E5A6A),
+                    Color(0xFF3B82F6),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
             ),
-          ],
-        ),
+          ),
+          Positioned(
+            top: 160,
+            left: -40,
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 40,
+            right: -20,
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(authProvider),
+                Expanded(child: _buildBody()),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
+}
+
+class _SummaryItem {
+  final String label;
+  final String value;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+
+  const _SummaryItem({
+    required this.label,
+    required this.value,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+  });
+}
+
+class _StudentFilter {
+  final String key;
+  final String label;
+
+  const _StudentFilter({required this.key, required this.label});
 }

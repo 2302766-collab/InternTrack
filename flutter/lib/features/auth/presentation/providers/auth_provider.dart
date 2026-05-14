@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/constants/app_routes.dart';
@@ -151,6 +153,29 @@ class AuthProvider extends ChangeNotifier {
       'refreshAuthState() complete isAuthenticated=$isAuthenticated role=${role.isEmpty ? 'unknown' : role}',
     );
     notifyListeners();
+  }
+
+  Future<void> updateAvatarBase64(String? avatarBase64) async {
+    final currentUser = _user;
+    if (currentUser == null) {
+      return;
+    }
+
+    _user = currentUser.copyWith(
+      avatarBase64: avatarBase64,
+      clearAvatar: avatarBase64 == null || avatarBase64.isEmpty,
+    );
+    await _tokenService.saveUser(_user!);
+    notifyListeners();
+  }
+
+  Future<void> updateAvatarBytes(Uint8List? bytes) async {
+    if (bytes == null || bytes.isEmpty) {
+      await updateAvatarBase64(null);
+      return;
+    }
+
+    await updateAvatarBase64(base64Encode(bytes));
   }
 
   Future<bool> _syncUserFromServer({required bool silentOnError}) async {
