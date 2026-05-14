@@ -4,13 +4,6 @@ import 'package:provider/provider.dart';
 import '../../../../core/config/api_config.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/exceptions/api_exception.dart';
-<<<<<<< HEAD
-<<<<<<< MMP-103
-import '../../../../core/config/api_config.dart';
-=======
->>>>>>> main
-=======
->>>>>>> 6fbbe9d (Login issue)
 import '../../../../core/services/auth_service.dart';
 import '../../../../shared/models/app_user.dart';
 import '../../../../shared/widgets/auth_shell.dart';
@@ -112,27 +105,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final nextRoute = authProvider.dashboardRoute;
       _log('Navigating to $nextRoute');
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        nextRoute,
-        (route) => false,
-      );
+      Navigator.pushNamedAndRemoveUntil(context, nextRoute, (route) => false);
     } on ApiException catch (e) {
       if (!mounted) return;
 
       setState(() {
-<<<<<<< HEAD
-        _generalError = e.message;
+        _generalError = _messageForLoginError(e);
       });
     } catch (e) {
       _log('Login failed: $e');
       if (!mounted) return;
 
       setState(() {
-        _generalError = _formatLoginError(e);
-=======
         _generalError = _messageForLoginError(e);
->>>>>>> 6fbbe9d (Login issue)
       });
     } finally {
       if (mounted) {
@@ -146,14 +131,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _log(String message) {
     debugPrint('[LoginScreen] $message');
-  }
-
-  String _formatLoginError(Object error) {
-    if (error is ApiException) {
-      return error.message;
-    }
-
-    return error.toString().replaceFirst('Exception: ', '');
   }
 
   InputDecoration _inputDecoration(String label) {

@@ -11,14 +11,7 @@ import '../../../../shared/models/supervisor_option.dart';
 import '../../../student/presentation/widgets/student_scaffold.dart';
 
 class InternshipProfileScreen extends StatefulWidget {
-<class InternshipProfileScreen extends StatefulWidget {
   const InternshipProfileScreen({super.key});
-
-  @override
-  State<InternshipProfileScreen> createState() =>
-      _InternshipProfileScreenState();
-}
-
 
   @override
   State<InternshipProfileScreen> createState() =>
@@ -95,7 +88,8 @@ class _InternshipProfileScreenState extends State<InternshipProfileScreen> {
 
     final start = DateTime.tryParse(_startDateController.text.trim());
     final parsed = DateTime.tryParse(_endDateController.text.trim());
-    final initialDate = parsed ?? start?.add(const Duration(days: 1)) ?? DateTime.now();
+    final initialDate =
+        parsed ?? start?.add(const Duration(days: 1)) ?? DateTime.now();
 
     final selected = await showDatePicker(
       context: context,
@@ -405,9 +399,7 @@ class _InternshipProfileScreenState extends State<InternshipProfileScreen> {
         if (includeSupervisorDropdown) ...[
           DropdownButtonFormField<int>(
             value: _selectedSupervisorId,
-            decoration: const InputDecoration(
-              labelText: 'Assigned Supervisor',
-            ),
+            decoration: const InputDecoration(labelText: 'Assigned Supervisor'),
             items: _supervisors
                 .map(
                   (supervisor) => DropdownMenuItem<int>(
@@ -565,9 +557,7 @@ class _InternshipProfileScreenState extends State<InternshipProfileScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: FilledButton(
-                  key: const ValueKey<String>(
-                    'internship_profile_save_button',
-                  ),
+                  key: const ValueKey<String>('internship_profile_save_button'),
                   onPressed: _isSubmitting ? null : _submitEdit,
                   child: _isSubmitting
                       ? const SizedBox(
@@ -607,9 +597,7 @@ class _InternshipProfileScreenState extends State<InternshipProfileScreen> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              key: const ValueKey<String>(
-                'internship_profile_create_button',
-              ),
+              key: const ValueKey<String>('internship_profile_create_button'),
               onPressed: _isSubmitting ? null : _submitCreate,
               child: _isSubmitting
                   ? const SizedBox(
@@ -635,10 +623,7 @@ class _InternshipProfileScreenState extends State<InternshipProfileScreen> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
-          FilledButton(
-            onPressed: _loadProfile,
-            child: const Text('Retry'),
-          ),
+          FilledButton(onPressed: _loadProfile, child: const Text('Retry')),
         ],
       ),
     );

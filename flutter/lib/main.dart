@@ -103,12 +103,8 @@ class InternTrackApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-<<<<<<< HEAD
         ChangeNotifierProvider<ThemeController>.value(value: themeController),
-        Provider<TokenService>(create: (_) => const TokenService()),
-=======
         Provider<TokenService>(create: (_) => TokenService()),
->>>>>>> 6fbbe9d (Login issue)
         Provider<ApiClient>(
           create: (context) {
             final apiClient = ApiClient();
@@ -267,10 +263,10 @@ class InternTrackApp extends StatelessWidget {
                   'student',
                   Builder(
                     builder: (context) {
-                      final raw =
-                          ModalRoute.of(context)?.settings.arguments;
-                      final int? focusId =
-                          raw is LogbookNavArgs ? raw.logId : null;
+                      final raw = ModalRoute.of(context)?.settings.arguments;
+                      final int? focusId = raw is LogbookNavArgs
+                          ? raw.logId
+                          : null;
                       return LogbookScreen(initialFocusLogId: focusId);
                     },
                   ),

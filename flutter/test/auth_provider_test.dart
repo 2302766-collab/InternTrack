@@ -94,26 +94,6 @@ void main() {
       expect(tokenService.cleared, isTrue);
     });
 
-<<<<<<< HEAD
-    test('initialization falls back to logged out state when token restore throws', () async {
-      final tokenService = _ThrowingTokenService(Exception('storage unavailable'));
-      final authService = _FakeAuthService(user: _student);
-      final provider = AuthProvider(tokenService, authService: authService);
-
-      await provider.initialize();
-
-      expect(provider.isReady, isTrue);
-      expect(provider.isAuthenticated, isFalse);
-      expect(provider.token, isNull);
-      expect(provider.user, isNull);
-      expect(provider.lastError, isNotNull);
-      expect(
-        provider.lastError?.message,
-        'Failed to restore your saved session.',
-      );
-      expect(tokenService.cleared, isTrue);
-    });
-=======
     test(
       'persists provided login user without a follow-up auth sync',
       () async {
@@ -130,7 +110,30 @@ void main() {
         expect(tokenService.storedUser, _student);
       },
     );
->>>>>>> 6fbbe9d (Login issue)
+
+    test(
+      'initialization falls back to logged out state when token restore throws',
+      () async {
+        final tokenService = _ThrowingTokenService(
+          Exception('storage unavailable'),
+        );
+        final authService = _FakeAuthService(user: _student);
+        final provider = AuthProvider(tokenService, authService: authService);
+
+        await provider.initialize();
+
+        expect(provider.isReady, isTrue);
+        expect(provider.isAuthenticated, isFalse);
+        expect(provider.token, isNull);
+        expect(provider.user, isNull);
+        expect(provider.lastError, isNotNull);
+        expect(
+          provider.lastError?.message,
+          'Failed to restore your saved session.',
+        );
+        expect(tokenService.cleared, isTrue);
+      },
+    );
   });
 }
 

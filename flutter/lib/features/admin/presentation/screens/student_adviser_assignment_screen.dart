@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intern_track_app/shared/models/student_adviser_assignment.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/utils/date_formatter.dart';

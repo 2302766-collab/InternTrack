@@ -11,13 +11,7 @@ import '../../../../shared/widgets/dashboard_info_card.dart';
 import '../widgets/student_scaffold.dart';
 
 class StudentReportScreen extends StatefulWidget {
-class StudentReportScreen extends StatefulWidget {
   const StudentReportScreen({super.key});
-
-  @override
-  State<StudentReportScreen> createState() => _StudentReportScreenState();
-}
-
 
   @override
   State<StudentReportScreen> createState() => _StudentReportScreenState();
