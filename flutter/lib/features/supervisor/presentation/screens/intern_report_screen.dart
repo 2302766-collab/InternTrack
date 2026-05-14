@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/intern_reporting_service.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../shared/models/student_report.dart';
+import '../../../../shared/utils/session_expired_handler.dart';
 import '../../../../shared/widgets/dashboard_info_card.dart';
 
 class InternReportScreen extends StatefulWidget {
@@ -37,13 +39,25 @@ class _InternReportScreenState extends State<InternReportScreen> {
   }
 
   void _loadReport() {
+    final future = _reportService
+        .getReport(
+          role: widget.role,
+          studentId: widget.studentId,
+          startDate: _toApiDate(_startDate),
+          endDate: _toApiDate(_endDate),
+        )
+        .catchError((error) async {
+          if (error is ApiException &&
+              (error.statusCode == 401 ||
+                  error.errorType == ApiErrorType.unauthorized)) {
+            await handleExpiredSession(context);
+          }
+
+          throw error;
+        });
+
     setState(() {
-      _reportFuture = _reportService.getReport(
-        role: widget.role,
-        studentId: widget.studentId,
-        startDate: _toApiDate(_startDate),
-        endDate: _toApiDate(_endDate),
-      );
+      _reportFuture = future;
     });
   }
 

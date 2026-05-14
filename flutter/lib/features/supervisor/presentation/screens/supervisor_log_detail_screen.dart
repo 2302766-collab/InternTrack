@@ -9,6 +9,7 @@ import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/file_download_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_download_web.dart'
     as file_download;
+import '../../../../shared/utils/session_expired_handler.dart';
 import '../../../../shared/models/log_attachment.dart';
 import '../../../../shared/models/log_review_action.dart';
 import '../../../../shared/models/supervisor_log_item.dart';
@@ -95,6 +96,17 @@ class _SupervisorLogDetailScreenState extends State<SupervisorLogDetailScreen> {
         _log = log;
       });
       _prefetchImageAttachments();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+
+      if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+        await handleExpiredSession(context);
+        return;
+      }
+
+      setState(() {
+        _errorMessage = _readErrorMessage(e);
+      });
     } catch (e) {
       if (!mounted) return;
 
@@ -147,6 +159,26 @@ class _SupervisorLogDetailScreenState extends State<SupervisorLogDetailScreen> {
       });
 
       return file;
+    } on ApiException catch (e) {
+      if (!mounted) return null;
+
+      if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+        await handleExpiredSession(context);
+        return null;
+      }
+
+      final resolvedMessage = _readErrorMessage(e);
+      setState(() {
+        _attachmentErrors[attachment.id] = resolvedMessage;
+      });
+
+      if (!silent) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(resolvedMessage)));
+      }
+
+      return null;
     } catch (e) {
       if (!mounted) return null;
 
@@ -241,6 +273,11 @@ class _SupervisorLogDetailScreenState extends State<SupervisorLogDetailScreen> {
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (!mounted) return;
+
+      if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+        await handleExpiredSession(context);
+        return;
+      }
 
       final commentErrors = _fieldErrorsFor(e, 'comment');
       if (commentErrors != null && commentErrors.isNotEmpty) {

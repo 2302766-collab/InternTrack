@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/intern_reporting_service.dart';
+import '../../../../shared/utils/session_expired_handler.dart';
 import '../../../../core/utils/file_download_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_download_web.dart'
     as file_download;
@@ -103,6 +105,17 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
 
       setState(() {
         _intern = intern;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+
+      if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+        await handleExpiredSession(context);
+        return;
+      }
+
+      setState(() {
+        _errorMessage = e.message;
       });
     } catch (e) {
       if (!mounted) return;
@@ -220,6 +233,17 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
                 : 'Export is ready, but direct file actions are only available on web in this build.',
           ),
         ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+
+      if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+        await handleExpiredSession(context);
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
       );
     } catch (e) {
       if (!mounted) return;

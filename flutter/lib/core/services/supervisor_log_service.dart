@@ -1,4 +1,4 @@
-import '../../shared/models/supervisor_log_item.dart';
+import '../../shared/models/supervisor_log_item.dart';import 'package:dio/dio.dart';
 import '../exceptions/api_exception.dart';
 import '../services/api_client.dart';
 import '../services/base_service.dart';
@@ -117,19 +117,147 @@ class SupervisorLogService extends BaseService {
     required int attachmentId,
   }) async {
     try {
-      final bytes = await _apiClient.download(
+      final response = await _apiClient.downloadResponse(
         path: '$_endpoint/$logId/attachments/$attachmentId',
+      );
+
+      final bytes = response.data ?? <int>[];
+      final mimeType = _extractMimeType(
+        response.headers.value('content-type'),
+      );
+      final filename = _resolveAttachmentFilename(
+        response.headers.value('content-disposition'),
+        attachmentId,
+        mimeType,
       );
 
       return SupervisorLogAttachmentFile(
         bytes: bytes,
-        filename: 'attachment_$attachmentId',
-        mimeType: 'application/octet-stream',
+        filename: filename,
+        mimeType: mimeType,
       );
     } on ApiException catch (e) {
       handleApiError(e);
       rethrow;
     }
+  }
+
+  String _resolveAttachmentFilename(
+    String? contentDisposition,
+    int attachmentId,
+    String mimeType,
+  ) {
+    final rawFilename = _parseContentDispositionFilename(contentDisposition);
+    final sanitized = _sanitizeFilename(rawFilename);
+    return _finalFilename(sanitized, attachmentId, mimeType);
+  }
+
+  String _parseContentDispositionFilename(String? header) {
+    if (header == null) {
+      return '';
+    }
+
+    final filenameStarMatch = RegExp(
+      r"filename\*\s*=\s*(?:UTF-8''|)[^;\r\n]+",
+      caseSensitive: false,
+    ).firstMatch(header);
+    if (filenameStarMatch != null) {
+      var raw = filenameStarMatch.group(0) ?? '';
+      raw = raw.split('=').last.trim();
+      raw = raw.replaceAll(RegExp(r'^"|"$'), '');
+
+      final segments = raw.split("'");
+      if (segments.length >= 3) {
+        final encoded = segments.sublist(2).join("'");
+        try {
+          return Uri.decodeFull(encoded);
+        } catch (_) {
+          return encoded;
+        }
+      }
+
+      try {
+        return Uri.decodeFull(raw);
+      } catch (_) {
+        return raw;
+      }
+    }
+
+    final filenameMatch = RegExp(
+      r"filename\s*=\s*(?:\"([^\"]+)\"|([^;\r\n]+))",
+      caseSensitive: false,
+    ).firstMatch(header);
+    if (filenameMatch != null) {
+      return filenameMatch.group(1)?.trim() ?? filenameMatch.group(2)?.trim() ?? '';
+    }
+
+    return '';
+  }
+
+  String _sanitizeFilename(String filename) {
+    final cleaned = filename
+        .replaceAll(RegExp(r'[\r\n]'), ' ')
+        .replaceAll(RegExp(r'[\/]+'), '_')
+        .replaceAll(RegExp(r'[:*?"<>|]+'), '_')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+
+    if (cleaned.isEmpty) {
+      return '';
+    }
+
+    return cleaned.length <= 255 ? cleaned : cleaned.substring(0, 255);
+  }
+
+  String _finalFilename(String filename, int attachmentId, String mimeType) {
+    final extension = _extensionForMimeType(mimeType);
+    if (filename.isEmpty) {
+      return 'attachment_$attachmentId.${extension.isNotEmpty ? extension : 'bin'}';
+    }
+
+    if (_hasValidExtension(filename)) {
+      return filename;
+    }
+
+    if (extension.isNotEmpty) {
+      return '$filename.$extension';
+    }
+
+    return '$filename.bin';
+  }
+
+  bool _hasValidExtension(String filename) {
+    final index = filename.lastIndexOf('.');
+    if (index <= 0 || index == filename.length - 1) {
+      return false;
+    }
+
+    final ext = filename.substring(index + 1);
+    return ext.length <= 10;
+  }
+
+  String _extractMimeType(String? contentTypeHeader) {
+    if (contentTypeHeader == null || contentTypeHeader.trim().isEmpty) {
+      return 'application/octet-stream';
+    }
+
+    final mimeType = contentTypeHeader.split(';').first.trim();
+    if (mimeType.isEmpty) {
+      return 'application/octet-stream';
+    }
+    return mimeType;
+  }
+
+  String _extensionForMimeType(String mimeType) {
+    const fallbackExtensions = {
+      'application/pdf': 'pdf',
+      'image/png': 'png',
+      'image/jpeg': 'jpg',
+      'text/csv': 'csv',
+      'application/csv': 'csv',
+    };
+
+    return fallbackExtensions[mimeType.toLowerCase()] ?? '';
   }
 
   /// Submits a review (approve/reject) for a log

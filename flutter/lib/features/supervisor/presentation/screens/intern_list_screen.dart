@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/intern_list_service.dart';
+import '../../../../shared/utils/session_expired_handler.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../shared/models/intern_list_item.dart';
 import 'intern_detail_screen.dart';
@@ -102,6 +104,22 @@ class _InternListScreenState extends State<InternListScreen> {
           _lastPage = page.lastPage;
           _total = page.total;
           _hasMorePages = page.hasMorePages;
+        });
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+          await handleExpiredSession(context);
+          return;
+        }
+
+        setState(() {
+          final message = e.message;
+          if (reset) {
+            _errorMessage = message;
+          } else {
+            _loadMoreError = message;
+          }
         });
       }
     } catch (e) {

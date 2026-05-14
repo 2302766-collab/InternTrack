@@ -11,6 +11,7 @@ import '../../../../shared/models/supervisor_log_item.dart';
 import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
 import '../../../../shared/widgets/settings_shortcut_button.dart';
+import '../../../../shared/utils/session_expired_handler.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'intern_list_screen.dart';
 import 'supervisor_log_detail_screen.dart';
@@ -76,23 +77,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           widget.dashboardService ?? SupervisorDashboardService(apiClient);
       _loadDashboardData();
     }
-  }
-
-  Future<void> _handleExpiredSession() async {
-    await context.read<AuthProvider>().logout();
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Your session has expired. Please log in again.'),
-      ),
-    );
-
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      AppRoutes.login,
-      (route) => false,
-    );
   }
 
   Future<void> _loadDashboardData() async {
@@ -188,7 +172,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       }
 
       if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
-        await _handleExpiredSession();
+        await handleExpiredSession(context);
         return _SupervisorSectionResult<SupervisorDashboardSummary>.failure();
       }
 
@@ -243,7 +227,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       }
 
       if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
-        await _handleExpiredSession();
+        await handleExpiredSession(context);
         return _SupervisorSectionResult<List<SupervisorLogItem>>.failure();
       }
 

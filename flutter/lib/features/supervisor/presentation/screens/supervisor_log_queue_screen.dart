@@ -6,6 +6,7 @@ import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/supervisor_log_service.dart';
 import '../../../../shared/models/supervisor_log_item.dart';
+import '../../../../shared/utils/session_expired_handler.dart';
 import 'supervisor_log_detail_screen.dart';
 
 typedef SupervisorLogReviewScreenBuilder =
@@ -89,6 +90,17 @@ class _SupervisorLogQueueScreenState extends State<SupervisorLogQueueScreen> {
 
       setState(() {
         _logs = logs;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+
+      if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+        await handleExpiredSession(context);
+        return;
+      }
+
+      setState(() {
+        _errorMessage = _readErrorMessage(e);
       });
     } catch (e) {
       if (!mounted) return;
