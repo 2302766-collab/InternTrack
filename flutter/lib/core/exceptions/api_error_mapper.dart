@@ -91,11 +91,11 @@ class ApiErrorMapper {
         );
 
       case 401:
-        final isAuthRequest = requestPath.startsWith('/auth/');
+        final isLoginRequest = requestPath == '/auth/login';
         return ApiException(
           message:
               serverMessage ??
-              (isAuthRequest
+              (isLoginRequest
                   ? 'Invalid email or password.'
                   : 'Your session has expired. Please log in again.'),
           statusCode: statusCode,

@@ -78,6 +78,36 @@ void main() {
       expect(file.mimeType, 'text/csv; charset=UTF-8');
       expect(file.bytes, <int>[1, 2, 3]);
     });
+
+    test(
+      'supports admin DTR exports through admin student endpoints',
+      () async {
+        final adapter = _DownloadAdapter(
+          contentDisposition: 'attachment; filename="admin_dtr.pdf"',
+          contentType: 'application/pdf',
+        );
+        final service = InternReportingService(
+          ApiClient(dio: Dio()..httpClientAdapter = adapter),
+        );
+
+        final file = await service.exportDtr(
+          role: 'admin',
+          studentId: 23,
+          startDate: DateTime(2026, 5, 1),
+          endDate: DateTime(2026, 5, 30),
+          pdf: true,
+        );
+
+        expect(adapter.lastPath, '/admin/students/23/dtr/export/pdf');
+        expect(adapter.lastQueryParameters, <String, dynamic>{
+          'start_date': '2026-05-01',
+          'end_date': '2026-05-30',
+        });
+        expect(file.filename, 'admin_dtr.pdf');
+        expect(file.mimeType, 'application/pdf');
+        expect(file.bytes, <int>[1, 2, 3]);
+      },
+    );
   });
 }
 

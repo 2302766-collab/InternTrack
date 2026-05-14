@@ -10,7 +10,9 @@ import 'package:provider/provider.dart';
 
 void main() {
   group('InternshipProfileScreen', () {
-    testWidgets('existing profile opens in view mode with Edit', (tester) async {
+    testWidgets('existing profile opens in view mode with Edit', (
+      tester,
+    ) async {
       final service = _FakeInternshipService(
         profile: _sampleProfile(),
         supervisors: const [],
@@ -23,7 +25,9 @@ void main() {
       expect(find.textContaining('InternTrack Labs'), findsWidgets);
     });
 
-    testWidgets('Edit switches to edit mode with Save and Cancel', (tester) async {
+    testWidgets('Edit switches to edit mode with Save and Cancel', (
+      tester,
+    ) async {
       final service = _FakeInternshipService(
         profile: _sampleProfile(),
         supervisors: const [],
@@ -70,7 +74,9 @@ void main() {
       expect(find.text('Save'), findsNothing);
     });
 
-    testWidgets('Cancel restores original values and exits edit mode', (tester) async {
+    testWidgets('Cancel restores original values and exits edit mode', (
+      tester,
+    ) async {
       final service = _FakeInternshipService(
         profile: _sampleProfile(),
         supervisors: const [],
@@ -100,7 +106,9 @@ void main() {
       expect(find.text('Temporary Name'), findsNothing);
     });
 
-    testWidgets('date picker selection updates start date field', (tester) async {
+    testWidgets('date picker selection updates start date field', (
+      tester,
+    ) async {
       final service = _FakeInternshipService(
         profile: null,
         supervisors: _supervisorList(),
@@ -115,7 +123,9 @@ void main() {
       final expectedIso = '$y-$m-$d';
 
       await tester.tap(
-        find.byKey(const ValueKey<String>('internship_profile_start_date_field')),
+        find.byKey(
+          const ValueKey<String>('internship_profile_start_date_field'),
+        ),
       );
       await tester.pumpAndSettle();
       await tester.tap(find.text('${yesterday.day}').last);
@@ -140,11 +150,15 @@ void main() {
       await tester.pumpAndSettle();
 
       final startField = find.descendant(
-        of: find.byKey(const ValueKey<String>('internship_profile_start_date_field')),
+        of: find.byKey(
+          const ValueKey<String>('internship_profile_start_date_field'),
+        ),
         matching: find.byType(TextField),
       );
       final endField = find.descendant(
-        of: find.byKey(const ValueKey<String>('internship_profile_end_date_field')),
+        of: find.byKey(
+          const ValueKey<String>('internship_profile_end_date_field'),
+        ),
         matching: find.byType(TextField),
       );
 
@@ -152,7 +166,9 @@ void main() {
       expect(tester.widget<TextField>(endField).readOnly, isTrue);
 
       await tester.enterText(
-        find.byKey(const ValueKey<String>('internship_profile_start_date_field')),
+        find.byKey(
+          const ValueKey<String>('internship_profile_start_date_field'),
+        ),
         '2099-01-01',
       );
       await tester.pumpAndSettle();
@@ -160,63 +176,71 @@ void main() {
       expect(find.text('2099-01-01'), findsNothing);
     });
 
-    testWidgets('end date on or before start date shows inline validation error', (
+    testWidgets(
+      'end date on or before start date shows inline validation error',
+      (tester) async {
+        final service = _FakeInternshipService(
+          profile: null,
+          supervisors: _supervisorList(),
+        );
+
+        await _pumpScreen(tester, service);
+
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Company Name'),
+          'Acme Corp',
+        );
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Company Address'),
+          '123 Main St',
+        );
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Required Hours'),
+          '120',
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('internship_profile_start_date_field'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('20').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('OK'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('internship_profile_end_date_field'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('10').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('OK'));
+        await tester.pumpAndSettle();
+
+        await tester.ensureVisible(
+          find.byKey(
+            const ValueKey<String>('internship_profile_create_button'),
+          ),
+        );
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('internship_profile_create_button'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('End date must be after start date'), findsOneWidget);
+      },
+    );
+
+    testWidgets('invalid required hours shows inline validation error', (
       tester,
     ) async {
-      final service = _FakeInternshipService(
-        profile: null,
-        supervisors: _supervisorList(),
-      );
-
-      await _pumpScreen(tester, service);
-
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Company Name'),
-        'Acme Corp',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Company Address'),
-        '123 Main St',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Required Hours'),
-        '120',
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(
-        find.byKey(const ValueKey<String>('internship_profile_start_date_field')),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('20').last);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
-
-      await tester.tap(
-        find.byKey(const ValueKey<String>('internship_profile_end_date_field')),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('10').last);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
-
-      await tester.ensureVisible(
-        find.byKey(const ValueKey<String>('internship_profile_create_button')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey<String>('internship_profile_create_button')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text('End date must be after start date'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('invalid required hours shows inline validation error', (tester) async {
       final service = _FakeInternshipService(
         profile: null,
         supervisors: _supervisorList(),
@@ -249,7 +273,9 @@ void main() {
       expect(find.textContaining('greater than 0'), findsOneWidget);
     });
 
-    testWidgets('failed save shows error and keeps edited values', (tester) async {
+    testWidgets('failed save shows error and keeps edited values', (
+      tester,
+    ) async {
       final service = _FakeInternshipService(
         profile: _sampleProfile(),
         supervisors: const [],
@@ -285,7 +311,10 @@ void main() {
   });
 }
 
-Future<void> _pumpScreen(WidgetTester tester, _FakeInternshipService service) async {
+Future<void> _pumpScreen(
+  WidgetTester tester,
+  _FakeInternshipService service,
+) async {
   final binding = tester.binding;
   await binding.setSurfaceSize(const Size(800, 1600));
   addTearDown(() async {
@@ -337,10 +366,7 @@ InternshipProfile _sampleProfile() {
 }
 
 class _FakeInternshipService extends InternshipService {
-  _FakeInternshipService({
-    required this.profile,
-    required this.supervisors,
-  });
+  _FakeInternshipService({required this.profile, required this.supervisors});
 
   InternshipProfile? profile;
   List<SupervisorOption> supervisors;

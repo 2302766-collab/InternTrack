@@ -10,7 +10,10 @@ class InternReportingService extends BaseService {
 
   final ApiClient _apiClient;
 
-  String _endpointForRole({required String role, required int studentId}) {
+  String _reportEndpointForRole({
+    required String role,
+    required int studentId,
+  }) {
     final normalizedRole = role.toLowerCase();
 
     switch (normalizedRole) {
@@ -27,6 +30,25 @@ class InternReportingService extends BaseService {
     }
   }
 
+  String _dtrEndpointForRole({required String role, required int studentId}) {
+    final normalizedRole = role.toLowerCase();
+
+    switch (normalizedRole) {
+      case 'supervisor':
+        return '/supervisor/students/$studentId';
+      case 'adviser':
+        return '/adviser/students/$studentId';
+      case 'admin':
+        return '/admin/students/$studentId';
+      default:
+        throw ApiException(
+          message: 'Unsupported role for DTR export: $role',
+          errorType: ApiErrorType.clientError,
+          isRecoverable: false,
+        );
+    }
+  }
+
   Future<StudentReportData> getReport({
     required String role,
     required int studentId,
@@ -35,7 +57,8 @@ class InternReportingService extends BaseService {
   }) async {
     try {
       return await _apiClient.get<StudentReportData>(
-        path: '${_endpointForRole(role: role, studentId: studentId)}/report',
+        path:
+            '${_reportEndpointForRole(role: role, studentId: studentId)}/report',
         queryParameters: <String, String>{
           if ((startDate ?? '').isNotEmpty) 'start_date': startDate!,
           if ((endDate ?? '').isNotEmpty) 'end_date': endDate!,
@@ -99,7 +122,7 @@ class InternReportingService extends BaseService {
 
       final response = await _apiClient.downloadResponse(
         path:
-            '${_endpointForRole(role: role, studentId: studentId)}/dtr/export/$format',
+            '${_dtrEndpointForRole(role: role, studentId: studentId)}/dtr/export/$format',
         queryParameters: queryParameters,
       );
 

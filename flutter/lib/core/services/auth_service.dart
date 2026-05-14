@@ -153,4 +153,20 @@ class AuthService extends BaseService {
       rethrow;
     }
   }
+
+  /// Revokes the current access token on the server.
+  ///
+  /// Throws [ApiException] if the request fails. Callers may still choose to
+  /// clear the local session when the server token has already expired.
+  Future<void> logout() async {
+    try {
+      await _apiClient.post<void>(
+        path: '/auth/logout',
+        converter: (_) {},
+      );
+    } on ApiException catch (e) {
+      handleApiError(e);
+      rethrow;
+    }
+  }
 }

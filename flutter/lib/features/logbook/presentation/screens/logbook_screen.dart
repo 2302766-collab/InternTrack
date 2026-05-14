@@ -15,8 +15,6 @@ import 'log_detail_screen.dart';
 import 'log_edit_screen.dart';
 import 'log_submission_screen.dart';
 
-enum _LogFilter { all, pending, approved, rejected }
-
 class LogbookScreen extends StatefulWidget {
   const LogbookScreen({super.key, this.initialFocusLogId});
 
@@ -29,7 +27,6 @@ class LogbookScreen extends StatefulWidget {
 
 class _LogbookScreenState extends State<LogbookScreen> {
   static const int _maxAttachmentBytes = 5 * 1024 * 1024;
-  static const int _pageSize = 8;
   static const List<String> _allowedExtensions = <String>[
     'jpg',
     'jpeg',
@@ -44,8 +41,6 @@ class _LogbookScreenState extends State<LogbookScreen> {
   String? _errorMessage;
   bool _needsProfile = false;
   String _token = '';
-  _LogFilter _selectedFilter = _LogFilter.all;
-  int _visibleLogCount = _pageSize;
 
   final Set<int> _uploadingLogIds = <int>{};
   List<LogEntryItem> _logs = <LogEntryItem>[];
@@ -85,7 +80,6 @@ class _LogbookScreenState extends State<LogbookScreen> {
 
       setState(() {
         _logs = _sortLogsNewestFirst(logs);
-        _visibleLogCount = _pageSize;
       });
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -131,9 +125,7 @@ class _LogbookScreenState extends State<LogbookScreen> {
         _openLogDetails(found);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('That log is no longer available.'),
-          ),
+          const SnackBar(content: Text('That log is no longer available.')),
         );
       }
     });
@@ -152,50 +144,6 @@ class _LogbookScreenState extends State<LogbookScreen> {
     return sorted;
   }
 
-  List<LogEntryItem> get _filteredLogs {
-    switch (_selectedFilter) {
-      case _LogFilter.pending:
-        return _logs.where((log) => log.status.toUpperCase() == 'PENDING').toList();
-      case _LogFilter.approved:
-        return _logs.where((log) => log.status.toUpperCase() == 'APPROVED').toList();
-      case _LogFilter.rejected:
-        return _logs.where((log) => log.status.toUpperCase() == 'REJECTED').toList();
-      case _LogFilter.all:
-        return _logs;
-    }
-  }
-
-  List<LogEntryItem> get _visibleLogs =>
-      _filteredLogs.take(_visibleLogCount).toList();
-
-  int get _approvedCount =>
-      _logs.where((log) => log.status.toUpperCase() == 'APPROVED').length;
-
-  int get _pendingCount =>
-      _logs.where((log) => log.status.toUpperCase() == 'PENDING').length;
-
-  int get _rejectedCount =>
-      _logs.where((log) => log.status.toUpperCase() == 'REJECTED').length;
-
-  int get _totalHours =>
-      _logs.fold(0, (sum, log) => sum + log.hoursRendered);
-
-  void _selectFilter(_LogFilter filter) {
-    setState(() {
-      _selectedFilter = filter;
-      _visibleLogCount = _pageSize;
-    });
-  }
-
-  void _showMoreLogs() {
-    setState(() {
-      _visibleLogCount = (_visibleLogCount + _pageSize).clamp(
-        0,
-        _filteredLogs.length,
-      );
-    });
-  }
-
   String? _validateSelectedFileName(String fileName, int bytesLength) {
     final name = fileName.toLowerCase();
     final hasAllowedExt = _allowedExtensions.any(
@@ -210,69 +158,6 @@ class _LogbookScreenState extends State<LogbookScreen> {
     }
 
     return null;
-  }
-
-  String _formatTaskDescription(String value) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) {
-      return 'Activity details not provided.';
-    }
-
-    final looksLikeSeedValue =
-        RegExp(r'^\d{1,2}:\d{2}$').hasMatch(trimmed) ||
-        RegExp(r'^\d{2}/\d{2}$').hasMatch(trimmed) ||
-        RegExp(r'^\d+(st|nd|rd|th)$', caseSensitive: false).hasMatch(trimmed);
-
-    if (looksLikeSeedValue) {
-      return 'Activity details not provided.';
-    }
-
-    return trimmed;
-  }
-
-  String _monthGroupLabel(String value) {
-    final parsed = DateTime.tryParse(value);
-    if (parsed == null) return 'Unknown Month';
-    return DateFormatter.formatMonthYear(parsed);
-  }
-
-  String? _rejectionReason(LogEntryItem log) {
-    final items = log.reviewHistory.reversed;
-    for (final item in items) {
-      if (item.action.toUpperCase().contains('REJECT') && item.hasComment) {
-        return item.comment!.trim();
-      }
-    }
-
-    for (final item in items) {
-      if (item.hasComment) {
-        return item.comment!.trim();
-      }
-    }
-
-    return null;
-  }
-
-  Future<void> _showFeedbackDialog(LogEntryItem log) async {
-    final feedback = _rejectionReason(log);
-
-    await showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Review Feedback'),
-          content: Text(
-            feedback ?? 'No written feedback is available for this log yet.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   Future<void> _openCreateLogScreen() async {
@@ -292,11 +177,8 @@ class _LogbookScreenState extends State<LogbookScreen> {
     final updated = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => LogDetailScreen(
-          logId: log.id,
-          initialLog: log,
-          service: _service,
-        ),
+        builder: (_) =>
+            LogDetailScreen(logId: log.id, initialLog: log, service: _service),
       ),
     );
 
@@ -405,26 +287,13 @@ class _LogbookScreenState extends State<LogbookScreen> {
   Color _statusColor(String status) {
     switch (status.toUpperCase()) {
       case 'APPROVED':
-        return const Color(0xFF039855);
+        return Colors.green;
       case 'REJECTED':
-        return const Color(0xFFD92D20);
+        return Colors.red;
       case 'PENDING':
-        return const Color(0xFFB54708);
+        return Colors.amber;
       default:
-        return const Color(0xFF667085);
-    }
-  }
-
-  Color _statusBackground(String status) {
-    switch (status.toUpperCase()) {
-      case 'APPROVED':
-        return const Color(0xFFE8F7ED);
-      case 'REJECTED':
-        return const Color(0xFFFDECEC);
-      case 'PENDING':
-        return const Color(0xFFFFF4E5);
-      default:
-        return const Color(0xFFF2F4F7);
+        return Colors.grey;
     }
   }
 
@@ -453,366 +322,23 @@ class _LogbookScreenState extends State<LogbookScreen> {
     );
   }
 
-  Widget _buildHeaderSection() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FBFF),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFDCE6F2)),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isCompact = constraints.maxWidth < 640;
-
-          final actionButtons = Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              FilledButton.icon(
-                onPressed: _needsProfile ? null : _openCreateLogScreen,
-                icon: const Icon(Icons.add),
-                label: const Text('Add Log'),
-              ),
-              OutlinedButton.icon(
-                onPressed: _loadLogs,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Refresh'),
-              ),
-            ],
-          );
-
-          return isCompact
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'My Logbook',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF102A56),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Track, edit, and submit your daily internship logs.',
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: Color(0xFF4A6480),
-                        height: 1.45,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    actionButtons,
-                  ],
-                )
-              : Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'My Logbook',
-                            style: TextStyle(
-                              fontSize: 30,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF102A56),
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Track, edit, and submit your daily internship logs.',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Color(0xFF4A6480),
-                              height: 1.45,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    actionButtons,
-                  ],
-                );
-        },
-      ),
-    );
-  }
-
-  Widget _buildSummaryTile({
-    required String label,
-    required String value,
-    required Color background,
-    required Color border,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF4A6480),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF102A56),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSummarySection() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final itemWidth = constraints.maxWidth >= 900
-            ? (constraints.maxWidth - 48) / 5
-            : constraints.maxWidth >= 560
-            ? (constraints.maxWidth - 12) / 2
-            : constraints.maxWidth;
-
-        return Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            SizedBox(
-              width: itemWidth,
-              child: _buildSummaryTile(
-                label: 'Total Logs',
-                value: '${_logs.length}',
-                background: const Color(0xFFF8FAFC),
-                border: const Color(0xFFD8E2EC),
-              ),
-            ),
-            SizedBox(
-              width: itemWidth,
-              child: _buildSummaryTile(
-                label: 'Approved',
-                value: '$_approvedCount',
-                background: const Color(0xFFF3FBF7),
-                border: const Color(0xFFD5ECDC),
-              ),
-            ),
-            SizedBox(
-              width: itemWidth,
-              child: _buildSummaryTile(
-                label: 'Pending',
-                value: '$_pendingCount',
-                background: const Color(0xFFFFF8ED),
-                border: const Color(0xFFF8E5C1),
-              ),
-            ),
-            SizedBox(
-              width: itemWidth,
-              child: _buildSummaryTile(
-                label: 'Rejected',
-                value: '$_rejectedCount',
-                background: const Color(0xFFFFF4F4),
-                border: const Color(0xFFF2D6D6),
-              ),
-            ),
-            SizedBox(
-              width: itemWidth,
-              child: _buildSummaryTile(
-                label: 'Total Hours',
-                value: '$_totalHours h',
-                background: const Color(0xFFF5F8FF),
-                border: const Color(0xFFDCE5F8),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildFilterBar() {
-    Widget filterChip(_LogFilter filter, String label) {
-      final isSelected = _selectedFilter == filter;
-      return ChoiceChip(
-        label: Text(label),
-        selected: isSelected,
-        onSelected: (_) => _selectFilter(filter),
-      );
-    }
-
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        filterChip(_LogFilter.all, 'All'),
-        filterChip(_LogFilter.pending, 'Pending'),
-        filterChip(_LogFilter.approved, 'Approved'),
-        filterChip(_LogFilter.rejected, 'Rejected'),
-      ],
-    );
-  }
-
   Widget _buildEmptyState() {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+        padding: const EdgeInsets.all(16),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'No logs submitted yet.',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF102A56),
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Start by adding your first daily log.',
-              style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFF4A6480),
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 14),
-            FilledButton.icon(
-              onPressed: _needsProfile ? null : _openCreateLogScreen,
-              icon: const Icon(Icons.add),
-              label: const Text('Add Log'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFilterEmptyState() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'No ${_selectedFilter.name} logs found.',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF102A56),
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Try another filter to view more log entries.',
-              style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFF4A6480),
-                height: 1.4,
+            const Icon(Icons.info_outline, color: Colors.orange),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'No logs yet. Tap the add button to submit your first daily log.',
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildLogStatusBadge(LogEntryItem log) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: _statusBackground(log.status),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        log.status.toUpperCase(),
-        style: TextStyle(
-          color: _statusColor(log.status),
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFeedbackChip() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFDECEC),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.feedback_outlined, size: 16, color: Color(0xFFD92D20)),
-          SizedBox(width: 6),
-          Text(
-            'Feedback available',
-            style: TextStyle(
-              color: Color(0xFFD92D20),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProofStatusChip(bool hasAttachment) {
-    if (!hasAttachment) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFF4E5),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: const Text(
-          'Proof missing',
-          style: TextStyle(
-            color: Color(0xFFB54708),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE7F8EC),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.verified_rounded, size: 16, color: Color(0xFF039855)),
-          SizedBox(width: 6),
-          Text(
-            'Proof attached',
-            style: TextStyle(
-              color: Color(0xFF039855),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -820,123 +346,80 @@ class _LogbookScreenState extends State<LogbookScreen> {
   Widget _buildLogCard(LogEntryItem log) {
     final isUploading = _uploadingLogIds.contains(log.id);
     final hasAttachment = log.attachmentsCount > 0;
-    final rejectionReason = _rejectionReason(log);
-    final isRejected = log.status.toUpperCase() == 'REJECTED';
-    final isApproved = log.status.toUpperCase() == 'APPROVED';
-
-    final actions = <Widget>[
-      OutlinedButton(
-        onPressed: () => _openLogDetails(log),
-        child: Text(isApproved ? 'View Proof' : 'Details'),
-      ),
-      if (log.isPending)
-        OutlinedButton(
-          onPressed: () => _openEditLog(log),
-          child: const Text('Edit'),
-        ),
-      if (isRejected)
-        OutlinedButton(
-          onPressed: () => _showFeedbackDialog(log),
-          child: const Text('View Feedback'),
-        ),
-      if (log.isPending && !hasAttachment)
-        FilledButton.icon(
-          onPressed: isUploading ? null : () => _pickAndUploadAttachment(log),
-          icon: isUploading
-              ? const SizedBox(
-                  height: 14,
-                  width: 14,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Icon(Icons.attach_file),
-          label: Text(isUploading ? 'Uploading...' : 'Upload Proof'),
-        ),
-    ];
 
     return Card(
       child: InkWell(
         onTap: () => _openLogDetails(log),
-        borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          DateFormatter.formatApiDate(log.date),
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFF102A56),
-                              ),
-                        ),
-                        const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            _buildLogStatusBadge(log),
-                            Text(
-                              '${log.hoursRendered} hour${log.hoursRendered == 1 ? '' : 's'}',
-                              style: const TextStyle(
-                                color: Color(0xFF4A6480),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            Text(
-                              'Attachments: ${log.attachmentsCount}',
-                              style: const TextStyle(color: Color(0xFF6B7F99)),
-                            ),
-                          ],
-                        ),
-                      ],
+                    child: Text(
+                      DateFormatter.formatApiDate(log.date),
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
+                  ),
+                  Chip(
+                    label: Text(log.status),
+                    backgroundColor: _statusColor(
+                      log.status,
+                    ).withAlpha((0.14 * 255).round()),
+                    side: BorderSide(color: _statusColor(log.status)),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 4),
+              Text('Hours: ${log.hoursRendered}'),
+              const SizedBox(height: 4),
               Text(
-                'Task: ${_formatTaskDescription(log.taskDescription)}',
-                style: const TextStyle(
-                  color: Color(0xFF102A56),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  height: 1.35,
-                ),
+                log.taskDescription,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              if (isRejected && rejectionReason != null) ...[
-                const SizedBox(height: 10),
-                Text(
-                  'Reason: $rejectionReason',
-                  style: const TextStyle(
-                    color: Color(0xFFD92D20),
-                    fontSize: 14,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
+              Text(
+                'Attachments: ${log.attachmentsCount}',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  ...actions,
+                  OutlinedButton(
+                    onPressed: () => _openLogDetails(log),
+                    child: const Text('Details'),
+                  ),
+                  if (log.isPending)
+                    OutlinedButton(
+                      onPressed: () => _openEditLog(log),
+                      child: const Text('Edit'),
+                    ),
+                  if (log.isPending && !hasAttachment)
+                    ElevatedButton.icon(
+                      onPressed: isUploading
+                          ? null
+                          : () => _pickAndUploadAttachment(log),
+                      icon: isUploading
+                          ? const SizedBox(
+                              height: 14,
+                              width: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.attach_file),
+                      label: const Text('Upload Proof'),
+                    ),
                   if (log.isPending && hasAttachment)
-                    _buildProofStatusChip(true),
-                  if (log.isPending && !hasAttachment) _buildProofStatusChip(false),
-                  if (isRejected && rejectionReason != null)
-                    _buildFeedbackChip(),
+                    Chip(
+                      avatar: const Icon(Icons.verified_rounded, size: 18),
+                      label: const Text('Proof Attached'),
+                      backgroundColor: const Color(0xFFE7F8EC),
+                      side: const BorderSide(color: Color(0xFF039855)),
+                    ),
                 ],
               ),
             ],
@@ -946,94 +429,18 @@ class _LogbookScreenState extends State<LogbookScreen> {
     );
   }
 
-  Widget _buildLogListSection() {
-    if (_logs.isEmpty) {
-      return _buildEmptyState();
-    }
-
-    if (_filteredLogs.isEmpty) {
-      return _buildFilterEmptyState();
-    }
-
-    final widgets = <Widget>[];
-    String? lastMonth;
-
-    for (final log in _visibleLogs) {
-      final currentMonth = _monthGroupLabel(log.date);
-      if (currentMonth != lastMonth) {
-        if (widgets.isNotEmpty) {
-          widgets.add(const SizedBox(height: 4));
-        }
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10, top: 6),
-            child: Text(
-              currentMonth,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF102A56),
-              ),
-            ),
-          ),
-        );
-        lastMonth = currentMonth;
-      }
-
-      widgets.add(_buildLogCard(log));
-      widgets.add(const SizedBox(height: 12));
-    }
-
-    if (_visibleLogs.isNotEmpty) {
-      widgets.removeLast();
-    }
-
-    if (_visibleLogCount < _filteredLogs.length) {
-      widgets.add(const SizedBox(height: 16));
-      widgets.add(
-        Center(
-          child: OutlinedButton.icon(
-            onPressed: _showMoreLogs,
-            icon: const Icon(Icons.expand_more),
-            label: Text(
-              'Load More (${_filteredLogs.length - _visibleLogCount} remaining)',
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: widgets,
-    );
-  }
-
   Widget _buildContentList() {
+    final List<Widget> items = <Widget>[
+      if (_logs.isEmpty) _buildEmptyState() else ..._logs.map(_buildLogCard),
+    ];
+
     return RefreshIndicator(
       onRefresh: _loadLogs,
-      child: ListView(
+      child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(24),
-        children: [
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1120),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeaderSection(),
-                  const SizedBox(height: 20),
-                  _buildSummarySection(),
-                  const SizedBox(height: 20),
-                  _buildFilterBar(),
-                  const SizedBox(height: 20),
-                  _buildLogListSection(),
-                ],
-              ),
-            ),
-          ),
-        ],
+        itemCount: items.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (_, index) => items[index],
       ),
     );
   }
@@ -1043,13 +450,28 @@ class _LogbookScreenState extends State<LogbookScreen> {
     return StudentScaffold(
       currentRoute: AppRoutes.logbook,
       appBar: AppBar(
-        title: const Text('My Logbook'),
+        title: const Text('My Logs'),
+        actions: [
+          IconButton(
+            onPressed: _needsProfile ? null : _openCreateLogScreen,
+            tooltip: 'Add daily log',
+            icon: const Icon(Icons.add),
+          ),
+          IconButton(
+            onPressed: _loadLogs,
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? _buildErrorState()
-          : _buildContentList(),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage != null
+            ? _buildErrorState()
+            : _buildContentList(),
+      ),
     );
   }
 }

@@ -16,12 +16,14 @@ import 'core/services/internship_service.dart';
 import 'core/services/logbook_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/student_report_service.dart';
+import 'core/services/supervisor_management_service.dart';
 import 'core/services/token_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'features/admin/presentation/screens/admin_dashboard_screen.dart';
-import 'features/admin/presentation/screens/student_adviser_assignment_screen.dart';
 import 'features/admin/presentation/providers/adviser_management_provider.dart';
+import 'features/admin/presentation/providers/supervisor_management_provider.dart';
+import 'features/admin/presentation/screens/student_assignment_management_screen.dart';
 import 'features/adviser/presentation/screens/adviser_dashboard_screen.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/presentation/screens/auth_gate_screen.dart';
@@ -104,7 +106,7 @@ class InternTrackApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<ThemeController>.value(value: themeController),
-        Provider<TokenService>(create: (_) => const TokenService()),
+        Provider<TokenService>(create: (_) => TokenService()),
         Provider<ApiClient>(
           create: (context) {
             final apiClient = ApiClient();
@@ -136,6 +138,10 @@ class InternTrackApp extends StatelessWidget {
         ProxyProvider<ApiClient, AdviserManagementService>(
           update: (context, apiClient, previous) =>
               AdviserManagementService(apiClient),
+        ),
+        ProxyProvider<ApiClient, SupervisorManagementService>(
+          update: (context, apiClient, previous) =>
+              SupervisorManagementService(apiClient),
         ),
         ProxyProvider<ApiClient, InternshipService>(
           update: (context, apiClient, previous) =>
@@ -179,6 +185,21 @@ class InternTrackApp extends StatelessWidget {
             final notifier =
                 provider ?? AdviserManagementProvider(service: adviserService);
             notifier.updateService(adviserService);
+            return notifier;
+          },
+        ),
+        ChangeNotifierProxyProvider<
+          SupervisorManagementService,
+          SupervisorManagementProvider
+        >(
+          create: (context) => SupervisorManagementProvider(
+            service: context.read<SupervisorManagementService>(),
+          ),
+          update: (context, supervisorService, provider) {
+            final notifier =
+                provider ??
+                SupervisorManagementProvider(service: supervisorService);
+            notifier.updateService(supervisorService);
             return notifier;
           },
         ),
@@ -263,10 +284,10 @@ class InternTrackApp extends StatelessWidget {
                   'student',
                   Builder(
                     builder: (context) {
-                      final raw =
-                          ModalRoute.of(context)?.settings.arguments;
-                      final int? focusId =
-                          raw is LogbookNavArgs ? raw.logId : null;
+                      final raw = ModalRoute.of(context)?.settings.arguments;
+                      final int? focusId = raw is LogbookNavArgs
+                          ? raw.logId
+                          : null;
                       return LogbookScreen(initialFocusLogId: focusId);
                     },
                   ),
@@ -293,7 +314,7 @@ class InternTrackApp extends StatelessWidget {
                 return _guardRoleRoute(
                   authProvider,
                   'admin',
-                  const StudentAdviserAssignmentScreen(),
+                  const StudentAssignmentManagementScreen(),
                 );
               },
 

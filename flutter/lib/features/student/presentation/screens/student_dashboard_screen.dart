@@ -370,8 +370,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       }
 
       setState(() {
-        _sectionErrors[_StudentDashboardSection.logs] =
-            _userFacingErrorMessage(e);
+        _sectionErrors[_StudentDashboardSection.logs] = _userFacingErrorMessage(
+          e,
+        );
         _sectionLoading[_StudentDashboardSection.logs] = false;
       });
 
@@ -1238,8 +1239,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           final pendingStatus = pendingDelta < 0
                               ? 'behind by ${pendingDelta.abs()} hours'
                               : pendingDelta > 0
-                                  ? 'ahead by $pendingDelta hours'
-                                  : 'on pace';
+                              ? 'ahead by $pendingDelta hours'
+                              : 'on pace';
 
                           return 'You are ${approvedDelta.abs()} approved hours behind today. Pending review ($_pendingHours h) could move you to $pendingStatus once reviewed.';
                         }
@@ -1404,8 +1405,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           final actionWidth = isCompact
               ? constraints.maxWidth
               : constraints.maxWidth >= 920
-                  ? (constraints.maxWidth - 36) / 4
-                  : (constraints.maxWidth - 12) / 2;
+              ? (constraints.maxWidth - 36) / 4
+              : (constraints.maxWidth - 12) / 2;
 
           return Wrap(
             spacing: 12,

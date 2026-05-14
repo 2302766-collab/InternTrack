@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/constants/app_routes.dart';
@@ -9,10 +11,8 @@ import '../../../../shared/models/app_user.dart';
 class AuthProvider extends ChangeNotifier {
   static const String _logTag = '[AuthProvider]';
 
-  AuthProvider(
-    this._tokenService, {
-    required AuthService authService,
-  }) : _authService = authService;
+  AuthProvider(this._tokenService, {required AuthService authService})
+    : _authService = authService;
 
   final TokenService _tokenService;
   final AuthService _authService;
@@ -55,12 +55,16 @@ class AuthProvider extends ChangeNotifier {
     _log('initialize() start');
 
     try {
+      await _tokenService.resetDebugBrowserSession();
       _token = await _tokenService.getToken();
-      _log('initialize() restored token: ${(_token ?? '').isNotEmpty}');
+      _user = await _tokenService.getUser();
+      _log(
+        'initialize() restored token=${(_token ?? '').isNotEmpty} user=${_user != null}',
+      );
 
       if ((_token ?? '').isNotEmpty) {
         final synced = await _syncUserFromServer(silentOnError: true);
-        if (!synced) {
+        if (!synced && _shouldClearSessionOnSyncFailure()) {
           _log('initialize() could not sync user; clearing session');
           await _clearSession();
         }
@@ -96,12 +100,15 @@ class AuthProvider extends ChangeNotifier {
     _user = user;
     await _tokenService.saveToken(token);
     _log('setToken() token saved to secure storage');
+    if (user != null) {
+      await _tokenService.saveUser(user);
+    }
     _lastError = null;
 
     if (_user == null) {
       _log('setToken() missing user payload; syncing from server');
       final synced = await _syncUserFromServer(silentOnError: true);
-      if (!synced) {
+      if (!synced && _shouldClearSessionOnSyncFailure()) {
         _log('setToken() failed to sync user; clearing session');
         await _clearSession();
       }
@@ -113,19 +120,29 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    try {
+      if ((_token ?? '').isNotEmpty) {
+        await _authService.logout();
+      }
+    } on ApiException {
+      // Always clear the local session, even if the server token is already
+      // invalid or the network is unavailable.
+    }
+
     _token = null;
     _user = null;
     _lastError = null;
-    await _tokenService.clearToken();
+    await _tokenService.clearSession();
     notifyListeners();
   }
 
   Future<void> refreshAuthState() async {
     _log('refreshAuthState() start');
     _token = await _tokenService.getToken();
+    _user = await _tokenService.getUser();
     if ((_token ?? '').isNotEmpty) {
       final synced = await _syncUserFromServer(silentOnError: true);
-      if (!synced) {
+      if (!synced && _shouldClearSessionOnSyncFailure()) {
         _log('refreshAuthState() sync failed; clearing session');
         await _clearSession();
       }
@@ -138,6 +155,29 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateAvatarBase64(String? avatarBase64) async {
+    final currentUser = _user;
+    if (currentUser == null) {
+      return;
+    }
+
+    _user = currentUser.copyWith(
+      avatarBase64: avatarBase64,
+      clearAvatar: avatarBase64 == null || avatarBase64.isEmpty,
+    );
+    await _tokenService.saveUser(_user!);
+    notifyListeners();
+  }
+
+  Future<void> updateAvatarBytes(Uint8List? bytes) async {
+    if (bytes == null || bytes.isEmpty) {
+      await updateAvatarBase64(null);
+      return;
+    }
+
+    await updateAvatarBase64(base64Encode(bytes));
+  }
+
   Future<bool> _syncUserFromServer({required bool silentOnError}) async {
     final currentToken = _token;
     if (currentToken == null || currentToken.isEmpty) {
@@ -145,10 +185,15 @@ class AuthProvider extends ChangeNotifier {
       return false;
     }
 
+    final previousUser = _user;
+
     try {
       _log('_syncUserFromServer() requesting /auth/me');
       _user = await _authService.getAuthenticatedUser();
       _log('_syncUserFromServer() resolved role=${_user?.role}');
+      if (_user != null) {
+        await _tokenService.saveUser(_user!);
+      }
       _lastError = null;
       return true;
     } on ApiException catch (e) {
@@ -159,7 +204,13 @@ class AuthProvider extends ChangeNotifier {
         _lastError = e;
         rethrow;
       }
-      _user = null;
+
+      if (e.errorType == ApiErrorType.unauthorized) {
+        _user = null;
+      } else {
+        _user = previousUser;
+      }
+
       _lastError = e;
       return false;
     }
@@ -170,7 +221,15 @@ class AuthProvider extends ChangeNotifier {
     _token = null;
     _user = null;
     _lastError = null;
-    await _tokenService.clearToken();
+    await _tokenService.clearSession();
+  }
+
+  bool _shouldClearSessionOnSyncFailure() {
+    if (_lastError?.errorType == ApiErrorType.unauthorized) {
+      return true;
+    }
+
+    return _user == null;
   }
 
   ApiException _toApiException(
