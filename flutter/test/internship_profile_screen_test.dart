@@ -297,7 +297,7 @@ Future<void> _pumpScreen(WidgetTester tester, _FakeInternshipService service) as
       routes: {
         '/': (_) => Provider<InternshipService>.value(
           value: service,
-          child: const InternshipProfileScreen(token: 'test-token'),
+          child: const InternshipProfileScreen(),
         ),
         AppRoutes.studentDashboard: (_) => const SizedBox.shrink(),
         AppRoutes.logbook: (_) => const SizedBox.shrink(),
@@ -305,7 +305,7 @@ Future<void> _pumpScreen(WidgetTester tester, _FakeInternshipService service) as
         AppRoutes.studentReport: (_) => const SizedBox.shrink(),
         AppRoutes.internshipProfile: (_) => Provider<InternshipService>.value(
           value: service,
-          child: const InternshipProfileScreen(token: 'test-token'),
+          child: const InternshipProfileScreen(),
         ),
       },
       initialRoute: '/',

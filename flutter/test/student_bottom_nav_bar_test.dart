@@ -185,10 +185,8 @@ Widget _buildApp({
       ),
       AppRoutes.logbook => const LogbookScreen(),
       AppRoutes.studentDtr => StudentDtrScreen(dtrService: dtrService),
-      AppRoutes.studentReport => const StudentReportScreen(token: 'token'),
-      AppRoutes.internshipProfile => const InternshipProfileScreen(
-        token: 'token',
-      ),
+      AppRoutes.studentReport => const StudentReportScreen(),
+      AppRoutes.internshipProfile => const InternshipProfileScreen(),
       _ => throw StateError(
         'Unexpected route requested during test: $routeName',
       ),

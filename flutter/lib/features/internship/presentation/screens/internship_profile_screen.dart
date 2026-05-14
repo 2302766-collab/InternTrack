@@ -11,14 +11,7 @@ import '../../../../shared/models/supervisor_option.dart';
 import '../../../student/presentation/widgets/student_scaffold.dart';
 
 class InternshipProfileScreen extends StatefulWidget {
-<class InternshipProfileScreen extends StatefulWidget {
   const InternshipProfileScreen({super.key});
-
-  @override
-  State<InternshipProfileScreen> createState() =>
-      _InternshipProfileScreenState();
-}
-
 
   @override
   State<InternshipProfileScreen> createState() =>
@@ -404,7 +397,7 @@ class _InternshipProfileScreenState extends State<InternshipProfileScreen> {
         const SizedBox(height: 12),
         if (includeSupervisorDropdown) ...[
           DropdownButtonFormField<int>(
-            value: _selectedSupervisorId,
+            initialValue: _selectedSupervisorId,
             decoration: const InputDecoration(
               labelText: 'Assigned Supervisor',
             ),

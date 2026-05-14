@@ -56,8 +56,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _totalStudents = 0;
   int _itemsPerPage = 10;
   String _selectedFilter = _filterAll;
-  String _selectedSort = _sortAttentionFirst;
-  String _searchQuery = '';
+  final String _selectedSort = _sortAttentionFirst;
   AdminDashboardSummary? _dashboardSummary;
 
   DateTime _now() => (widget.clock ?? DateTime.now)();
@@ -239,15 +238,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     });
   }
 
-  void _clearSearch() {
-    _searchController.clear();
-    setState(() {
-      _searchQuery = '';
-    });
-  }
-
   List<AdminStudentSummary> get _visibleStudents {
-    final query = _searchQuery.trim().toLowerCase();
+    final query = _searchController.text.trim().toLowerCase();
     final filtered =
         _students.where((student) => _matchesSelectedFilter(student)).where((
           student,

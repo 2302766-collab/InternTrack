@@ -616,8 +616,8 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 560;
         final buttons = <Widget>[
-          if (secondary != null) secondary,
-          if (primary != null) primary,
+          ?secondary,
+          ?primary,
         ];
 
         if (isCompact) {

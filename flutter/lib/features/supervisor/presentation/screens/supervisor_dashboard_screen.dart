@@ -1281,6 +1281,6 @@ class _SupervisorSectionResult<T> {
   }
 
   factory _SupervisorSectionResult.failure() {
-    return const _SupervisorSectionResult<T>._(succeeded: false);
+    return _SupervisorSectionResult<T>._(succeeded: false);
   }
 }

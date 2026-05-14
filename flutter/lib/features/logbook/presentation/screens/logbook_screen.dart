@@ -9,11 +9,8 @@ import '../../../../core/utils/file_picker_helper_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
     as file_picker;
 import '../../../../shared/models/log_entry.dart';
-<<<<<<< HEAD
 import '../../../auth/presentation/providers/auth_provider.dart';
-=======
 import '../../../student/presentation/widgets/student_scaffold.dart';
->>>>>>> 9cd14a8a927dbbdc423a70fbc3c89bd066c82bb3
 import 'log_detail_screen.dart';
 import 'log_edit_screen.dart';
 import 'log_submission_screen.dart';
