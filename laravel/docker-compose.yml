@@ -20,6 +20,10 @@ services:
       DB_TEST_DATABASE: interntrack_test
       DB_USERNAME: interntrack_user
       DB_PASSWORD: secret
+      DB_ROOT_HOST: mysql
+      DB_ROOT_PORT: 3306
+      DB_ROOT_USERNAME: root
+      DB_ROOT_PASSWORD: secret
 
   mysql:
     image: mariadb:11

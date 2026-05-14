@@ -11,8 +11,13 @@ fi
 db_host="${DB_HOST:-mysql}"
 db_port="${DB_PORT:-3306}"
 db_name="${DB_DATABASE:-interntrack}"
+db_test_name="${DB_TEST_DATABASE:-}"
 db_user="${DB_USERNAME:-interntrack_user}"
 db_pass="${DB_PASSWORD:-secret}"
+db_root_host="${DB_ROOT_HOST:-$db_host}"
+db_root_port="${DB_ROOT_PORT:-$db_port}"
+db_root_user="${DB_ROOT_USERNAME:-}"
+db_root_pass="${DB_ROOT_PASSWORD:-}"
 
 echo "Waiting for database at ${db_host}:${db_port}..."
 
@@ -37,6 +42,58 @@ new PDO($dsn, getenv("DB_USERNAME") ?: "interntrack_user", getenv("DB_PASSWORD")
 done
 
 echo "Database is ready."
+
+if [ -n "$db_test_name" ] && [ -n "$db_root_user" ]; then
+    echo "Ensuring test database and grants exist..."
+
+    DB_ROOT_HOST="$db_root_host" \
+    DB_ROOT_PORT="$db_root_port" \
+    DB_ROOT_USERNAME="$db_root_user" \
+    DB_ROOT_PASSWORD="$db_root_pass" \
+    DB_TEST_DATABASE="$db_test_name" \
+    DB_USERNAME="$db_user" \
+    DB_PASSWORD="$db_pass" \
+    php -r '
+    $dsn = sprintf(
+        "mysql:host=%s;port=%s",
+        getenv("DB_ROOT_HOST") ?: "mysql",
+        getenv("DB_ROOT_PORT") ?: "3306"
+    );
+
+    $pdo = new PDO(
+        $dsn,
+        getenv("DB_ROOT_USERNAME") ?: "root",
+        getenv("DB_ROOT_PASSWORD") ?: ""
+    );
+
+    $quoteIdentifier = static function (string $value): string {
+        return "`" . str_replace("`", "``", $value) . "`";
+    };
+
+    $quoteString = static function (string $value): string {
+        return str_replace("\x00", "", $value);
+    };
+
+    $testDatabase = getenv("DB_TEST_DATABASE") ?: "";
+    $appUser = getenv("DB_USERNAME") ?: "";
+    $appPassword = getenv("DB_PASSWORD") ?: "";
+
+    if ($testDatabase !== "" && $appUser !== "") {
+        $pdo->exec(
+            "CREATE DATABASE IF NOT EXISTS " . $quoteIdentifier($testDatabase) .
+            " CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+        );
+
+        $pdo->exec(
+            "GRANT ALL PRIVILEGES ON " . $quoteIdentifier($testDatabase) . ".* TO " .
+            $pdo->quote($quoteString($appUser)) . "@'%' IDENTIFIED BY " .
+            $pdo->quote($quoteString($appPassword))
+        );
+
+        $pdo->exec("FLUSH PRIVILEGES");
+    }
+    ' >/dev/null
+fi
 
 if [ ! -f vendor/autoload.php ]; then
     echo "Composer dependencies are missing; installing..."

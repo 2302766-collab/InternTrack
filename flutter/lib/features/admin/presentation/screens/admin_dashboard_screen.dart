@@ -1523,7 +1523,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(width: 8),
           RichText(
             text: TextSpan(
-              style: const TextStyle(fontFamily: 'inherit'),
+              style: DefaultTextStyle.of(context).style,
               children: [
                 TextSpan(
                   text: '$label: ',

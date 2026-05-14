@@ -70,12 +70,10 @@ class StudentBottomNavBar extends StatelessWidget {
       currentIndex: _currentIndex,
       selectedItemColor: theme.colorScheme.primary,
       unselectedItemColor: theme.colorScheme.onSurface.withAlpha(170),
-      selectedLabelStyle: const TextStyle(
-        fontSize: 11,
+      selectedLabelStyle: theme.textTheme.labelSmall?.copyWith(
         fontWeight: FontWeight.w700,
       ),
-      unselectedLabelStyle: const TextStyle(
-        fontSize: 11,
+      unselectedLabelStyle: theme.textTheme.labelSmall?.copyWith(
         fontWeight: FontWeight.w600,
       ),
       iconSize: 22,

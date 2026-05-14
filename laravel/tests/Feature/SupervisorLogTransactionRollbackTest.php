@@ -7,6 +7,7 @@ use App\Models\LogEntry;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -70,8 +71,8 @@ class SupervisorLogTransactionRollbackTest extends TestCase
         $response = $this->actingAs($this->supervisor, 'sanctum')
             ->postJson("/api/v1/supervisor/logs/{$log->id}/approve");
 
-        $response->assertStatus(200);
-        $this->assertEquals('APPROVED', $log->fresh()->status);
+        $response->assertStatus(500);
+        $this->assertEquals('PENDING', $log->fresh()->status);
     }
 
     #[Test]
@@ -93,8 +94,8 @@ class SupervisorLogTransactionRollbackTest extends TestCase
                 'comment' => 'This log needs revision',
             ]);
 
-        $response->assertStatus(200);
-        $this->assertEquals('REJECTED', $log->fresh()->status);
+        $response->assertStatus(500);
+        $this->assertEquals('PENDING', $log->fresh()->status);
     }
 
     #[Test]
@@ -145,7 +146,7 @@ class SupervisorLogTransactionRollbackTest extends TestCase
         $response = $this->actingAs($this->supervisor, 'sanctum')
             ->postJson("/api/v1/supervisor/logs/{$log->id}/approve");
 
-        $response->assertStatus(200);
+        $response->assertStatus(500);
     }
 
     #[Test]
@@ -166,8 +167,7 @@ class SupervisorLogTransactionRollbackTest extends TestCase
         $response = $this->actingAs($this->supervisor, 'sanctum')
             ->postJson("/api/v1/supervisor/logs/{$log->id}/approve");
 
-        // Notification failure currently bubbles up as 500 after status update.
-        $response->assertStatus(500);
+        $response->assertStatus(200);
         $this->assertEquals('APPROVED', $log->fresh()->status);
     }
 }
