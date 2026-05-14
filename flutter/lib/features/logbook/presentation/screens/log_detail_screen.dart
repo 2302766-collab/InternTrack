@@ -40,7 +40,8 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _log = widget.initialLog ??
+    _log =
+        widget.initialLog ??
         LogEntryItem(
           id: widget.logId,
           internshipProfileId: 0,
@@ -128,9 +129,9 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
       });
 
       if (!silent) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
 
       return null;
@@ -414,10 +415,7 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
         const SizedBox(height: 4),
         Text(
           subtitle,
-          style: const TextStyle(
-            fontSize: 14,
-            color: Color(0xFF667085),
-          ),
+          style: const TextStyle(fontSize: 14, color: Color(0xFF667085)),
         ),
       ],
     );
@@ -475,8 +473,10 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: _statusBackground(_log.status),
                   borderRadius: BorderRadius.circular(999),
@@ -509,8 +509,8 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
               final itemWidth = constraints.maxWidth >= 760
                   ? (constraints.maxWidth - 24) / 3
                   : constraints.maxWidth >= 520
-                      ? (constraints.maxWidth - 12) / 2
-                      : constraints.maxWidth;
+                  ? (constraints.maxWidth - 12) / 2
+                  : constraints.maxWidth;
 
               return Wrap(
                 spacing: 12,
@@ -546,10 +546,7 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
     );
   }
 
-  Widget _buildMetricPanel({
-    required String label,
-    required String value,
-  }) {
+  Widget _buildMetricPanel({required String label, required String value}) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -608,16 +605,13 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
     );
   }
 
-  Widget _buildFooterButtons({
-    Widget? primary,
-    Widget? secondary,
-  }) {
+  Widget _buildFooterButtons({Widget? primary, Widget? secondary}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 560;
         final buttons = <Widget>[
-          if (secondary != null) secondary,
-          if (primary != null) primary,
+          ...?secondary == null ? null : [secondary],
+          ...?primary == null ? null : [primary],
         ];
 
         if (isCompact) {
@@ -934,7 +928,9 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : Icon(
-              error != null ? Icons.broken_image_outlined : Icons.image_outlined,
+              error != null
+                  ? Icons.broken_image_outlined
+                  : Icons.image_outlined,
               color: error != null
                   ? const Color(0xFFD92D20)
                   : const Color(0xFF667085),
@@ -1007,7 +1003,9 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
-                              isImage ? 'Preview ready' : 'Browser view available',
+                              isImage
+                                  ? 'Preview ready'
+                                  : 'Browser view available',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -1131,16 +1129,13 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
               ),
               child: const Text(
                 'No attachments uploaded yet.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF667085),
-                ),
+                style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
               ),
             )
           else
             ..._log.attachments.asMap().entries.map(
-                  (entry) => _buildAttachmentItem(entry.value, entry.key),
-                ),
+              (entry) => _buildAttachmentItem(entry.value, entry.key),
+            ),
         ],
       ),
     );
@@ -1228,8 +1223,8 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                   _log.status.toUpperCase() == 'APPROVED'
                       ? 'Log approved'
                       : _log.status.toUpperCase() == 'REJECTED'
-                          ? 'Log needs correction'
-                          : 'Editing locked',
+                      ? 'Log needs correction'
+                      : 'Editing locked',
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -1241,8 +1236,8 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                   _log.status.toUpperCase() == 'APPROVED'
                       ? 'This log has been accepted and can no longer be edited.'
                       : _log.status.toUpperCase() == 'REJECTED'
-                          ? 'Please review the supervisor feedback above. This entry cannot be edited here because only pending logs can be updated.'
-                          : 'Editing is disabled because this log is no longer pending review.',
+                      ? 'Please review the supervisor feedback above. This entry cannot be edited here because only pending logs can be updated.'
+                      : 'Editing is disabled because this log is no longer pending review.',
                   style: const TextStyle(
                     fontSize: 14,
                     height: 1.5,
@@ -1250,9 +1245,7 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                _buildFooterButtons(
-                  primary: _buildBackToLogbookButton(),
-                ),
+                _buildFooterButtons(primary: _buildBackToLogbookButton()),
               ],
             ),
           ),
@@ -1272,10 +1265,7 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
     final updated = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => LogEditScreen(
-          log: _log,
-          service: widget.service,
-        ),
+        builder: (_) => LogEditScreen(log: _log, service: widget.service),
       ),
     );
 
@@ -1329,26 +1319,23 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _error!,
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: _load,
-                          child: const Text('Retry'),
-                        ),
-                      ],
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_error!, textAlign: TextAlign.center),
+                    const SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: _load,
+                      child: const Text('Retry'),
                     ),
-                  ),
-                )
-              : _buildContent(),
+                  ],
+                ),
+              ),
+            )
+          : _buildContent(),
     );
   }
 }
@@ -1357,10 +1344,7 @@ class _SummaryMetric extends StatelessWidget {
   final String label;
   final String value;
 
-  const _SummaryMetric({
-    required this.label,
-    required this.value,
-  });
+  const _SummaryMetric({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -1369,10 +1353,7 @@ class _SummaryMetric extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Color(0xFF667085),
-          ),
+          style: const TextStyle(fontSize: 12, color: Color(0xFF667085)),
         ),
         const SizedBox(height: 8),
         Text(

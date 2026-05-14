@@ -23,11 +23,13 @@ void main() {
 
       await _chooseYesterday(tester);
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Task Description'),
+        find.byType(EditableText).last,
         'Completed assigned work.',
       );
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(find.text('Submit Log'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Submit Log'));
       await tester.pumpAndSettle();
 
@@ -52,6 +54,8 @@ void main() {
       expect(find.text(LogDatePolicy.helperText), findsOneWidget);
 
       await _chooseYesterday(tester);
+      await tester.ensureVisible(find.text('Save Changes'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Save Changes'));
       await tester.pumpAndSettle();
 

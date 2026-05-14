@@ -398,7 +398,7 @@ class _InternshipProfileScreenState extends State<InternshipProfileScreen> {
         const SizedBox(height: 12),
         if (includeSupervisorDropdown) ...[
           DropdownButtonFormField<int>(
-            value: _selectedSupervisorId,
+            initialValue: _selectedSupervisorId,
             decoration: const InputDecoration(labelText: 'Assigned Supervisor'),
             items: _supervisors
                 .map(
