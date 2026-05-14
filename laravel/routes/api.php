@@ -112,8 +112,11 @@ Route::prefix('v1')->group(function () {
         Route::get('/students/{id}/dtr/export/pdf', [DailyTimeRecordExportController::class, 'adminPdf']);
         Route::get('/students/{id}/dtr/export/excel', [DailyTimeRecordExportController::class, 'adminExcel']);
         Route::patch('/students/{id}/assign-adviser', [StudentAdviserController::class, 'assignAdviser']);
+        Route::patch('/students/{id}/assign-supervisor', [StudentAdviserController::class, 'assignSupervisor']);
         Route::get('/students/{id}/adviser', [StudentAdviserController::class, 'getStudentAdviser']);
+        Route::get('/students/{id}/supervisor', [StudentAdviserController::class, 'getStudentSupervisor']);
         Route::get('/advisers', [StudentAdviserController::class, 'getAdvisers']);
+        Route::get('/supervisors', [StudentAdviserController::class, 'getSupervisors']);
     });
 
     Route::prefix('student')->middleware(['auth:sanctum', 'role:Student'])->group(function () {

@@ -1160,7 +1160,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         FilledButton.icon(
                           onPressed: _openAdviserAssignment,
                           icon: const Icon(Icons.manage_accounts_outlined),
-                          label: const Text('Manage Advisers'),
+                          label: const Text('Manage Assignments'),
                           style: FilledButton.styleFrom(
                             backgroundColor: _brandPrimary,
                             foregroundColor: Colors.white,
@@ -1247,8 +1247,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       const SizedBox(height: 14),
                       Text(
                         summary.studentsWithoutAdviser > 0
-                            ? '${summary.studentsWithoutAdviser} students still need adviser assignment.'
-                            : 'All current internship profiles already have adviser coverage.',
+                            ? '${summary.studentsWithoutAdviser} students still need adviser assignment, and ${summary.studentsWithoutSupervisor} still need supervisor coverage.'
+                            : (summary.studentsWithoutSupervisor > 0
+                                  ? '${summary.studentsWithoutSupervisor} students still need supervisor coverage.'
+                                  : 'All current internship profiles already have assignment coverage.'),
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -1258,7 +1260,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Use adviser management to assign, update, and remove adviser links without leaving the admin workspace.',
+                        'Use assignment management to assign, update, and remove supervisor or adviser links without leaving the admin workspace.',
                         style: TextStyle(
                           fontSize: 13.5,
                           color: _textSecondary,
@@ -1414,11 +1416,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ],
                 ),
               ),
-              if (student.hasInternshipProfile && !student.hasAdviser)
+              if (student.hasInternshipProfile &&
+                  (!student.hasAdviser || !student.hasSupervisor))
                 TextButton.icon(
                   onPressed: _openAdviserAssignment,
                   icon: const Icon(Icons.open_in_new_rounded),
-                  label: const Text('Assign Adviser'),
+                  label: Text(
+                    !student.hasSupervisor && !student.hasAdviser
+                        ? 'Assign Roles'
+                        : (!student.hasSupervisor
+                              ? 'Assign Supervisor'
+                              : 'Assign Adviser'),
+                  ),
                   style: TextButton.styleFrom(foregroundColor: _brandPrimary),
                 ),
             ],

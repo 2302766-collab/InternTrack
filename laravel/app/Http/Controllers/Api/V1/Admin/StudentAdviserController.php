@@ -11,34 +11,26 @@ use Illuminate\Validation\Rule;
 
 class StudentAdviserController extends Controller
 {
-    /**
-     * Assign or update adviser for a student's internship profile
-     */
-    public function assignAdviser(Request $request, int $studentId)
+    private function findStudent(int $studentId): ?User
     {
-        // Get the student
         $student = User::find($studentId);
 
         if (!$student) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Student not found.',
-                'data' => null,
-            ], 404);
+            return null;
         }
 
-        // Get the student role to verify this is actually a student
-        $studentRole = Role::where('name', 'Student')->first();
-        if (!$student->role_id || $student->role_id !== $studentRole?->id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This user is not a student.',
-                'data' => null,
-            ], 400);
+        $studentRoleId = Role::query()->where('name', 'Student')->value('id');
+
+        if (!$student->role_id || $student->role_id !== $studentRoleId) {
+            return null;
         }
 
-        // Get or create internship profile
-        $profile = InternshipProfile::firstOrCreate(
+        return $student;
+    }
+
+    private function ensureStudentProfile(int $studentId): InternshipProfile
+    {
+        return InternshipProfile::firstOrCreate(
             ['student_id' => $studentId],
             [
                 'student_id' => $studentId,
@@ -51,6 +43,23 @@ class StudentAdviserController extends Controller
                 'end_date' => null,
             ]
         );
+    }
+
+    /**
+     * Assign or update adviser for a student's internship profile
+     */
+    public function assignAdviser(Request $request, int $studentId)
+    {
+        $student = $this->findStudent($studentId);
+
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student not found.',
+                'data' => null,
+            ], 404);
+        }
+        $profile = $this->ensureStudentProfile($studentId);
 
         // Validate request
         $validated = $request->validate([
@@ -104,6 +113,68 @@ class StudentAdviserController extends Controller
         ], 200);
     }
 
+    public function assignSupervisor(Request $request, int $studentId)
+    {
+        $student = $this->findStudent($studentId);
+
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student not found.',
+                'data' => null,
+            ], 404);
+        }
+
+        $profile = $this->ensureStudentProfile($studentId);
+
+        $validated = $request->validate([
+            'supervisor_id' => ['nullable', 'integer', 'exists:users,id'],
+        ]);
+
+        $supervisorId = $validated['supervisor_id'] ?? null;
+
+        if ($supervisorId !== null) {
+            $supervisor = User::find($supervisorId);
+
+            if (!$supervisor) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Supervisor not found.',
+                    'data' => null,
+                ], 404);
+            }
+
+            $supervisorRole = Role::where('name', 'Supervisor')->first();
+            if (!$supervisor->role_id || $supervisor->role_id !== $supervisorRole?->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected user is not a supervisor.',
+                    'data' => null,
+                ], 400);
+            }
+        }
+
+        $profile->update([
+            'supervisor_id' => $supervisorId,
+        ]);
+
+        $supervisor = $profile->fresh()->supervisor;
+
+        return response()->json([
+            'success' => true,
+            'message' => $supervisorId === null
+                ? 'Supervisor assignment removed successfully.'
+                : 'Supervisor assigned successfully.',
+            'data' => [
+                'student_id' => $student->id,
+                'student_name' => $student->name,
+                'supervisor_id' => $supervisor?->id,
+                'supervisor_name' => $supervisor?->name,
+                'assigned_at' => now()->toIso8601String(),
+            ],
+        ], 200);
+    }
+
     /**
      * Get all advisers
      */
@@ -134,6 +205,36 @@ class StudentAdviserController extends Controller
             'success' => true,
             'message' => 'Advisers retrieved successfully.',
             'data' => $advisers,
+        ], 200);
+    }
+
+    public function getSupervisors()
+    {
+        $supervisorRole = Role::where('name', 'Supervisor')->first();
+
+        if (!$supervisorRole) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Supervisors retrieved successfully.',
+                'data' => [],
+            ], 200);
+        }
+
+        $supervisors = User::query()
+            ->where('role_id', $supervisorRole->id)
+            ->select('id', 'name', 'email')
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($supervisor) => [
+                'id' => $supervisor->id,
+                'name' => $supervisor->name,
+                'email' => $supervisor->email,
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Supervisors retrieved successfully.',
+            'data' => $supervisors,
         ], 200);
     }
 
@@ -177,6 +278,47 @@ class StudentAdviserController extends Controller
                 'student_name' => $student->name,
                 'adviser_id' => $adviser?->id,
                 'adviser_name' => $adviser?->name,
+            ],
+        ], 200);
+    }
+
+    public function getStudentSupervisor(int $studentId)
+    {
+        $student = User::find($studentId);
+
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student not found.',
+                'data' => null,
+            ], 404);
+        }
+
+        $profile = InternshipProfile::where('student_id', $studentId)->first();
+
+        if (!$profile) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Student has no internship profile.',
+                'data' => [
+                    'student_id' => $student->id,
+                    'student_name' => $student->name,
+                    'supervisor_id' => null,
+                    'supervisor_name' => null,
+                ],
+            ], 200);
+        }
+
+        $supervisor = $profile->supervisor;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Student supervisor info retrieved successfully.',
+            'data' => [
+                'student_id' => $student->id,
+                'student_name' => $student->name,
+                'supervisor_id' => $supervisor?->id,
+                'supervisor_name' => $supervisor?->name,
             ],
         ], 200);
     }
