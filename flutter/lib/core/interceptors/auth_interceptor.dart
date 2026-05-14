@@ -11,11 +11,20 @@ class AuthInterceptor extends QueuedInterceptor {
 
   AuthInterceptor(this._tokenService);
 
+  bool _shouldAttachToken(RequestOptions options) {
+    final path = options.path;
+    return !path.startsWith('/auth/login') && !path.startsWith('/auth/register');
+  }
+
   @override
   Future<void> onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
+    if (!_shouldAttachToken(options)) {
+      return handler.next(options);
+    }
+
     // Get current token from secure storage
     final token = await _tokenService.getToken();
 

@@ -17,25 +17,17 @@ void main() {
       final passwordField = find.byType(TextFormField).at(1);
       final submitButton = find.byType(ElevatedButton);
 
-      debugPrint('Initial state - checking submit button');
       expect(tester.widget<ElevatedButton>(submitButton).onPressed, isNull);
-
-      debugPrint('Entering valid email and password');
       await tester.enterText(emailField, 'test@example.com');
       await tester.enterText(passwordField, 'password123');
       await tester.pumpAndSettle();
 
-      debugPrint('Checking if submit button is now enabled');
       expect(tester.widget<ElevatedButton>(submitButton).onPressed, isNotNull);
 
-      debugPrint('Clearing email to test validation');
       await tester.enterText(emailField, '');
       await tester.pumpAndSettle();
 
-      debugPrint('Submit button should be disabled again');
       expect(tester.widget<ElevatedButton>(submitButton).onPressed, isNull);
-
-      debugPrint('Test completed successfully');
     });
   });
 }

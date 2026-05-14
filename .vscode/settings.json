@@ -6,9 +6,13 @@
     "dart.flutterSdkPath": "/home/valhelsing/interntracking/flutter-sdk",
 >>>>>>> 6fbbe9d (Login issue)
     "dart.analysisExcludedFolders": [
-        "flutter/flutter"
+        "/home/valhelsing/interntracking/flutter-sdk"
     ],
+    "dart.projectSearchDepth": 3,
     "files.watcherExclude": {
-        "flutter/flutter/**": true
+        "**/flutter-sdk/**": true
+    },
+    "search.exclude": {
+        "**/flutter-sdk/**": true
     }
 }

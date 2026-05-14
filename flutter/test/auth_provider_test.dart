@@ -23,6 +23,16 @@ void main() {
       expect(tokenService.cleared, isFalse);
     });
 
+    test('resets debug browser session before bootstrap', () async {
+      final tokenService = _FakeTokenService('stored-token', _student);
+      final authService = _FakeAuthService(user: _student);
+      final provider = AuthProvider(tokenService, authService: authService);
+
+      await provider.initialize();
+
+      expect(tokenService.resetDebugSessionCalled, isTrue);
+    });
+
     test(
       'keeps cached user session when bootstrap sync fails due to network error',
       () async {
@@ -137,6 +147,7 @@ class _FakeTokenService extends TokenService {
   String? storedToken;
   AppUser? storedUser;
   bool cleared = false;
+  bool resetDebugSessionCalled = false;
 
   @override
   Future<void> saveToken(String token) async {
@@ -176,6 +187,11 @@ class _FakeTokenService extends TokenService {
     storedToken = null;
     storedUser = null;
     cleared = true;
+  }
+
+  @override
+  Future<void> resetDebugBrowserSession() async {
+    resetDebugSessionCalled = true;
   }
 }
 

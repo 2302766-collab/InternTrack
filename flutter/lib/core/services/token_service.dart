@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 
@@ -19,6 +20,20 @@ class TokenService {
   static bool _hasLoadedUser = false;
 
   final FlutterSecureStorage _storage;
+
+  Future<void> resetDebugBrowserSession() async {
+    if (!kDebugMode || !browser_storage.usesBrowserStorage) {
+      return;
+    }
+
+    _cachedToken = null;
+    _cachedUser = null;
+    _hasLoadedToken = false;
+    _hasLoadedUser = false;
+
+    await browser_storage.clearPersistedValue(_tokenKey);
+    await browser_storage.clearPersistedValue(_userKey);
+  }
 
   Future<void> saveToken(String token) async {
     _cachedToken = token;
