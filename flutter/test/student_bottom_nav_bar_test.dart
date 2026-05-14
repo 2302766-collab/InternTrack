@@ -52,7 +52,7 @@ void main() {
               routeBuildCounts: <String, int>{},
             ),
           );
-          await tester.pumpAndSettle();
+          await _pumpNavigationFrame(tester);
 
           expect(find.byType(StudentBottomNavBar), findsOneWidget);
 
@@ -64,6 +64,8 @@ void main() {
             entry.value,
             reason: 'Expected ${entry.key} to highlight tab ${entry.value}',
           );
+
+          await _disposeRenderedTree(tester);
         }
       },
     );
@@ -79,7 +81,7 @@ void main() {
           routeBuildCounts: routeBuildCounts,
         ),
       );
-      await tester.pumpAndSettle();
+      await _pumpNavigationFrame(tester);
 
       expect(routeBuildCounts[AppRoutes.studentDashboard], 1);
 
@@ -102,6 +104,8 @@ void main() {
       await _tapNavDestination(tester, AppRoutes.studentDashboard);
       expect(routeBuildCounts[AppRoutes.studentDashboard], 2);
       expect(_currentNavIndex(tester), 0);
+
+      await _disposeRenderedTree(tester);
     });
 
     testWidgets('tapping the current tab does not duplicate the route', (
@@ -117,7 +121,7 @@ void main() {
           routeBuildCounts: routeBuildCounts,
         ),
       );
-      await tester.pumpAndSettle();
+      await _pumpNavigationFrame(tester);
 
       expect(routeBuildCounts[AppRoutes.logbook], 1);
       expect(_currentNavIndex(tester), 1);
@@ -126,13 +130,25 @@ void main() {
 
       expect(routeBuildCounts[AppRoutes.logbook], 1);
       expect(_currentNavIndex(tester), 1);
+
+      await _disposeRenderedTree(tester);
     });
   });
 }
 
 Future<void> _tapNavDestination(WidgetTester tester, String route) async {
   await tester.tap(find.byKey(ValueKey<String>('student-nav-$route')));
-  await tester.pumpAndSettle();
+  await _pumpNavigationFrame(tester);
+}
+
+Future<void> _pumpNavigationFrame(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 350));
+}
+
+Future<void> _disposeRenderedTree(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
 }
 
 int _currentNavIndex(WidgetTester tester) {

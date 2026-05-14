@@ -31,14 +31,9 @@ void main() {
       _buildApp(authProvider: authProvider, apiClient: apiClient),
     );
 
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
 
     expect(find.text('Monitoring Pulse'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Reports Awaiting Review'),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
     expect(find.text('Reports Awaiting Review'), findsOneWidget);
     expect(find.text('Upcoming Deadlines'), findsOneWidget);
     expect(find.text('Recent Activity'), findsOneWidget);
@@ -49,6 +44,8 @@ void main() {
     expect(find.text('Mia Cummerata'), findsWidgets);
     expect(find.text('Completed'), findsWidgets);
     expect(find.text('Send Reminder'), findsWidgets);
+
+    await _disposeRenderedTree(tester);
   });
 
   testWidgets('adviser dashboard search updates visible count', (
@@ -65,15 +62,29 @@ void main() {
       _buildApp(authProvider: authProvider, apiClient: apiClient),
     );
 
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
 
     expect(find.text('Showing 3 of 3 interns'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField).first, 'Northstar');
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Showing 2 of 3 interns'), findsOneWidget);
+
+    await _disposeRenderedTree(tester);
   });
+}
+
+Future<void> _pumpDashboardReady(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 200));
+  await tester.pump(const Duration(milliseconds: 200));
+}
+
+Future<void> _disposeRenderedTree(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
 }
 
 Future<AuthProvider> _buildAuthProvider() async {

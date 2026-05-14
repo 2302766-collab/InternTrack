@@ -54,7 +54,9 @@ void main() {
     expect(find.text('Next Action'), findsNothing);
 
     profileCompleter.complete(_sampleProfile());
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
+
+    await _disposeRenderedTree(tester);
   });
 
   testWidgets('refresh keeps existing content visible and shows refreshing status', (
@@ -91,7 +93,7 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
 
     expect(find.text('Completed daily development tasks.'), findsOneWidget);
     expect(find.text('Last updated: 9:30 AM'), findsOneWidget);
@@ -108,10 +110,12 @@ void main() {
       _sampleLogs(taskDescription: 'Refreshed activity log.'),
     );
 
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
 
     expect(find.text('Refreshing student dashboard...'), findsNothing);
     expect(find.text('Refreshed activity log.'), findsOneWidget);
+
+    await _disposeRenderedTree(tester);
   });
 
   testWidgets('successful refresh updates the last updated timestamp', (
@@ -145,15 +149,17 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
     expect(find.text('Last updated: 9:35 AM'), findsOneWidget);
 
     clock.current = DateTime(2026, 5, 10, 14, 35);
     await _triggerRefresh(tester);
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
 
     expect(find.text('Last updated: 2:35 PM'), findsOneWidget);
     expect(find.text('Updated after refresh.'), findsOneWidget);
+
+    await _disposeRenderedTree(tester);
   });
 
   testWidgets('partial refresh failure preserves previous report data and shows inline error', (
@@ -193,18 +199,20 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
 
     expect(find.text('Approved Hours: 15 / 486 hours'), findsOneWidget);
 
     clock.current = DateTime(2026, 5, 10, 11, 0);
     await _triggerRefresh(tester);
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
 
     expect(find.text('Approved Hours: 15 / 486 hours'), findsOneWidget);
     expect(find.text('Report refresh failed.'), findsOneWidget);
     expect(find.text('Logs refreshed successfully.'), findsOneWidget);
     expect(find.text('Last updated: 11:00 AM'), findsOneWidget);
+
+    await _disposeRenderedTree(tester);
   });
 
   testWidgets('complete refresh failure preserves data and last updated time', (
@@ -253,19 +261,21 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
     expect(find.text('Last updated: 9:00 AM'), findsOneWidget);
     expect(find.text('Completed daily development tasks.'), findsOneWidget);
 
     clock.current = DateTime(2026, 5, 10, 16, 0);
     await _triggerRefresh(tester);
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
 
     expect(find.text('Last updated: 9:00 AM'), findsOneWidget);
     expect(find.text('Completed daily development tasks.'), findsOneWidget);
     expect(find.text('Profile refresh failed.'), findsOneWidget);
     expect(find.text('Report refresh failed.'), findsOneWidget);
     expect(find.text('Logs refresh failed.'), findsOneWidget);
+
+    await _disposeRenderedTree(tester);
   });
 
   testWidgets('last updated appears only after first successful load completes', (
@@ -297,9 +307,11 @@ void main() {
     expect(find.textContaining('Last updated'), findsNothing);
 
     profileCompleter.complete(_sampleProfile());
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
 
     expect(find.text('Last updated: 7:15 AM'), findsOneWidget);
+
+    await _disposeRenderedTree(tester);
   });
 
   testWidgets('section without cached data shows skeleton while retry refresh is in progress', (
@@ -339,7 +351,7 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
 
     expect(find.text('Logs refresh failed.'), findsOneWidget);
     expect(find.text('Next Action'), findsOneWidget);
@@ -352,10 +364,12 @@ void main() {
     logsCompleter.complete(
       _sampleLogs(taskDescription: 'Logs loaded after retry.'),
     );
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
 
     expect(find.text('Logs refresh failed.'), findsNothing);
     expect(find.text('Logs loaded after retry.'), findsOneWidget);
+
+    await _disposeRenderedTree(tester);
   });
 
   testWidgets('student dashboard still highlights missing today log and recent activity', (
@@ -397,7 +411,7 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
 
     expect(find.text('Next Action'), findsOneWidget);
     expect(find.text('Add today\'s log entry'), findsOneWidget);
@@ -415,6 +429,8 @@ void main() {
         .getTopLeft(find.text('Fixed UI issues and tested forms.'))
         .dy;
     expect(newerLogY, lessThan(olderLogY));
+
+    await _disposeRenderedTree(tester);
   });
 
   testWidgets(
@@ -431,7 +447,7 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await _pumpDashboardReady(tester);
 
       expect(find.text('Complete your internship profile'), findsOneWidget);
       expect(find.text('Complete Internship Profile'), findsOneWidget);
@@ -439,6 +455,8 @@ void main() {
         find.textContaining('No internship profile is active yet'),
         findsOneWidget,
       );
+
+      await _disposeRenderedTree(tester);
     },
   );
 
@@ -460,9 +478,11 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
 
     completer.complete(_sampleProfile());
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
 
     expect(find.text('Next Action'), findsOneWidget);
+
+    await _disposeRenderedTree(tester);
   });
 
   testWidgets('student dashboard shows specific timeout error with retry', (
@@ -484,11 +504,13 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
 
     expect(find.text('Unable to load student dashboard'), findsOneWidget);
     expect(find.text('Network timeout. Please try again.'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
+
+    await _disposeRenderedTree(tester);
   });
 
   testWidgets('student dashboard retry button reloads data after failure', (
@@ -519,7 +541,7 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
 
     expect(
       find.text('Server unavailable. Please try again later.'),
@@ -533,10 +555,12 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
 
     retryCompleter.complete(_sampleProfile());
-    await tester.pumpAndSettle();
+    await _pumpDashboardReady(tester);
 
     expect(find.text('Next Action'), findsOneWidget);
     expect(callCount, equals(2));
+
+    await _disposeRenderedTree(tester);
   });
 }
 
@@ -544,6 +568,17 @@ Future<void> _triggerRefresh(WidgetTester tester) async {
   await tester.drag(find.byType(ListView).first, const Offset(0, 320));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 600));
+}
+
+Future<void> _pumpDashboardReady(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 200));
+  await tester.pump(const Duration(milliseconds: 200));
+}
+
+Future<void> _disposeRenderedTree(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
 }
 
 Future<AuthProvider> _buildAuthProvider() async {
