@@ -4,15 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_routes.dart';
+import '../../../../core/services/api_client.dart';
 import '../../../../core/services/admin_dashboard_service.dart';
 import '../../../../core/services/admin_student_service.dart';
+import '../../../../core/services/intern_reporting_service.dart';
 import '../../../../core/utils/file_picker_helper_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
     as file_picker;
+import '../../../../core/utils/file_download_stub.dart'
+    if (dart.library.html) '../../../../core/utils/file_download_web.dart'
+    as file_download;
 import '../../../../shared/models/admin_dashboard_summary.dart';
 import '../../../../shared/models/admin_student_summary.dart';
 import '../../../../shared/models/admin_students_page.dart';
 import '../../../../shared/models/app_user.dart';
+import '../../../../shared/widgets/dtr_export_dialog.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
@@ -44,9 +50,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   late final AdminStudentService _studentService;
   late final AdminDashboardService _dashboardService;
+  late final InternReportingService _reportingService;
 
   final List<AdminStudentSummary> _students = <AdminStudentSummary>[];
   final GlobalKey _profileMenuAnchorKey = GlobalKey();
+  final Set<int> _exportingStudentIds = <int>{};
 
   bool _isInitialLoading = true;
   bool _isPageLoading = false;
@@ -56,12 +64,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _totalStudents = 0;
   String _selectedFilter = _filterAll;
   AdminDashboardSummary? _dashboardSummary;
+  late DateTime _exportStartDate;
+  late DateTime _exportEndDate;
 
   @override
   void initState() {
     super.initState();
     _studentService = context.read<AdminStudentService>();
     _dashboardService = context.read<AdminDashboardService>();
+    _reportingService = InternReportingService(context.read<ApiClient>());
+    final now = DateTime.now();
+    _exportStartDate = DateTime(now.year, now.month, 1);
+    _exportEndDate = DateTime(now.year, now.month + 1, 0);
   }
 
   @override
@@ -167,6 +181,78 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       AppRoutes.login,
       (route) => false,
     );
+  }
+
+  Future<void> _exportStudentDtr(AdminStudentSummary student) async {
+    final selection = await showDtrExportDialog(
+      context,
+      initialStartDate: _exportStartDate,
+      initialEndDate: _exportEndDate,
+      title: 'Export ${student.name} DTR',
+      description:
+          'Download a PDF or Excel copy of this student\'s daily time record for the selected date range.',
+    );
+
+    if (selection == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _exportStartDate = selection.startDate;
+      _exportEndDate = selection.endDate;
+      _exportingStudentIds.add(student.studentId);
+    });
+
+    try {
+      final file = await _reportingService.exportDtr(
+        role: 'admin',
+        studentId: student.studentId,
+        startDate: selection.startDate,
+        endDate: selection.endDate,
+        pdf: selection.pdf,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      final downloaded = await file_download.downloadBytes(
+        bytes: file.bytes,
+        filename: file.filename,
+        mimeType: file.mimeType,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            downloaded
+                ? 'DTR export downloaded successfully.'
+                : 'Export is ready, but direct download is only available on web in this build.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: const Color(0xFFB42318),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _exportingStudentIds.remove(student.studentId);
+        });
+      }
+    }
   }
 
   Future<void> _pickProfilePhoto() async {
@@ -1267,6 +1353,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _buildStudentCard(AdminStudentSummary student) {
     final progress = (student.completionPercentage / 100).clamp(0.0, 1.0);
+    final isExporting = _exportingStudentIds.contains(student.studentId);
     final issues = <Widget>[
       if (!student.hasInternshipProfile)
         _buildStatusBadge(
@@ -1379,6 +1466,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 icon: Icons.schedule_rounded,
                 label: 'Approved Hours',
                 value: '${student.approvedHours} / ${student.requiredHours}',
+              ),
+              OutlinedButton.icon(
+                onPressed: isExporting
+                    ? null
+                    : () => _exportStudentDtr(student),
+                icon: isExporting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.file_download_outlined),
+                label: Text(isExporting ? 'Exporting...' : 'Export DTR'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _brandPrimary,
+                  side: const BorderSide(color: Color(0xFFC5D4EA)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
               ),
             ],
           ),
