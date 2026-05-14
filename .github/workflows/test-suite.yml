@@ -68,6 +68,7 @@ jobs:
   flutter-tests:
     name: Flutter Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     defaults:
       run:
@@ -85,9 +86,30 @@ jobs:
       - name: Install Flutter dependencies
         run: flutter pub get
 
-      - name: Run widget tests (temporary stable set)
+      - name: Run widget tests with per-file timing
         run: |
-          flutter test $(find test -name "*_test.dart" \
-            ! -name "login_form_validation_test.dart" \
-            ! -name "login_validation_direct_test.dart" \
-            ! -name "simple_validation_test.dart")
+          set -euo pipefail
+
+          mapfile -t test_files < <(
+            find test -name "*_test.dart" \
+              ! -name "login_form_validation_test.dart" \
+              ! -name "login_validation_direct_test.dart" \
+              ! -name "simple_validation_test.dart" \
+              | sort
+          )
+
+          suite_started_at=$(date +%s)
+
+          for file in "${test_files[@]}"; do
+            echo "::group::flutter test ${file}"
+            file_started_at=$(date +%s)
+
+            timeout 8m flutter test --reporter expanded "$file"
+
+            file_finished_at=$(date +%s)
+            echo "Completed ${file} in $((file_finished_at - file_started_at))s"
+            echo "::endgroup::"
+          done
+
+          suite_finished_at=$(date +%s)
+          echo "Completed Flutter test suite in $((suite_finished_at - suite_started_at))s"
