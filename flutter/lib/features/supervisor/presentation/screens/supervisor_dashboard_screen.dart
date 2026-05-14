@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -6,6 +8,10 @@ import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/supervisor_dashboard_service.dart';
 import '../../../../core/services/supervisor_log_service.dart';
+import '../../../../core/utils/file_picker_helper_stub.dart'
+    if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
+    as file_picker;
+import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/supervisor_dashboard_summary.dart';
 import '../../../../shared/models/supervisor_log_item.dart';
 import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
@@ -50,6 +56,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
   List<SupervisorLogItem> _pendingLogs = <SupervisorLogItem>[];
   SupervisorDashboardSummary? _dashboardSummary;
+  final GlobalKey _profileMenuAnchorKey = GlobalKey();
 
   final Map<_SupervisorDashboardSection, bool> _sectionLoading =
       <_SupervisorDashboardSection, bool>{
@@ -353,6 +360,423 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         .toUpperCase();
   }
 
+  ImageProvider<Object>? _avatarImageProviderFor(String? avatarBase64) {
+    if (avatarBase64 == null || avatarBase64.isEmpty) {
+      return null;
+    }
+
+    try {
+      return MemoryImage(base64Decode(avatarBase64));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Widget _buildAvatar({
+    required AppUser? user,
+    required double radius,
+    double fontSize = 16,
+  }) {
+    final imageProvider = _avatarImageProviderFor(user?.avatarBase64);
+    final name = user?.name.isNotEmpty == true ? user!.name : widget.userName;
+
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: const Color(0xFF06C167),
+      backgroundImage: imageProvider,
+      child: imageProvider == null
+          ? Text(
+              _initialsFor(name),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: fontSize,
+                fontWeight: FontWeight.w700,
+              ),
+            )
+          : null,
+    );
+  }
+
+  Future<void> _pickProfilePhoto() async {
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final file = await file_picker.pickSingleFile(
+        allowedExtensions: const <String>['jpg', 'jpeg', 'png'],
+      );
+      if (file == null) {
+        return;
+      }
+
+      await authProvider.updateAvatarBytes(file.bytes);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to update profile photo right now.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _removeProfilePhoto() async {
+    await context.read<AuthProvider>().updateAvatarBase64(null);
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Profile photo removed.')));
+  }
+
+  Future<void> _openProfilePanel() async {
+    final anchorContext = _profileMenuAnchorKey.currentContext;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final anchorBox = anchorContext?.findRenderObject() as RenderBox?;
+    final anchorOffset = anchorBox?.localToGlobal(
+      Offset.zero,
+      ancestor: overlay,
+    );
+    final anchorSize = anchorBox?.size ?? const Size(280, 64);
+
+    await showGeneralDialog<void>(
+      context: context,
+      barrierLabel: 'Supervisor profile',
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.18),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        final authProvider = dialogContext.watch<AuthProvider>();
+        final user = authProvider.user;
+
+        return SafeArea(
+          child: Stack(
+            children: [
+              Positioned(
+                top: (anchorOffset?.dy ?? 86) + anchorSize.height + 10,
+                left: (() {
+                  final desiredLeft =
+                      (anchorOffset?.dx ?? (overlay.size.width - 344)) -
+                      (344 - anchorSize.width);
+                  final maxLeft = overlay.size.width > 376
+                      ? overlay.size.width - 360.0
+                      : 16.0;
+                  return desiredLeft.clamp(16.0, maxLeft);
+                })(),
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    width: 344,
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: const Color(0xFFD8E2EC)),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x260F172A),
+                          blurRadius: 34,
+                          offset: Offset(0, 18),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Stack(
+                              children: [
+                                _buildAvatar(
+                                  user: user,
+                                  radius: 30,
+                                  fontSize: 20,
+                                ),
+                                Positioned(
+                                  right: -2,
+                                  bottom: -2,
+                                  child: Material(
+                                    color: const Color(0xFF0F766E),
+                                    shape: const CircleBorder(),
+                                    child: InkWell(
+                                      customBorder: const CircleBorder(),
+                                      onTap: () async {
+                                        Navigator.of(dialogContext).pop();
+                                        await _pickProfilePhoto();
+                                      },
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(6),
+                                        child: Icon(
+                                          Icons.camera_alt_rounded,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    user?.name.isNotEmpty == true
+                                        ? user!.name
+                                        : widget.userName,
+                                    style: const TextStyle(
+                                      fontSize: 21,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF0F254A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    user?.email.isNotEmpty == true
+                                        ? user!.email
+                                        : 'No email available',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Color(0xFF5E718D),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _buildMiniTag(
+                                    label:
+                                        (user?.role.isNotEmpty == true
+                                                ? user!.role
+                                                : 'Supervisor')
+                                            .toUpperCase(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        _buildProfileActionTile(
+                          icon: Icons.edit_outlined,
+                          title: 'Change profile photo',
+                          subtitle:
+                              'Upload a JPG or PNG image for this supervisor.',
+                          onTap: () async {
+                            Navigator.of(dialogContext).pop();
+                            await _pickProfilePhoto();
+                          },
+                        ),
+                        if ((user?.avatarBase64 ?? '').isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          _buildProfileActionTile(
+                            icon: Icons.hide_image_outlined,
+                            title: 'Remove profile photo',
+                            subtitle:
+                                'Switch back to the generated initials avatar.',
+                            onTap: () async {
+                              Navigator.of(dialogContext).pop();
+                              await _removeProfilePhoto();
+                            },
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        _buildProfileInfoCard(user),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              Navigator.of(dialogContext).pop();
+                              await _logout();
+                            },
+                            icon: const Icon(Icons.logout_rounded),
+                            label: const Text('Log out'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFB42318),
+                              side: const BorderSide(color: Color(0xFFF0C4C0)),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMiniTag({required String label}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF2FF),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: Color(0xFF123C73),
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileActionTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: const Color(0xFFF7F9FC),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: const Color(0xFF123C73)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F254A),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xFF5E718D),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileInfoCard(AppUser? user) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFD8E2EC)),
+      ),
+      child: Column(
+        children: [
+          _buildInfoRow(
+            icon: Icons.badge_outlined,
+            label: 'Supervisor',
+            value: user?.name.isNotEmpty == true ? user!.name : widget.userName,
+          ),
+          const SizedBox(height: 10),
+          _buildInfoRow(
+            icon: Icons.alternate_email_rounded,
+            label: 'Email',
+            value: user?.email.isNotEmpty == true
+                ? user!.email
+                : 'Not available',
+          ),
+          const SizedBox(height: 10),
+          _buildInfoRow(
+            icon: Icons.verified_user_outlined,
+            label: 'Role',
+            value: user?.role.isNotEmpty == true ? user!.role : 'Supervisor',
+          ),
+          const SizedBox(height: 10),
+          _buildInfoRow(
+            icon: Icons.fingerprint_rounded,
+            label: 'Account ID',
+            value: user != null ? '#${user.id}' : 'Unavailable',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, size: 18, color: const Color(0xFF123C73)),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF5E718D),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F254A),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   String _formatDate(String raw) {
     final parsed = DateTime.tryParse(raw);
     if (parsed == null) return raw;
@@ -500,39 +924,67 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             NotificationBellButton(token: authProvider.token ?? ''),
             const SizedBox(width: 8),
             Expanded(
-              child: Column(
-                crossAxisAlignment: isCompact
-                    ? CrossAxisAlignment.start
-                    : CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    widget.userName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  key: _profileMenuAnchorKey,
+                  onTap: _openProfilePanel,
+                  borderRadius: BorderRadius.circular(22),
+                  child: Ink(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: const Color(0xFFD8E2EC)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: isCompact
+                                ? CrossAxisAlignment.start
+                                : CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                authProvider.user?.name.isNotEmpty == true
+                                    ? authProvider.user!.name
+                                    : widget.userName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                authProvider.user?.role.isNotEmpty == true
+                                    ? authProvider.user!.role
+                                    : 'Company Supervisor',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: secondaryTextColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        _buildAvatar(
+                          user: authProvider.user,
+                          radius: 26,
+                          fontSize: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.keyboard_arrow_down_rounded),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Company Supervisor',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13, color: secondaryTextColor),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 14),
-            CircleAvatar(
-              radius: 26,
-              backgroundColor: const Color(0xFF06C167),
-              child: Text(
-                _initialsFor(authProvider.user?.name ?? widget.userName),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -583,18 +1035,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               ? Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        IconButton(
-                          onPressed: _logout,
-                          icon: const Icon(Icons.arrow_back),
-                          tooltip: 'Logout',
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(child: titleBlock),
-                      ],
-                    ),
+                    titleBlock,
                     const SizedBox(height: 16),
                     ConstrainedBox(
                       constraints: BoxConstraints(maxWidth: profileMaxWidth),
@@ -605,12 +1046,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               : Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      onPressed: _logout,
-                      icon: const Icon(Icons.arrow_back),
-                      tooltip: 'Logout',
-                    ),
-                    const SizedBox(width: 12),
                     Expanded(child: titleBlock),
                     const SizedBox(width: 12),
                     ConstrainedBox(
