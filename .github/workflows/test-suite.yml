@@ -98,13 +98,17 @@ jobs:
               | sort
           )
 
+          failures=0
           suite_started_at=$(date +%s)
 
           for file in "${test_files[@]}"; do
             echo "::group::flutter test ${file}"
             file_started_at=$(date +%s)
 
-            timeout 8m flutter test --reporter expanded "$file"
+            if ! timeout 8m flutter test --reporter expanded --timeout 2m "$file"; then
+              echo "Test file ${file} failed or timed out"
+              failures=$((failures + 1))
+            fi
 
             file_finished_at=$(date +%s)
             echo "Completed ${file} in $((file_finished_at - file_started_at))s"
@@ -113,3 +117,8 @@ jobs:
 
           suite_finished_at=$(date +%s)
           echo "Completed Flutter test suite in $((suite_finished_at - suite_started_at))s"
+
+          if [ "$failures" -gt 0 ]; then
+            echo "${failures} test file(s) failed"
+            exit 1
+          fi
