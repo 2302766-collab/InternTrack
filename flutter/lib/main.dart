@@ -9,6 +9,7 @@ import 'core/retry/retry_interceptor.dart';
 import 'core/retry/retry_policy.dart';
 import 'core/services/admin_dashboard_service.dart';
 import 'core/services/admin_student_service.dart';
+import 'core/services/admin_user_management_service.dart';
 import 'core/services/adviser_management_service.dart';
 import 'core/services/api_client.dart';
 import 'core/services/auth_service.dart';
@@ -134,6 +135,10 @@ class InternTrackApp extends StatelessWidget {
         ProxyProvider<ApiClient, AdminDashboardService>(
           update: (context, apiClient, previous) =>
               AdminDashboardService(apiClient),
+        ),
+        ProxyProvider<ApiClient, AdminUserManagementService>(
+          update: (context, apiClient, previous) =>
+              AdminUserManagementService(apiClient),
         ),
         ProxyProvider<ApiClient, AdviserManagementService>(
           update: (context, apiClient, previous) =>

@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\AdminDashboardController;
 use App\Http\Controllers\Api\V1\DailyTimeRecordExportController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\Admin\UserManagementController;
 use App\Http\Controllers\Api\V1\Supervisor\SupervisorDashboardController;
 use App\Http\Controllers\Api\V1\Supervisor\SupervisorInternController;
 use App\Http\Controllers\Api\V1\Supervisor\SupervisorLogController;
@@ -109,6 +110,9 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::prefix('admin')->middleware(['auth:sanctum', 'role:Admin'])->group(function () {
+        Route::get('/users', [UserManagementController::class, 'index']);
+        Route::post('/users', [UserManagementController::class, 'store']);
+        Route::delete('/users/{id}', [UserManagementController::class, 'destroy']);
         Route::get('/students/{id}/dtr/export/pdf', [DailyTimeRecordExportController::class, 'adminPdf']);
         Route::get('/students/{id}/dtr/export/excel', [DailyTimeRecordExportController::class, 'adminExcel']);
         Route::patch('/students/{id}/assign-adviser', [StudentAdviserController::class, 'assignAdviser']);
