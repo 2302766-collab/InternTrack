@@ -16,11 +16,7 @@ class AdviserDashboardScreen extends StatefulWidget {
   final String userName;
   final DateTime Function()? clock;
 
-  const AdviserDashboardScreen({
-    super.key,
-    required this.userName,
-    this.clock,
-  });
+  const AdviserDashboardScreen({super.key, required this.userName, this.clock});
 
   @override
   State<AdviserDashboardScreen> createState() => _AdviserDashboardScreenState();
@@ -95,13 +91,10 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   }
 
   Future<void> _openIntern(InternListItem detail) async {
-    final token = context.read<AuthProvider>().token ?? '';
-
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => InternDetailScreen(
-          token: token,
           role: 'adviser',
           profileId: detail.id,
           initialIntern: detail,
@@ -115,7 +108,6 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   }
 
   Future<void> _openInternReports() async {
-    final token = context.read<AuthProvider>().token ?? '';
     if (_interns.length == 1) {
       await _openIntern(_interns.first);
       return;
@@ -124,7 +116,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => InternListScreen(token: token, role: 'adviser'),
+        builder: (_) => const InternListScreen(role: 'adviser'),
       ),
     );
 

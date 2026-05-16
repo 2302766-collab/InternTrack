@@ -3,22 +3,23 @@ import 'package:flutter/material.dart';
 import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/intern_reporting_service.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../shared/models/log_entry.dart';
 import '../../../../shared/models/student_report.dart';
 import '../../../../shared/utils/session_expired_handler.dart';
 import '../../../../shared/widgets/dashboard_info_card.dart';
 
 class InternReportScreen extends StatefulWidget {
-  final String token;
   final String role;
   final int studentId;
   final String studentName;
+  final InternReportingService? service;
 
   const InternReportScreen({
     super.key,
-    required this.token,
     required this.role,
     required this.studentId,
     required this.studentName,
+    this.service,
   });
 
   @override
@@ -26,15 +27,20 @@ class InternReportScreen extends StatefulWidget {
 }
 
 class _InternReportScreenState extends State<InternReportScreen> {
-  final InternReportingService _reportService = InternReportingService();
+  static const int _initialVisibleLogCount = 20;
+  static const int _visibleLogBatchSize = 20;
+
+  late final InternReportingService _reportService;
 
   Future<StudentReportData>? _reportFuture;
   DateTime? _startDate;
   DateTime? _endDate;
+  int _visibleLogCount = _initialVisibleLogCount;
 
   @override
   void initState() {
     super.initState();
+    _reportService = widget.service ?? InternReportingService();
     _loadReport();
   }
 
@@ -50,6 +56,7 @@ class _InternReportScreenState extends State<InternReportScreen> {
           if (error is ApiException &&
               (error.statusCode == 401 ||
                   error.errorType == ApiErrorType.unauthorized)) {
+            if (!mounted) throw error;
             await handleExpiredSession(context);
           }
 
@@ -57,6 +64,7 @@ class _InternReportScreenState extends State<InternReportScreen> {
         });
 
     setState(() {
+      _visibleLogCount = _initialVisibleLogCount;
       _reportFuture = future;
     });
   }
@@ -73,6 +81,7 @@ class _InternReportScreenState extends State<InternReportScreen> {
 
     setState(() {
       _startDate = picked;
+      _visibleLogCount = _initialVisibleLogCount;
       if (_endDate != null && picked.isAfter(_endDate!)) {
         _endDate = picked;
       }
@@ -91,6 +100,7 @@ class _InternReportScreenState extends State<InternReportScreen> {
 
     setState(() {
       _endDate = picked;
+      _visibleLogCount = _initialVisibleLogCount;
     });
   }
 
@@ -98,8 +108,26 @@ class _InternReportScreenState extends State<InternReportScreen> {
     setState(() {
       _startDate = null;
       _endDate = null;
+      _visibleLogCount = _initialVisibleLogCount;
     });
     _loadReport();
+  }
+
+  int _resolveVisibleLogCount(int totalLogs) {
+    if (totalLogs <= 0) return 0;
+    return _visibleLogCount.clamp(0, totalLogs);
+  }
+
+  void _showMoreLogs(int totalLogs) {
+    final nextVisibleCount = (_visibleLogCount + _visibleLogBatchSize).clamp(
+      0,
+      totalLogs,
+    );
+    if (nextVisibleCount == _visibleLogCount) return;
+
+    setState(() {
+      _visibleLogCount = nextVisibleCount;
+    });
   }
 
   String? _toApiDate(DateTime? value) {
@@ -116,9 +144,7 @@ class _InternReportScreenState extends State<InternReportScreen> {
         : 'Intern';
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('$roleTitle Report'),
-      ),
+      appBar: AppBar(title: Text('$roleTitle Report')),
       body: FutureBuilder<StudentReportData>(
         future: _reportFuture,
         builder: (context, snapshot) {
@@ -219,7 +245,9 @@ class _InternReportScreenState extends State<InternReportScreen> {
           children: [
             _InfoLine(
               label: 'Student',
-              value: report.student.name.isEmpty ? fallbackName : report.student.name,
+              value: report.student.name.isEmpty
+                  ? fallbackName
+                  : report.student.name,
             ),
             _InfoLine(
               label: 'Supervisor',
@@ -227,10 +255,7 @@ class _InternReportScreenState extends State<InternReportScreen> {
                   ? 'Not assigned yet'
                   : report.supervisor.name,
             ),
-            _InfoLine(
-              label: 'Range',
-              value: _dateRangeLabel(report.dateRange),
-            ),
+            _InfoLine(label: 'Range', value: _dateRangeLabel(report.dateRange)),
             const Divider(height: 24),
             _InfoLine(
               label: 'Approved Hours',
@@ -251,48 +276,11 @@ class _InternReportScreenState extends State<InternReportScreen> {
       const SizedBox(height: 16),
       DashboardInfoCard(
         title: 'Approved Logs',
-        child: report.logs.isEmpty
-            ? const Text('No approved logs found for the selected date range.')
-            : Column(
-                children: report.logs.map((log) {
-                  return Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFD8E2EC)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          DateFormatter.formatApiDate(log.date),
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(log.taskDescription),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 8,
-                          children: [
-                            _MetaChip(
-                              icon: Icons.schedule,
-                              label: '${log.hoursRendered} hrs',
-                            ),
-                            _MetaChip(
-                              icon: Icons.verified,
-                              label: log.status,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
+        child: _ApprovedLogsSection(
+          logs: report.logs,
+          visibleCount: _resolveVisibleLogCount(report.logs.length),
+          onShowMore: () => _showMoreLogs(report.logs.length),
+        ),
       ),
     ];
   }
@@ -308,10 +296,112 @@ class _InternReportScreenState extends State<InternReportScreen> {
     final startText = (start ?? '').isEmpty
         ? 'Beginning'
         : DateFormatter.formatApiDate(start!);
-    final endText =
-        (end ?? '').isEmpty ? 'Latest' : DateFormatter.formatApiDate(end!);
+    final endText = (end ?? '').isEmpty
+        ? 'Latest'
+        : DateFormatter.formatApiDate(end!);
 
     return '$startText to $endText';
+  }
+}
+
+class _ApprovedLogsSection extends StatelessWidget {
+  final List<LogEntryItem> logs;
+  final int visibleCount;
+  final VoidCallback onShowMore;
+
+  const _ApprovedLogsSection({
+    required this.logs,
+    required this.visibleCount,
+    required this.onShowMore,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (logs.isEmpty) {
+      return const Text('No approved logs found for the selected date range.');
+    }
+
+    final displayedLogs = logs.sublist(0, visibleCount);
+    final remainingCount = logs.length - visibleCount;
+    final hasMoreLogs = remainingCount > 0;
+    final summaryStyle = Theme.of(
+      context,
+    ).textTheme.bodySmall?.copyWith(color: const Color(0xFF526171));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              'Showing $visibleCount of ${logs.length} logs',
+              style: summaryStyle,
+            ),
+            if (hasMoreLogs)
+              Text('$remainingCount remaining', style: summaryStyle),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...displayedLogs.map(_ApprovedLogCard.new),
+        if (hasMoreLogs) ...[
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              onPressed: onShowMore,
+              icon: const Icon(Icons.expand_more),
+              label: const Text('Show More'),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ApprovedLogCard extends StatelessWidget {
+  final LogEntryItem log;
+
+  const _ApprovedLogCard(this.log);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFD8E2EC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            DateFormatter.formatApiDate(log.date),
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text(log.taskDescription),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              _MetaChip(
+                icon: Icons.schedule,
+                label: '${log.hoursRendered} hrs',
+              ),
+              _MetaChip(icon: Icons.verified, label: log.status),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -319,10 +409,7 @@ class _InfoLine extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoLine({
-    required this.label,
-    required this.value,
-  });
+  const _InfoLine({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -349,10 +436,7 @@ class _MetaChip extends StatelessWidget {
   final IconData icon;
   final String label;
 
-  const _MetaChip({
-    required this.icon,
-    required this.label,
-  });
+  const _MetaChip({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -378,10 +462,7 @@ class _ReportErrorState extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
 
-  const _ReportErrorState({
-    required this.message,
-    required this.onRetry,
-  });
+  const _ReportErrorState({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -390,10 +471,7 @@ class _ReportErrorState extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            message,
-            style: const TextStyle(color: Color(0xFFB42318)),
-          ),
+          Text(message, style: const TextStyle(color: Color(0xFFB42318))),
           const SizedBox(height: 12),
           FilledButton.icon(
             onPressed: onRetry,

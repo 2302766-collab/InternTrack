@@ -186,7 +186,6 @@ Future<void> _openReviewScreen(
                     context,
                     MaterialPageRoute(
                       builder: (_) => SupervisorLogDetailScreen(
-                        token: 'token',
                         logId: 1,
                         service: service,
                         readOnly: readOnly,
@@ -238,11 +237,7 @@ class _FakeSupervisorLogService extends SupervisorLogService {
     required this.log,
     this.loadError,
     this.approveCompleter,
-  }) : super(
-    ApiClient(
-      dio: Dio(),
-    ),
-  );
+  }) : super(ApiClient(dio: Dio()));
 
   SupervisorLogItem log;
   Exception? loadError;

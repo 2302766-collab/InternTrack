@@ -17,7 +17,6 @@ import '../../../../shared/models/supervisor_log_item.dart';
 enum _ActiveAction { approve, reject }
 
 class SupervisorLogDetailScreen extends StatefulWidget {
-  final String token;
   final int logId;
   final SupervisorLogService service;
   final SupervisorLogItem? initialLog;
@@ -27,7 +26,6 @@ class SupervisorLogDetailScreen extends StatefulWidget {
 
   const SupervisorLogDetailScreen({
     super.key,
-    required this.token,
     required this.logId,
     required this.service,
     this.initialLog,
@@ -298,9 +296,9 @@ class _SupervisorLogDetailScreenState extends State<SupervisorLogDetailScreen> {
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_readErrorMessage(e))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_readErrorMessage(e))));
     } finally {
       if (mounted) {
         setState(() {

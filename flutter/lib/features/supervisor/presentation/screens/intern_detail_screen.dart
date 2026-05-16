@@ -26,12 +26,10 @@ typedef RecentLogReviewScreenBuilder =
       BuildContext context,
       LogEntryItem log,
       SupervisorLogService service,
-      String token,
       InternDetailItem intern,
     );
 
 class InternDetailScreen extends StatefulWidget {
-  final String token;
   final String role;
   final int profileId;
   final InternListItem? initialIntern;
@@ -41,7 +39,6 @@ class InternDetailScreen extends StatefulWidget {
 
   const InternDetailScreen({
     super.key,
-    required this.token,
     required this.role,
     required this.profileId,
     this.initialIntern,
@@ -150,7 +147,6 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => InternReportScreen(
-          token: widget.token,
           role: widget.role,
           studentId: intern.studentId,
           studentName: intern.studentName,
@@ -166,13 +162,8 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
     final updated = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) => reviewScreenBuilder(
-          context,
-          log,
-          _logService,
-          widget.token,
-          intern,
-        ),
+        builder: (context) =>
+            reviewScreenBuilder(context, log, _logService, intern),
       ),
     );
 
@@ -242,9 +233,9 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -272,9 +263,9 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
       context,
       initialStartDate: _exportStartDate,
       initialEndDate: _exportEndDate,
-      title: 'Export Dialog',
+      title: 'Export DTR',
       description:
-          'Choose a date range within one month. The exported DTR layout stays unchanged.',
+          'Export this DTR as a PDF or Excel file. The selected date range decides which records are included in the export.',
     );
 
     if (selection == null || !mounted) {
@@ -369,7 +360,7 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
                       ? 'Opening...'
                       : _isExportingExcel
                       ? 'Downloading...'
-                      : 'Open Export Dialog',
+                      : 'Export DTR',
                 ),
               ),
             ],
@@ -514,11 +505,9 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
     BuildContext context,
     LogEntryItem log,
     SupervisorLogService service,
-    String token,
     InternDetailItem intern,
   ) {
     return SupervisorLogDetailScreen(
-      token: token,
       logId: log.id,
       readOnly: widget.role.toLowerCase() == 'adviser',
       title: widget.role.toLowerCase() == 'adviser' ? 'Log Details' : null,

@@ -59,7 +59,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         _SupervisorDashboardSection.logs: null,
       };
 
-  String? get _summaryError => _sectionErrors[_SupervisorDashboardSection.summary];
+  String? get _summaryError =>
+      _sectionErrors[_SupervisorDashboardSection.summary];
   String? get _logsError => _sectionErrors[_SupervisorDashboardSection.logs];
 
   DateTime _now() => (widget.clock ?? DateTime.now)();
@@ -109,7 +110,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
     if (!mounted) return;
 
-    final successfulSections = results.where((result) => result.succeeded).length;
+    final successfulSections = results
+        .where((result) => result.succeeded)
+        .length;
 
     setState(() {
       _isInitialLoading = false;
@@ -129,8 +132,12 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     });
 
     final result = switch (section) {
-      _SupervisorDashboardSection.summary => await _refreshSummary(markLoading: false),
-      _SupervisorDashboardSection.logs => await _refreshPendingLogs(markLoading: false),
+      _SupervisorDashboardSection.summary => await _refreshSummary(
+        markLoading: false,
+      ),
+      _SupervisorDashboardSection.logs => await _refreshPendingLogs(
+        markLoading: false,
+      ),
     };
 
     if (!mounted) return;
@@ -188,8 +195,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       }
 
       setState(() {
-        _sectionErrors[_SupervisorDashboardSection.summary] =
-            e.toString().replaceFirst('Exception: ', '');
+        _sectionErrors[_SupervisorDashboardSection.summary] = e
+            .toString()
+            .replaceFirst('Exception: ', '');
         _sectionLoading[_SupervisorDashboardSection.summary] = false;
       });
 
@@ -197,9 +205,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     }
   }
 
-  Future<_SupervisorSectionResult<List<SupervisorLogItem>>> _refreshPendingLogs({
-    bool markLoading = true,
-  }) async {
+  Future<_SupervisorSectionResult<List<SupervisorLogItem>>>
+  _refreshPendingLogs({bool markLoading = true}) async {
     if (markLoading && mounted) {
       setState(() {
         _sectionLoading[_SupervisorDashboardSection.logs] = true;
@@ -243,8 +250,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       }
 
       setState(() {
-        _sectionErrors[_SupervisorDashboardSection.logs] =
-            e.toString().replaceFirst('Exception: ', '');
+        _sectionErrors[_SupervisorDashboardSection.logs] = e
+            .toString()
+            .replaceFirst('Exception: ', '');
         _sectionLoading[_SupervisorDashboardSection.logs] = false;
       });
 
@@ -253,12 +261,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Future<void> _openPendingQueue() async {
-    final token = context.read<AuthProvider>().token ?? '';
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => SupervisorPendingLogsScreen(token: token),
-      ),
+      MaterialPageRoute(builder: (_) => const SupervisorPendingLogsScreen()),
     );
 
     if (mounted) {
@@ -267,11 +272,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Future<void> _openAssignedInterns() async {
-    final token = context.read<AuthProvider>().token ?? '';
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => InternListScreen(token: token, role: 'supervisor'),
+        builder: (_) => const InternListScreen(role: 'supervisor'),
       ),
     );
 
@@ -281,13 +285,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Future<void> _openLogReview(SupervisorLogItem log) async {
-    final token = context.read<AuthProvider>().token ?? '';
-
     final updated = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => SupervisorLogDetailScreen(
-          token: token,
           logId: log.id,
           initialLog: log,
           service: _logService,
@@ -955,7 +956,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   ),
                   child: DashboardInlineNotice(
                     message: _logsError!,
-                    onRetry: () => _refreshSection(_SupervisorDashboardSection.logs),
+                    onRetry: () =>
+                        _refreshSection(_SupervisorDashboardSection.logs),
                   ),
                 )
               else if (_pendingLogs.isEmpty)
@@ -1006,7 +1008,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   ),
                   child: DashboardInlineNotice(
                     message: _logsError!,
-                    onRetry: () => _refreshSection(_SupervisorDashboardSection.logs),
+                    onRetry: () =>
+                        _refreshSection(_SupervisorDashboardSection.logs),
                   ),
                 )
               else if (isLoading)
@@ -1017,7 +1020,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     isNarrow ? 0 : 28,
                     0,
                   ),
-                  child: _buildSectionRefreshingHint('Refreshing pending logs...'),
+                  child: _buildSectionRefreshingHint(
+                    'Refreshing pending logs...',
+                  ),
                 ),
             ],
           ),
@@ -1027,7 +1032,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Widget _buildBody() {
-    final isSummaryLoading = _isSectionLoading(_SupervisorDashboardSection.summary);
+    final isSummaryLoading = _isSectionLoading(
+      _SupervisorDashboardSection.summary,
+    );
     final summary = _dashboardSummary;
     final pendingCount = summary?.pendingReview ?? _pendingLogs.length;
     final totalStudents = summary?.totalStudents ?? 0;
@@ -1113,7 +1120,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 const SizedBox(height: 12),
                 DashboardInlineNotice(
                   message: _summaryError!,
-                  onRetry: () => _refreshSection(_SupervisorDashboardSection.summary),
+                  onRetry: () =>
+                      _refreshSection(_SupervisorDashboardSection.summary),
                 ),
               ] else if (isSummaryLoading) ...[
                 const SizedBox(height: 12),
@@ -1153,10 +1161,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 }
 
 class _SupervisorSectionResult<T> {
-  const _SupervisorSectionResult._({
-    required this.succeeded,
-    this.value,
-  });
+  const _SupervisorSectionResult._({required this.succeeded, this.value});
 
   final bool succeeded;
   final T? value;
@@ -1166,6 +1171,6 @@ class _SupervisorSectionResult<T> {
   }
 
   factory _SupervisorSectionResult.failure() {
-    return const _SupervisorSectionResult<T>._(succeeded: false);
+    return _SupervisorSectionResult<T>._(succeeded: false);
   }
 }

@@ -14,10 +14,10 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Open Export Dialog'));
+    await tester.tap(find.text('Export DTR'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Export Dialog'), findsOneWidget);
+    expect(find.text('Export DTR'), findsOneWidget);
     expect(find.text('Export a monthly DTR file.'), findsOneWidget);
     expect(find.text('April 1, 2026'), findsOneWidget);
     expect(find.text('April 30, 2026'), findsOneWidget);
@@ -36,7 +36,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Open Export Dialog'));
+    await tester.tap(find.text('Export DTR'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithText(OutlinedButton, 'Export Excel'));
@@ -55,7 +55,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Open Export Dialog'));
+    await tester.tap(find.text('Export DTR'));
     await tester.pumpAndSettle();
 
     expect(
@@ -82,7 +82,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Open Export Dialog'));
+    await tester.tap(find.text('Export DTR'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('April 1, 2026'));
@@ -118,7 +118,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Open Export Dialog'));
+    await tester.tap(find.text('Export DTR'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('April 3, 2026'));
@@ -150,7 +150,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Open Export Dialog'));
+    await tester.tap(find.text('Export DTR'));
     await tester.pumpAndSettle();
 
     expect(
@@ -210,7 +210,7 @@ class _DialogHostState extends State<_DialogHost> {
                   context,
                   initialStartDate: widget.initialStartDate,
                   initialEndDate: widget.initialEndDate,
-                  title: 'Export Dialog',
+                  title: 'Export DTR',
                   description: widget.description,
                 );
 
@@ -225,7 +225,7 @@ class _DialogHostState extends State<_DialogHost> {
                             '${_format(selection.startDate)}->${_format(selection.endDate)}';
                 });
               },
-              child: const Text('Open Export Dialog'),
+              child: const Text('Export DTR'),
             ),
             const SizedBox(height: 16),
             Text(_result),

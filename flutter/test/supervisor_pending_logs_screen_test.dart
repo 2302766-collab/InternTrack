@@ -36,14 +36,7 @@ void main() {
         ],
       );
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          SupervisorPendingLogsScreen(
-            token: 'token',
-            service: service,
-          ),
-        ),
-      );
+      await _pumpScreen(tester, SupervisorPendingLogsScreen(service: service));
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
@@ -64,12 +57,10 @@ void main() {
     testWidgets('shows empty state when there are no pending logs', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        _buildTestApp(
-          SupervisorPendingLogsScreen(
-            token: 'token',
-            service: _FakeSupervisorLogService(pendingLogs: const []),
-          ),
+      await _pumpScreen(
+        tester,
+        SupervisorPendingLogsScreen(
+          service: _FakeSupervisorLogService(pendingLogs: const []),
         ),
       );
 
@@ -81,16 +72,14 @@ void main() {
     testWidgets('shows error state when the network request fails', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        _buildTestApp(
-          SupervisorPendingLogsScreen(
-            token: 'token',
-            service: _FakeSupervisorLogService(
-              pendingLogs: const [],
-              pendingLogsError: ApiException(
-                message: 'Failed to fetch pending logs.',
-                errorType: ApiErrorType.networkError,
-              ),
+      await _pumpScreen(
+        tester,
+        SupervisorPendingLogsScreen(
+          service: _FakeSupervisorLogService(
+            pendingLogs: const [],
+            pendingLogsError: ApiException(
+              message: 'Failed to fetch pending logs.',
+              errorType: ApiErrorType.networkError,
             ),
           ),
         ),
@@ -115,14 +104,7 @@ void main() {
         failuresBeforeSuccess: 1,
       );
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          SupervisorPendingLogsScreen(
-            token: 'token',
-            service: service,
-          ),
-        ),
-      );
+      await _pumpScreen(tester, SupervisorPendingLogsScreen(service: service));
 
       await tester.pumpAndSettle();
 
@@ -140,27 +122,25 @@ void main() {
     testWidgets('navigates to review screen and passes log id on tap', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        _buildTestApp(
-          SupervisorPendingLogsScreen(
-            token: 'token',
-            service: _FakeSupervisorLogService(
-              pendingLogs: [
-                _buildLog(
-                  id: 42,
-                  studentName: 'Juan Dela Cruz',
-                  date: '2026-01-12',
-                  hoursRendered: 8,
-                ),
-              ],
-            ),
-            reviewScreenBuilder: (context, log, service, token) {
-              return Scaffold(
-                appBar: AppBar(title: const Text('Review Screen')),
-                body: Text('Log ID: ${log.id}'),
-              );
-            },
+      await _pumpScreen(
+        tester,
+        SupervisorPendingLogsScreen(
+          service: _FakeSupervisorLogService(
+            pendingLogs: [
+              _buildLog(
+                id: 42,
+                studentName: 'Juan Dela Cruz',
+                date: '2026-01-12',
+                hoursRendered: 8,
+              ),
+            ],
           ),
+          reviewScreenBuilder: (context, log, service) {
+            return Scaffold(
+              appBar: AppBar(title: const Text('Review Screen')),
+              body: Text('Log ID: ${log.id}'),
+            );
+          },
         ),
       );
 
@@ -172,9 +152,7 @@ void main() {
       expect(find.text('Log ID: 42'), findsOneWidget);
     });
 
-    testWidgets('approved review is removed from pending list', (
-      tester,
-    ) async {
+    testWidgets('approved review is removed from pending list', (tester) async {
       final service = _FakeSupervisorLogService(
         pendingLogs: [
           _buildLog(
@@ -186,14 +164,7 @@ void main() {
         ],
       );
 
-      await tester.pumpWidget(
-        _buildTestApp(
-          SupervisorPendingLogsScreen(
-            token: 'token',
-            service: service,
-          ),
-        ),
-      );
+      await _pumpScreen(tester, SupervisorPendingLogsScreen(service: service));
 
       await tester.pumpAndSettle();
       await tester.tap(find.text('Student: Juan Dela Cruz'));
@@ -207,11 +178,225 @@ void main() {
       expect(find.text('Student: Juan Dela Cruz'), findsNothing);
       expect(find.text('No pending logs to review.'), findsOneWidget);
     });
+
+    testWidgets('applies search proof filter sort and hours range together', (
+      tester,
+    ) async {
+      await _pumpScreen(
+        tester,
+        SupervisorPendingLogsScreen(
+          service: _FakeSupervisorLogService(
+            pendingLogs: [
+              _buildLog(
+                id: 1,
+                studentName: 'Alyssa',
+                date: '2026-01-10',
+                hoursRendered: 4,
+                attachmentsCount: 1,
+              ),
+              _buildLog(
+                id: 2,
+                studentName: 'Brenda',
+                date: '2026-01-13',
+                hoursRendered: 8,
+              ),
+              _buildLog(
+                id: 3,
+                studentName: 'Cara',
+                date: '2026-01-12',
+                hoursRendered: 6,
+                attachmentsCount: 2,
+              ),
+              _buildLog(
+                id: 4,
+                studentName: 'Dara',
+                date: '2026-01-11',
+                hoursRendered: 5,
+                attachmentsCount: 1,
+              ),
+            ],
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.enterText(_findSearchField(), 'a');
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilterChip, 'With Proof'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.arrow_drop_down));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Most Hours').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(_findHoursField('Min hours'), '4.5');
+      await tester.pump();
+      await tester.enterText(_findHoursField('Max hours'), '6.5');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Student: Alyssa'), findsNothing);
+      expect(find.text('Student: Brenda'), findsNothing);
+      expect(find.text('Student: Cara'), findsOneWidget);
+      expect(find.text('Student: Dara'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Student: Cara')).dy,
+        lessThan(tester.getTopLeft(find.text('Student: Dara')).dy),
+      );
+    });
+
+    testWidgets('reset filters restores the original queue state', (
+      tester,
+    ) async {
+      await _pumpScreen(
+        tester,
+        SupervisorPendingLogsScreen(
+          service: _FakeSupervisorLogService(
+            pendingLogs: [
+              _buildLog(
+                id: 2,
+                studentName: 'Bella',
+                date: '2026-01-12',
+                hoursRendered: 6,
+              ),
+              _buildLog(
+                id: 1,
+                studentName: 'Ana',
+                date: '2026-01-10',
+                hoursRendered: 4,
+                attachmentsCount: 1,
+              ),
+              _buildLog(
+                id: 3,
+                studentName: 'Cara',
+                date: '2026-01-14',
+                hoursRendered: 8,
+                attachmentsCount: 2,
+              ),
+            ],
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.enterText(_findSearchField(), 'Ana');
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilterChip, 'With Proof'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.arrow_drop_down));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Newest Pending').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(_findHoursField('Min hours'), '3');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Student: Ana'), findsOneWidget);
+      expect(find.text('Student: Bella'), findsNothing);
+
+      await tester.tap(find.text('Reset Filters'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Student: Ana'), findsOneWidget);
+      expect(find.text('Student: Bella'), findsOneWidget);
+      expect(find.text('Student: Cara'), findsOneWidget);
+      expect(_textFieldValue(tester, _findSearchField()), isEmpty);
+      expect(_textFieldValue(tester, _findHoursField('Min hours')), isEmpty);
+      expect(_textFieldValue(tester, _findHoursField('Max hours')), isEmpty);
+      expect(
+        tester.getTopLeft(find.text('Student: Ana')).dy,
+        lessThan(tester.getTopLeft(find.text('Student: Bella')).dy),
+      );
+      expect(
+        tester.getTopLeft(find.text('Student: Bella')).dy,
+        lessThan(tester.getTopLeft(find.text('Student: Cara')).dy),
+      );
+    });
+
+    testWidgets('ignores invalid hour ranges without crashing', (tester) async {
+      await _pumpScreen(
+        tester,
+        SupervisorPendingLogsScreen(
+          service: _FakeSupervisorLogService(
+            pendingLogs: [
+              _buildLog(
+                id: 1,
+                studentName: 'Ana',
+                date: '2026-01-10',
+                hoursRendered: 4,
+              ),
+              _buildLog(
+                id: 2,
+                studentName: 'Ben',
+                date: '2026-01-11',
+                hoursRendered: 7,
+              ),
+            ],
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.enterText(_findHoursField('Min hours'), '9');
+      await tester.pump();
+      await tester.enterText(_findHoursField('Max hours'), '3');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Student: Ana'), findsOneWidget);
+      expect(find.text('Student: Ben'), findsOneWidget);
+      expect(
+        find.text(
+          'Min hours is greater than max hours, so the hour range is being ignored.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('updates empty state messaging when filters remove all logs', (
+      tester,
+    ) async {
+      await _pumpScreen(
+        tester,
+        SupervisorPendingLogsScreen(
+          service: _FakeSupervisorLogService(
+            pendingLogs: [
+              _buildLog(
+                id: 1,
+                studentName: 'Ana',
+                date: '2026-01-10',
+                hoursRendered: 4,
+                attachmentsCount: 1,
+              ),
+            ],
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilterChip, 'Without Proof'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('No pending logs match the current filters.'),
+        findsOneWidget,
+      );
+    });
   });
 }
 
 Widget _buildTestApp(Widget child) {
   return MaterialApp(home: child);
+}
+
+Future<void> _pumpScreen(WidgetTester tester, Widget child) async {
+  tester.view.physicalSize = const Size(1200, 2000);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+
+  await tester.pumpWidget(_buildTestApp(child));
 }
 
 SupervisorLogItem _buildLog({
@@ -220,6 +405,7 @@ SupervisorLogItem _buildLog({
   required String date,
   required int hoursRendered,
   String status = 'PENDING',
+  int attachmentsCount = 0,
 }) {
   return SupervisorLogItem(
     id: id,
@@ -230,9 +416,27 @@ SupervisorLogItem _buildLog({
     taskDescription: 'Completed assigned tasks',
     status: status,
     attachments: const <LogAttachment>[],
-    attachmentsCount: 0,
+    attachmentsCount: attachmentsCount,
     reviewHistory: const <LogReviewActionItem>[],
   );
+}
+
+Finder _findSearchField() {
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is TextField &&
+        widget.decoration?.hintText == 'Search by student or date',
+  );
+}
+
+Finder _findHoursField(String label) {
+  return find.byWidgetPredicate(
+    (widget) => widget is TextField && widget.decoration?.labelText == label,
+  );
+}
+
+String _textFieldValue(WidgetTester tester, Finder finder) {
+  return tester.widget<TextField>(finder).controller?.text ?? '';
 }
 
 class _FakeSupervisorLogService extends SupervisorLogService {

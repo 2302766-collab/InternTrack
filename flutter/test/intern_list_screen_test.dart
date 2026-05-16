@@ -92,9 +92,7 @@ void main() {
           return _page(
             page: request.page,
             total: 1,
-            interns: [
-              _intern(id: 2, studentName: 'Ana Cruz'),
-            ],
+            interns: [_intern(id: 2, studentName: 'Ana Cruz')],
           );
         }
 
@@ -146,9 +144,7 @@ void main() {
         return _page(
           page: request.page,
           total: 1,
-          interns: [
-            _intern(id: 1, studentName: 'John Doe'),
-          ],
+          interns: [_intern(id: 1, studentName: 'John Doe')],
         );
       });
 
@@ -190,9 +186,7 @@ void main() {
           page: 2,
           total: 3,
           hasMore: false,
-          interns: [
-            _intern(id: 3, studentName: 'Ben Santos'),
-          ],
+          interns: [_intern(id: 3, studentName: 'Ben Santos')],
         );
       });
 
@@ -231,11 +225,7 @@ void _setLargeSurfaceSize(WidgetTester tester) {
 
 Widget _buildTestApp(InternListService service) {
   return MaterialApp(
-    home: InternListScreen(
-      token: 'token',
-      role: 'supervisor',
-      service: service,
-    ),
+    home: InternListScreen(role: 'supervisor', service: service),
   );
 }
 
@@ -291,12 +281,7 @@ class _InternPageRequest {
 }
 
 class _FakeInternListService extends InternListService {
-  _FakeInternListService(this.handler)
-      : super(
-          ApiClient(
-            dio: Dio(),
-          ),
-        );
+  _FakeInternListService(this.handler) : super(ApiClient(dio: Dio()));
 
   final Future<InternListPage> Function(_InternPageRequest request) handler;
   final List<_InternPageRequest> requests = <_InternPageRequest>[];

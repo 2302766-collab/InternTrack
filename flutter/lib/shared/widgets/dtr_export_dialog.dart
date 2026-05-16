@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+const String _defaultDtrExportDescription =
+    'Export this DTR as a PDF or Excel file. The selected date range decides which records are included in the export.';
+
 class DtrExportSelection {
   final DateTime startDate;
   final DateTime endDate;
@@ -63,6 +66,10 @@ class _DtrExportDialogState extends State<_DtrExportDialog> {
   Widget build(BuildContext context) {
     final validationMessage = _validationMessage();
     final canExport = validationMessage == null;
+    final dialogDescription =
+        (widget.description ?? '').trim().isEmpty
+            ? _defaultDtrExportDescription
+            : widget.description!;
 
     return AlertDialog(
       title: Text(widget.title),
@@ -70,9 +77,9 @@ class _DtrExportDialogState extends State<_DtrExportDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if ((widget.description ?? '').isNotEmpty) ...[
+          if (dialogDescription.isNotEmpty) ...[
             Text(
-              widget.description!,
+              dialogDescription,
               style: const TextStyle(fontSize: 14, color: Color(0xFF526072)),
             ),
             const SizedBox(height: 16),

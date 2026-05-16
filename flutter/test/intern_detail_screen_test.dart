@@ -36,7 +36,7 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           service: service,
-          reviewScreenBuilder: (context, log, service, token, intern) {
+          reviewScreenBuilder: (context, log, service, intern) {
             openedLogIds.add(log.id);
 
             return Scaffold(
@@ -85,7 +85,7 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           service: service,
-          reviewScreenBuilder: (context, log, service, token, intern) {
+          reviewScreenBuilder: (context, log, service, intern) {
             openedLogIds.add(log.id);
             return const Scaffold(body: Text('Unexpected review screen'));
           },
@@ -179,7 +179,6 @@ Widget _buildTestApp({
 }) {
   return MaterialApp(
     home: InternDetailScreen(
-      token: 'token',
       role: role,
       profileId: 7,
       service: service,
@@ -272,12 +271,7 @@ InternDetailItem _internDetail({
 }
 
 class _FakeInternDetailService extends InternListService {
-  _FakeInternDetailService(this.responses)
-      : super(
-          ApiClient(
-            dio: Dio(),
-          ),
-        );
+  _FakeInternDetailService(this.responses) : super(ApiClient(dio: Dio()));
 
   final List<InternDetailItem> responses;
   int detailRequests = 0;
@@ -296,13 +290,7 @@ class _FakeInternDetailService extends InternListService {
 }
 
 class _FakeLogService extends SupervisorLogService {
-  _FakeLogService(this.log)
-      : super(
-          ApiClient(
-            dio: Dio(),
-          ),
-          role: 'adviser',
-        );
+  _FakeLogService(this.log) : super(ApiClient(dio: Dio()), role: 'adviser');
 
   final SupervisorLogItem log;
   final List<int> requestedLogIds = <int>[];

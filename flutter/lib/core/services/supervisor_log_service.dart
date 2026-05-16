@@ -1,4 +1,5 @@
-import '../../shared/models/supervisor_log_item.dart';import 'package:dio/dio.dart';
+import '../../shared/models/supervisor_log_item.dart';
+import 'package:dio/dio.dart';
 import '../exceptions/api_exception.dart';
 import '../services/api_client.dart';
 import '../services/base_service.dart';
@@ -17,7 +18,7 @@ class SupervisorLogAttachmentFile {
 }
 
 /// Service for managing supervisor/adviser logs
-/// 
+///
 /// Handles fetching, approving, and rejecting student logs
 /// Works for both 'supervisor' and 'adviser' roles
 /// All methods throw [ApiException] for consistent error handling
@@ -26,12 +27,12 @@ class SupervisorLogService extends BaseService {
   final String _role;
 
   SupervisorLogService(this._apiClient, {String role = 'supervisor'})
-      : _role = role.toLowerCase();
+    : _role = role.toLowerCase();
 
   String get _endpoint => '/$_role/logs';
 
   /// Fetches all pending logs for review
-  /// 
+  ///
   /// Throws [ApiException] if fetch fails
   Future<List<SupervisorLogItem>> getPendingLogs() async {
     try {
@@ -46,7 +47,7 @@ class SupervisorLogService extends BaseService {
   }
 
   /// Fetches detailed information about a specific log
-  /// 
+  ///
   /// Throws [ApiException] if fetch fails
   Future<SupervisorLogItem> getLog(int id) async {
     try {
@@ -61,7 +62,7 @@ class SupervisorLogService extends BaseService {
   }
 
   /// Approves a log entry (supervisor only)
-  /// 
+  ///
   /// Throws [ApiException] if:
   /// - User is not a supervisor
   /// - Approval fails on server
@@ -77,15 +78,11 @@ class SupervisorLogService extends BaseService {
       );
     }
 
-    return _submitReview(
-      id: id,
-      action: 'approve',
-      comment: comment,
-    );
+    return _submitReview(id: id, action: 'approve', comment: comment);
   }
 
   /// Rejects a log entry with required comment (supervisor only)
-  /// 
+  ///
   /// Throws [ApiException] if:
   /// - User is not a supervisor
   /// - Rejection fails on server
@@ -101,15 +98,11 @@ class SupervisorLogService extends BaseService {
       );
     }
 
-    return _submitReview(
-      id: id,
-      action: 'reject',
-      comment: comment,
-    );
+    return _submitReview(id: id, action: 'reject', comment: comment);
   }
 
   /// Downloads an attachment from a log entry
-  /// 
+  ///
   /// Returns SupervisorLogAttachmentFile with bytes and filename
   /// Throws [ApiException] if download fails
   Future<SupervisorLogAttachmentFile> downloadAttachment({
@@ -122,9 +115,7 @@ class SupervisorLogService extends BaseService {
       );
 
       final bytes = response.data ?? <int>[];
-      final mimeType = _extractMimeType(
-        response.headers.value('content-type'),
-      );
+      final mimeType = _extractMimeType(response.headers.value('content-type'));
       final filename = _resolveAttachmentFilename(
         response.headers.value('content-disposition'),
         attachmentId,
@@ -184,11 +175,13 @@ class SupervisorLogService extends BaseService {
     }
 
     final filenameMatch = RegExp(
-      r"filename\s*=\s*(?:\"([^\"]+)\"|([^;\r\n]+))",
+      r'filename\s*=\s*(?:"([^"]+)"|([^;\r\n]+))',
       caseSensitive: false,
     ).firstMatch(header);
     if (filenameMatch != null) {
-      return filenameMatch.group(1)?.trim() ?? filenameMatch.group(2)?.trim() ?? '';
+      return filenameMatch.group(1)?.trim() ??
+          filenameMatch.group(2)?.trim() ??
+          '';
     }
 
     return '';

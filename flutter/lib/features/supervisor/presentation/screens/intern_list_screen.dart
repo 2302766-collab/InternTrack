@@ -12,16 +12,10 @@ import '../../../../shared/models/intern_list_item.dart';
 import 'intern_detail_screen.dart';
 
 class InternListScreen extends StatefulWidget {
-  final String token;
   final String role;
   final InternListService? service;
 
-  const InternListScreen({
-    super.key,
-    required this.token,
-    required this.role,
-    this.service,
-  });
+  const InternListScreen({super.key, required this.role, this.service});
 
   @override
   State<InternListScreen> createState() => _InternListScreenState();
@@ -212,9 +206,7 @@ class _InternListScreenState extends State<InternListScreen> {
                 icon: const Icon(Icons.close),
                 tooltip: 'Clear search',
               ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
         filled: true,
         fillColor: Colors.white,
       ),
@@ -241,7 +233,6 @@ class _InternListScreenState extends State<InternListScreen> {
               context,
               MaterialPageRoute(
                 builder: (_) => InternDetailScreen(
-                  token: widget.token,
                   role: widget.role,
                   profileId: intern.id,
                   initialIntern: intern,
@@ -265,10 +256,7 @@ class _InternListScreenState extends State<InternListScreen> {
       padding: const EdgeInsets.only(top: 4),
       child: Column(
         children: [
-          Text(
-            showingText,
-            style: const TextStyle(color: Color(0xFF667085)),
-          ),
+          Text(showingText, style: const TextStyle(color: Color(0xFF667085))),
           if (_loadMoreError != null) ...[
             const SizedBox(height: 8),
             Text(
@@ -292,8 +280,8 @@ class _InternListScreenState extends State<InternListScreen> {
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                       child: CircularProgressIndicator(strokeWidth: 2),
-                     )
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.expand_more),
               label: Text(_isLoadingMore ? 'Loading...' : 'Load More'),
             ),
@@ -343,10 +331,7 @@ class _InternProgressCard extends StatelessWidget {
   final InternListItem intern;
   final VoidCallback onTap;
 
-  const _InternProgressCard({
-    required this.intern,
-    required this.onTap,
-  });
+  const _InternProgressCard({required this.intern, required this.onTap});
 
   Color get _progressColor {
     if (intern.progressFraction >= 1) {
@@ -408,25 +393,24 @@ class _InternProgressCard extends StatelessWidget {
                       children: [
                         Text(
                           intern.studentName,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: const Color(0xFF16354D),
-                            fontWeight: FontWeight.w800,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: const Color(0xFF16354D),
+                                fontWeight: FontWeight.w800,
+                              ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           'Company: ${intern.companyName}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: const Color(0xFF526072),
-                          ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: const Color(0xFF526072)),
                         ),
                         if (_scheduleLabel != null) ...[
                           const SizedBox(height: 2),
                           Text(
                             'Schedule: $_scheduleLabel',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: const Color(0xFF667085),
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: const Color(0xFF667085)),
                           ),
                         ],
                       ],
