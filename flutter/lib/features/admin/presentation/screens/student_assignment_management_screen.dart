@@ -22,6 +22,12 @@ class StudentAssignmentManagementScreen extends StatefulWidget {
 class _StudentAssignmentManagementScreenState
     extends State<StudentAssignmentManagementScreen> {
   static const int _itemsPerPage = 10;
+  static const Color _pageBackground = Color(0xFFF2F5FA);
+  static const Color _surfaceColor = Colors.white;
+  static const Color _borderColor = Color(0xFFD7E1EE);
+  static const Color _textPrimary = Color(0xFF11294B);
+  static const Color _textSecondary = Color(0xFF61738F);
+  static const Color _brandPrimary = Color(0xFF133B73);
 
   late final AdminStudentService _studentService;
   late final AdviserManagementProvider _adviserProvider;
@@ -285,10 +291,14 @@ class _StudentAssignmentManagementScreenState
   Widget _buildTopPanel() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: <Color>[Color(0xFF0F4C5C), Color(0xFF1B7A8C)],
+          colors: <Color>[
+            Color(0xFF102F58),
+            Color(0xFF0E5D73),
+            Color(0xFF1E7C8B),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -304,18 +314,41 @@ class _StudentAssignmentManagementScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+            ),
+            child: const Text(
+              'ADMIN CONTROL BOARD',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           const Text(
             'Student Assignment Management',
             style: TextStyle(
-              fontSize: 28,
+              fontSize: 30,
               fontWeight: FontWeight.w800,
               color: Colors.white,
+              height: 1.08,
             ),
           ),
           const SizedBox(height: 8),
           const Text(
-            'Assign supervisors and advisers, close setup gaps, and keep student support coverage complete.',
-            style: TextStyle(color: Color(0xFFE3F5F7), height: 1.45),
+            'Coordinate supervisor and adviser coverage, clear setup gaps quickly, and keep every student account aligned with the admin workflow.',
+            style: TextStyle(
+              color: Color(0xFFD9EEF3),
+              height: 1.5,
+              fontSize: 14,
+            ),
           ),
           const SizedBox(height: 18),
           Wrap(
@@ -354,8 +387,8 @@ class _StudentAssignmentManagementScreenState
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,7 +398,7 @@ class _StudentAssignmentManagementScreenState
             style: const TextStyle(
               color: Color(0xFFD6F1F4),
               fontSize: 12,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 4),
@@ -386,8 +419,9 @@ class _StudentAssignmentManagementScreenState
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _surfaceColor,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _borderColor),
         boxShadow: const [
           BoxShadow(
             color: Color(0x120F172A),
@@ -403,14 +437,14 @@ class _StudentAssignmentManagementScreenState
             'Assignment Queue',
             style: TextStyle(
               fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF102A56),
+              fontWeight: FontWeight.w800,
+              color: _textPrimary,
             ),
           ),
           const SizedBox(height: 6),
           const Text(
-            'Work through the current page, then move forward using the page controls below.',
-            style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
+            'Review students in priority order, update assignments, and move through the page like an admin task queue.',
+            style: TextStyle(fontSize: 14, color: _textSecondary, height: 1.45),
           ),
           const SizedBox(height: 16),
           Wrap(
@@ -425,8 +459,15 @@ class _StudentAssignmentManagementScreenState
                     _showOnlyNeedsAssignment = false;
                   });
                 },
-                selectedColor: const Color(0xFFD8ECF0),
-                side: const BorderSide(color: Color(0xFFD0D5DD)),
+                backgroundColor: const Color(0xFFF8FAFC),
+                selectedColor: const Color(0xFFDCEBFF),
+                side: const BorderSide(color: _borderColor),
+                labelStyle: TextStyle(
+                  color: !_showOnlyNeedsAssignment
+                      ? _brandPrimary
+                      : const Color(0xFF475467),
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               FilterChip(
                 label: const Text('Needs Assignment'),
@@ -436,13 +477,31 @@ class _StudentAssignmentManagementScreenState
                     _showOnlyNeedsAssignment = true;
                   });
                 },
-                selectedColor: const Color(0xFFEDE7FF),
-                side: const BorderSide(color: Color(0xFFD0D5DD)),
+                backgroundColor: const Color(0xFFF8FAFC),
+                selectedColor: const Color(0xFFFFE8CC),
+                side: const BorderSide(color: _borderColor),
+                labelStyle: TextStyle(
+                  color: _showOnlyNeedsAssignment
+                      ? const Color(0xFF9E5B00)
+                      : const Color(0xFF475467),
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               OutlinedButton.icon(
                 onPressed: _isPageLoading ? null : _refresh,
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text('Refresh'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _brandPrimary,
+                  side: const BorderSide(color: Color(0xFFC6D5E8)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
               ),
             ],
           ),
@@ -696,12 +755,13 @@ class _StudentAssignmentManagementScreenState
               Container(
                 padding: const EdgeInsets.all(28),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: _surfaceColor,
                   borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: _borderColor),
                 ),
                 child: const Text(
                   'No students matched this filter on the current page.',
-                  style: TextStyle(fontSize: 15, color: Color(0xFF667085)),
+                  style: TextStyle(fontSize: 15, color: _textSecondary),
                 ),
               )
             else
@@ -796,8 +856,16 @@ class _StudentAssignmentManagementScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FB),
-      appBar: AppBar(title: const Text('Manage Student Assignments')),
+      backgroundColor: _pageBackground,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        foregroundColor: _textPrimary,
+        title: const Text(
+          'Manage Student Assignments',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ),
       body: Consumer2<AdviserManagementProvider, SupervisorManagementProvider>(
         builder: (context, adviserProvider, supervisorProvider, _) =>
             _buildBody(),
@@ -911,13 +979,18 @@ class _StudentAssignmentCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          colors: <Color>[Colors.white, Color(0xFFF9FBFE)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFFD9E3EF)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x120F172A),
-            blurRadius: 16,
-            offset: Offset(0, 6),
+            blurRadius: 22,
+            offset: Offset(0, 10),
           ),
         ],
       ),
@@ -934,9 +1007,9 @@ class _StudentAssignmentCard extends StatelessWidget {
                     Text(
                       student.name,
                       style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF102A56),
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF11294B),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -965,12 +1038,31 @@ class _StudentAssignmentCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE9F3FB),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text(
+                        'Progress',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF31537C),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     Text(
                       '${student.completionPercentage.round()}%',
                       style: const TextStyle(
-                        fontSize: 20,
+                        fontSize: 24,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF0F4C5C),
+                        color: Color(0xFF0F5E70),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -995,6 +1087,7 @@ class _StudentAssignmentCard extends StatelessWidget {
             'Company: ${student.company?.isNotEmpty == true ? student.company : 'Not assigned yet'}',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: const Color(0xFF475467),
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 6),
@@ -1005,29 +1098,43 @@ class _StudentAssignmentCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          _CurrentAssignmentBanner(
-            title: 'Current Supervisor',
-            value:
-                currentSupervisor?.supervisorName ?? 'No supervisor assigned',
-            assignedAt: currentSupervisor?.assignedAt,
-            missingColor: const Color(0xFF175CD3),
-            missingBackground: const Color(0xFFE8F1FF),
-            readyColor: const Color(0xFF067647),
-            readyBackground: const Color(0xFFF0FDF4),
-          ),
-          const SizedBox(height: 12),
-          _CurrentAssignmentBanner(
-            title: 'Current Adviser',
-            value: currentAdviser?.adviserName ?? 'No adviser assigned',
-            assignedAt: currentAdviser?.assignedAt,
-            missingColor: const Color(0xFFB54708),
-            missingBackground: const Color(0xFFFFF7ED),
-            readyColor: const Color(0xFF067647),
-            readyBackground: const Color(0xFFF0FDF4),
+          Row(
+            children: [
+              Expanded(
+                child: _CurrentAssignmentBanner(
+                  title: 'Current Supervisor',
+                  value:
+                      currentSupervisor?.supervisorName ??
+                      'No supervisor assigned',
+                  assignedAt: currentSupervisor?.assignedAt,
+                  missingColor: const Color(0xFF175CD3),
+                  missingBackground: const Color(0xFFEAF3FF),
+                  readyColor: const Color(0xFF067647),
+                  readyBackground: const Color(0xFFF0FDF4),
+                  icon: Icons.badge_outlined,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _CurrentAssignmentBanner(
+                  title: 'Current Adviser',
+                  value: currentAdviser?.adviserName ?? 'No adviser assigned',
+                  assignedAt: currentAdviser?.assignedAt,
+                  missingColor: const Color(0xFFB54708),
+                  missingBackground: const Color(0xFFFFF7ED),
+                  readyColor: const Color(0xFF067647),
+                  readyBackground: const Color(0xFFF0FDF4),
+                  icon: Icons.school_outlined,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 18),
           _AssignmentSection(
             title: 'Assign Supervisor',
+            accentColor: const Color(0xFF175CD3),
+            subtitle:
+                'Choose the workplace reviewer who will monitor daily progress.',
             isBusy: isAssigningSupervisor,
             hasPendingChanges: _hasPendingSupervisorChanges,
             onReset: onResetSupervisor,
@@ -1068,6 +1175,9 @@ class _StudentAssignmentCard extends StatelessWidget {
           const SizedBox(height: 18),
           _AssignmentSection(
             title: 'Assign Adviser',
+            accentColor: const Color(0xFF7A5AF8),
+            subtitle:
+                'Choose the academic adviser who will oversee internship support.',
             isBusy: isAssigningAdviser,
             hasPendingChanges: _hasPendingAdviserChanges,
             onReset: onResetAdviser,
@@ -1142,6 +1252,7 @@ class _CurrentAssignmentBanner extends StatelessWidget {
     required this.missingBackground,
     required this.readyColor,
     required this.readyBackground,
+    required this.icon,
   });
 
   final String title;
@@ -1151,6 +1262,7 @@ class _CurrentAssignmentBanner extends StatelessWidget {
   final Color missingBackground;
   final Color readyColor;
   final Color readyBackground;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -1163,36 +1275,56 @@ class _CurrentAssignmentBanner extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: foreground.withValues(alpha: 0.28)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: foreground.withValues(alpha: 0.2)),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF667085),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.72),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: foreground, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF667085),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: foreground,
+                  ),
+                ),
+                if (assignedAt != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Assigned ${DateFormatter.formatDateOnly(assignedAt!)}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF667085),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: foreground,
-            ),
-          ),
-          if (assignedAt != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Assigned ${DateFormatter.formatDateOnly(assignedAt!)}',
-              style: const TextStyle(fontSize: 13, color: Color(0xFF667085)),
-            ),
-          ],
         ],
       ),
     );
@@ -1202,6 +1334,8 @@ class _CurrentAssignmentBanner extends StatelessWidget {
 class _AssignmentSection extends StatelessWidget {
   const _AssignmentSection({
     required this.title,
+    required this.subtitle,
+    required this.accentColor,
     required this.child,
     required this.isBusy,
     required this.hasPendingChanges,
@@ -1213,6 +1347,8 @@ class _AssignmentSection extends StatelessWidget {
   });
 
   final String title;
+  final String subtitle;
+  final Color accentColor;
   final Widget child;
   final bool isBusy;
   final bool hasPendingChanges;
@@ -1227,49 +1363,107 @@ class _AssignmentSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: const Color(0xFF102A56),
-            fontWeight: FontWeight.w700,
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FBFF),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFDCE5F1)),
           ),
-        ),
-        const SizedBox(height: 8),
-        child,
-        const SizedBox(height: 16),
-        Wrap(
-          alignment: WrapAlignment.end,
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            if (hasPendingChanges)
-              TextButton(
-                onPressed: isBusy ? null : onReset,
-                child: const Text('Reset'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: accentColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: const Color(0xFF102A56),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            if (hasPendingChanges)
-              ElevatedButton.icon(
-                onPressed: isBusy ? null : onSave,
-                icon: isBusy
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.check_rounded),
-                label: Text(saveLabel),
-              )
-            else if (onRemove != null)
-              OutlinedButton.icon(
-                onPressed: isBusy ? null : onRemove,
-                icon: const Icon(Icons.clear_rounded),
-                label: Text(removeLabel),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFB42318),
-                  side: const BorderSide(color: Color(0xFFFDA29B)),
+              const SizedBox(height: 8),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  color: Color(0xFF667085),
+                  height: 1.4,
                 ),
               ),
-          ],
+              const SizedBox(height: 14),
+              child,
+              const SizedBox(height: 16),
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  if (hasPendingChanges)
+                    TextButton(
+                      onPressed: isBusy ? null : onReset,
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF475467),
+                      ),
+                      child: const Text('Reset'),
+                    ),
+                  if (hasPendingChanges)
+                    ElevatedButton.icon(
+                      onPressed: isBusy ? null : onSave,
+                      icon: isBusy
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.check_rounded),
+                      label: Text(saveLabel),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accentColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    )
+                  else if (onRemove != null)
+                    OutlinedButton.icon(
+                      onPressed: isBusy ? null : onRemove,
+                      icon: const Icon(Icons.clear_rounded),
+                      label: Text(removeLabel),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFB42318),
+                        side: const BorderSide(color: Color(0xFFFDA29B)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ],
     );
