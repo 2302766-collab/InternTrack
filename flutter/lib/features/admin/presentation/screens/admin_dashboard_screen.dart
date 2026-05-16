@@ -34,11 +34,13 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   static const int _itemsPerPage = 10;
+  static const int _managedUsersPerPage = 9;
   static const String _filterAll = 'all';
   static const String _filterNeedsAttention = 'needs_attention';
   static const String _filterMissingProfile = 'missing_profile';
   static const String _filterMissingSupervisor = 'missing_supervisor';
   static const String _filterMissingAdviser = 'missing_adviser';
+  static const String _userRoleAll = 'all';
 
   static const Color _pageBackground = Color(0xFFF3F6FB);
   static const Color _surfaceColor = Colors.white;
@@ -57,6 +59,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final List<AdminStudentSummary> _students = <AdminStudentSummary>[];
   final List<AppUser> _managedUsers = <AppUser>[];
   final GlobalKey _profileMenuAnchorKey = GlobalKey();
+  final TextEditingController _managedUserSearchController =
+      TextEditingController();
   final Set<int> _exportingStudentIds = <int>{};
   final Set<int> _deletingUserIds = <int>{};
 
@@ -68,7 +72,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _currentPage = 1;
   int _lastPage = 1;
   int _totalStudents = 0;
+  int _managedUsersPage = 1;
   String _selectedFilter = _filterAll;
+  String _userSearchQuery = '';
+  String _selectedUserRoleFilter = _userRoleAll;
   AdminDashboardSummary? _dashboardSummary;
   late DateTime _exportStartDate;
   late DateTime _exportEndDate;
@@ -91,6 +98,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (_isInitialLoading && _students.isEmpty && _dashboardSummary == null) {
       _refreshDashboard();
     }
+  }
+
+  @override
+  void dispose() {
+    _managedUserSearchController.dispose();
+    super.dispose();
   }
 
   Future<void> _refreshDashboard() async {
@@ -161,6 +174,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _managedUsers
           ..clear()
           ..addAll(managedUsers);
+        _syncManagedUsersPage();
       });
     } catch (e) {
       if (!mounted) return;
@@ -186,8 +200,114 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  List<AppUser> _usersForRole(String role) {
-    return _managedUsers.where((user) => user.role == role).toList();
+  List<AppUser> get _filteredManagedUsers {
+    final query = _userSearchQuery.trim().toLowerCase();
+
+    return _managedUsers.where((user) {
+      final matchesRole =
+          _selectedUserRoleFilter == _userRoleAll ||
+          user.role == _selectedUserRoleFilter;
+      if (!matchesRole) {
+        return false;
+      }
+
+      if (query.isEmpty) {
+        return true;
+      }
+
+      return user.name.toLowerCase().contains(query) ||
+          user.email.toLowerCase().contains(query) ||
+          user.role.toLowerCase().contains(query) ||
+          user.id.toString().contains(query);
+    }).toList();
+  }
+
+  List<AppUser> get _paginatedManagedUsers {
+    final filteredUsers = _filteredManagedUsers;
+    if (filteredUsers.isEmpty) {
+      return const <AppUser>[];
+    }
+
+    final start = ((_managedUsersPage - 1) * _managedUsersPerPage).clamp(
+      0,
+      filteredUsers.length,
+    );
+    final end = (start + _managedUsersPerPage).clamp(0, filteredUsers.length);
+    return filteredUsers.sublist(start, end);
+  }
+
+  int get _managedUsersLastPage {
+    final total = _filteredManagedUsers.length;
+    if (total == 0) {
+      return 1;
+    }
+    return (total / _managedUsersPerPage).ceil();
+  }
+
+  void _syncManagedUsersPage() {
+    final lastPage = _managedUsersLastPage;
+    if (_managedUsersPage > lastPage) {
+      _managedUsersPage = lastPage;
+    }
+    if (_managedUsersPage < 1) {
+      _managedUsersPage = 1;
+    }
+  }
+
+  int _managedUserCountForRole(String role) {
+    return _managedUsers.where((user) => user.role == role).length;
+  }
+
+  void _updateManagedUserSearch(String value) {
+    setState(() {
+      _userSearchQuery = value;
+      _managedUsersPage = 1;
+    });
+  }
+
+  void _updateManagedUserRoleFilter(String role) {
+    setState(() {
+      _selectedUserRoleFilter = role;
+      _managedUsersPage = 1;
+    });
+  }
+
+  void _goToManagedUsersPage(int page) {
+    final lastPage = _managedUsersLastPage;
+    if (page < 1 || page > lastPage || page == _managedUsersPage) {
+      return;
+    }
+
+    setState(() {
+      _managedUsersPage = page;
+    });
+  }
+
+  List<int> _visibleManagedUserPages(bool isCompact) {
+    final lastPage = _managedUsersLastPage;
+    if (lastPage <= 1) {
+      return const <int>[1];
+    }
+
+    if (isCompact) {
+      final pages = <int>{_managedUsersPage};
+      if (_managedUsersPage > 1) {
+        pages.add(_managedUsersPage - 1);
+      }
+      if (_managedUsersPage < lastPage) {
+        pages.add(_managedUsersPage + 1);
+      }
+      final sorted = pages.toList()..sort();
+      return sorted;
+    }
+
+    final start = (_managedUsersPage - 2).clamp(1, lastPage);
+    final end = (_managedUsersPage + 2).clamp(1, lastPage);
+    final pages = <int>[];
+    for (var page = start; page <= end; page++) {
+      pages.add(page);
+    }
+    return pages;
   }
 
   Future<void> _openCreateUserDialog() async {
@@ -1874,27 +1994,36 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   List<int> visiblePages(bool isCompact) {
 =======
   Widget _buildManagedUserSection() {
-    final roleGroups = <_ManagedRoleGroup>[
-      _ManagedRoleGroup(
-        role: 'Student',
-        title: 'Students',
-        description: 'Create or remove student login accounts.',
-        color: const Color(0xFF175CD3),
-        icon: Icons.school_rounded,
+    final filteredUsers = _filteredManagedUsers;
+    final paginatedUsers = _paginatedManagedUsers;
+    final totalUsers = filteredUsers.length;
+    final startItem = totalUsers == 0
+        ? 0
+        : ((_managedUsersPage - 1) * _managedUsersPerPage) + 1;
+    final endItem = (_managedUsersPage * _managedUsersPerPage).clamp(
+      0,
+      totalUsers,
+    );
+    final roleFilters = <_ManagedRoleFilter>[
+      _ManagedRoleFilter(
+        key: _userRoleAll,
+        label: 'All Users',
+        count: _managedUsers.length,
       ),
-      _ManagedRoleGroup(
-        role: 'Adviser',
-        title: 'Advisers',
-        description: 'Manage faculty accounts for student oversight.',
-        color: const Color(0xFF6941C6),
-        icon: Icons.campaign_rounded,
+      _ManagedRoleFilter(
+        key: 'Student',
+        label: 'Students',
+        count: _managedUserCountForRole('Student'),
       ),
-      _ManagedRoleGroup(
-        role: 'Supervisor',
-        title: 'Supervisors',
-        description: 'Manage workplace reviewer accounts.',
-        color: const Color(0xFF0F766E),
-        icon: Icons.badge_rounded,
+      _ManagedRoleFilter(
+        key: 'Adviser',
+        label: 'Advisers',
+        count: _managedUserCountForRole('Adviser'),
+      ),
+      _ManagedRoleFilter(
+        key: 'Supervisor',
+        label: 'Supervisors',
+        count: _managedUserCountForRole('Supervisor'),
       ),
     ];
 
@@ -1960,105 +2089,145 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 20),
           LayoutBuilder(
             builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 860;
+
+              return Flex(
+                direction: stacked ? Axis.vertical : Axis.horizontal,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: stacked ? 0 : 8,
+                    child: TextField(
+                      controller: _managedUserSearchController,
+                      onChanged: _updateManagedUserSearch,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search_rounded),
+                        hintText: 'Search by name, email, role, or account ID',
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        suffixIcon: _userSearchQuery.isEmpty
+                            ? null
+                            : IconButton(
+                                onPressed: () {
+                                  _managedUserSearchController.clear();
+                                  _updateManagedUserSearch('');
+                                },
+                                icon: const Icon(Icons.close_rounded),
+                              ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFD7E4F4),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFD7E4F4),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: const BorderSide(
+                            color: _brandPrimary,
+                            width: 1.4,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (!stacked) const SizedBox(width: 12),
+                  if (stacked) const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FBFF),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFD7E4F4)),
+                    ),
+                    child: Text(
+                      '$startItem-$endItem of $totalUsers users',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: _textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: roleFilters.map((filter) {
+              final selected = _selectedUserRoleFilter == filter.key;
+              return ChoiceChip(
+                label: Text('${filter.label} (${filter.count})'),
+                selected: selected,
+                onSelected: (_) => _updateManagedUserRoleFilter(filter.key),
+                backgroundColor: const Color(0xFFF8FAFC),
+                selectedColor: const Color(0xFFDCEBFF),
+                side: BorderSide(
+                  color: selected ? _brandPrimary : const Color(0xFFD0D5DD),
+                ),
+                labelStyle: TextStyle(
+                  color: selected ? _brandPrimary : const Color(0xFF475467),
+                  fontWeight: FontWeight.w800,
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 18),
+          LayoutBuilder(
+            builder: (context, constraints) {
               final isCompact = constraints.maxWidth < 980;
               final itemWidth = isCompact
                   ? constraints.maxWidth
                   : (constraints.maxWidth - 24) / 3;
 
+              if (paginatedUsers.isEmpty) {
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFBFDFF),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Text(
+                    _userSearchQuery.trim().isEmpty
+                        ? 'No users matched this filter.'
+                        : 'No users matched "${_userSearchQuery.trim()}".',
+                    style: const TextStyle(fontSize: 14, color: _textSecondary),
+                  ),
+                );
+              }
+
               return Wrap(
                 spacing: 12,
                 runSpacing: 12,
-                children: roleGroups.map((group) {
+                children: paginatedUsers.map((user) {
                   return SizedBox(
                     width: itemWidth,
-                    child: _buildManagedRoleCard(group),
+                    child: _buildManagedUserTile(user),
                   );
                 }).toList(),
               );
             },
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildManagedRoleCard(_ManagedRoleGroup group) {
-    final users = _usersForRole(group.role);
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFBFDFF),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: group.color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(group.icon, color: group.color),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      group.title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: _textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${users.length} account${users.length == 1 ? '' : 's'}',
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        color: _textSecondary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            group.description,
-            style: const TextStyle(
-              fontSize: 13,
-              color: _textSecondary,
-              height: 1.45,
+          if (filteredUsers.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            LayoutBuilder(
+              builder: (context, constraints) =>
+                  _buildManagedUserPaginationControls(constraints, totalUsers),
             ),
-          ),
-          const SizedBox(height: 14),
-          if (users.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE4E7EC)),
-              ),
-              child: const Text(
-                'No accounts in this role yet.',
-                style: TextStyle(fontSize: 13.5, color: _textSecondary),
-              ),
-            )
-          else
-            ...users.map(_buildManagedUserTile),
+          ],
         ],
       ),
     );
@@ -2066,66 +2235,212 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _buildManagedUserTile(AppUser user) {
     final isDeleting = _deletingUserIds.contains(user.id);
+    final roleMeta = _managedRoleMeta(user.role);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE4E7EC)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            backgroundColor: const Color(0xFFEAF2FF),
-            child: Text(
-              _initialsFor(user.name),
-              style: const TextStyle(
-                color: _brandPrimary,
-                fontWeight: FontWeight.w800,
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: const Color(0xFFEAF2FF),
+                child: Text(
+                  _initialsFor(user.name),
+                  style: const TextStyle(
+                    color: _brandPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
                   user.name,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: _textPrimary,
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  user.email,
-                  style: const TextStyle(fontSize: 12.5, color: _textSecondary),
-                ),
-              ],
-            ),
+              ),
+              IconButton(
+                tooltip: 'Remove user',
+                onPressed: isDeleting
+                    ? null
+                    : () => _confirmDeleteManagedUser(user),
+                icon: isDeleting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(
+                        Icons.delete_outline_rounded,
+                        color: Color(0xFFB42318),
+                      ),
+              ),
+            ],
           ),
-          IconButton(
-            tooltip: 'Remove user',
-            onPressed: isDeleting
-                ? null
-                : () => _confirmDeleteManagedUser(user),
-            icon: isDeleting
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(
-                    Icons.delete_outline_rounded,
-                    color: Color(0xFFB42318),
-                  ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildStatusBadge(
+                label: roleMeta.label,
+                backgroundColor: roleMeta.background,
+                foregroundColor: roleMeta.foreground,
+              ),
+              _buildStatusBadge(
+                label: 'Account #${user.id}',
+                backgroundColor: const Color(0xFFF2F4F7),
+                foregroundColor: const Color(0xFF344054),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            user.email,
+            style: const TextStyle(fontSize: 13, color: _textSecondary),
           ),
         ],
       ),
+    );
+  }
+
+  _ManagedRoleMeta _managedRoleMeta(String role) {
+    switch (role) {
+      case 'Student':
+        return const _ManagedRoleMeta(
+          label: 'Student',
+          background: Color(0xFFE8F1FF),
+          foreground: Color(0xFF175CD3),
+        );
+      case 'Adviser':
+        return const _ManagedRoleMeta(
+          label: 'Adviser',
+          background: Color(0xFFF1EBFF),
+          foreground: Color(0xFF6941C6),
+        );
+      case 'Supervisor':
+        return const _ManagedRoleMeta(
+          label: 'Supervisor',
+          background: Color(0xFFE7F6EC),
+          foreground: Color(0xFF067647),
+        );
+      default:
+        return const _ManagedRoleMeta(
+          label: 'User',
+          background: Color(0xFFF2F4F7),
+          foreground: Color(0xFF344054),
+        );
+    }
+  }
+
+  Widget _buildManagedUserPaginationControls(
+    BoxConstraints constraints,
+    int totalUsers,
+  ) {
+    final isCompact = constraints.maxWidth < 600;
+    final visiblePages = _visibleManagedUserPages(isCompact);
+    final startItem = totalUsers == 0
+        ? 0
+        : ((_managedUsersPage - 1) * _managedUsersPerPage) + 1;
+    final endItem = (_managedUsersPage * _managedUsersPerPage).clamp(
+      0,
+      totalUsers,
+    );
+
+    if (isCompact) {
+      return Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildArrowButton(
+                icon: Icons.chevron_left_rounded,
+                compact: true,
+                onPressed: _managedUsersPage > 1
+                    ? () => _goToManagedUsersPage(_managedUsersPage - 1)
+                    : null,
+              ),
+              ...visiblePages.map(
+                (page) => _buildPageButton(
+                  page: page,
+                  selected: page == _managedUsersPage,
+                  compact: true,
+                  onTap: () => _goToManagedUsersPage(page),
+                ),
+              ),
+              _buildArrowButton(
+                icon: Icons.chevron_right_rounded,
+                compact: true,
+                onPressed: _managedUsersPage < _managedUsersLastPage
+                    ? () => _goToManagedUsersPage(_managedUsersPage + 1)
+                    : null,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '$startItem-$endItem of $totalUsers users',
+            style: const TextStyle(fontSize: 14, color: _textSecondary),
+          ),
+        ],
+      );
+    }
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 4,
+      runSpacing: 10,
+      children: [
+        _buildArrowButton(
+          icon: Icons.keyboard_double_arrow_left_rounded,
+          onPressed: _managedUsersPage > 1
+              ? () => _goToManagedUsersPage(1)
+              : null,
+        ),
+        _buildArrowButton(
+          icon: Icons.chevron_left_rounded,
+          onPressed: _managedUsersPage > 1
+              ? () => _goToManagedUsersPage(_managedUsersPage - 1)
+              : null,
+        ),
+        ...visiblePages.map(
+          (page) => _buildPageButton(
+            page: page,
+            selected: page == _managedUsersPage,
+            compact: false,
+            onTap: () => _goToManagedUsersPage(page),
+          ),
+        ),
+        _buildArrowButton(
+          icon: Icons.chevron_right_rounded,
+          onPressed: _managedUsersPage < _managedUsersLastPage
+              ? () => _goToManagedUsersPage(_managedUsersPage + 1)
+              : null,
+        ),
+        _buildArrowButton(
+          icon: Icons.keyboard_double_arrow_right_rounded,
+          onPressed: _managedUsersPage < _managedUsersLastPage
+              ? () => _goToManagedUsersPage(_managedUsersLastPage)
+              : null,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$startItem-$endItem of $totalUsers users',
+          style: const TextStyle(fontSize: 16, color: _textSecondary),
+        ),
+      ],
     );
   }
 
@@ -2160,13 +2475,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     required int page,
     required bool selected,
     required bool compact,
+    VoidCallback? onTap,
   }) {
     final size = compact ? 40.0 : 42.0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: InkWell(
-        onTap: _isPageLoading ? null : () => _goToPage(page),
+        onTap: _isPageLoading ? null : (onTap ?? () => _goToPage(page)),
         borderRadius: BorderRadius.circular(size / 2),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
@@ -2523,22 +2839,6 @@ class _StudentFilter {
   const _StudentFilter({required this.key, required this.label});
 }
 
-class _ManagedRoleGroup {
-  final String role;
-  final String title;
-  final String description;
-  final Color color;
-  final IconData icon;
-
-  const _ManagedRoleGroup({
-    required this.role,
-    required this.title,
-    required this.description,
-    required this.color,
-    required this.icon,
-  });
-}
-
 class _ManagedUserDraft {
   final String name;
   final String email;
@@ -2550,5 +2850,29 @@ class _ManagedUserDraft {
     required this.email,
     required this.password,
     required this.role,
+  });
+}
+
+class _ManagedRoleFilter {
+  final String key;
+  final String label;
+  final int count;
+
+  const _ManagedRoleFilter({
+    required this.key,
+    required this.label,
+    required this.count,
+  });
+}
+
+class _ManagedRoleMeta {
+  final String label;
+  final Color background;
+  final Color foreground;
+
+  const _ManagedRoleMeta({
+    required this.label,
+    required this.background,
+    required this.foreground,
   });
 }
