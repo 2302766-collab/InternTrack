@@ -2057,23 +2057,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              FilledButton.icon(
-                onPressed: _isCreatingUser ? null : _openCreateUserDialog,
-                icon: const Icon(Icons.person_add_alt_1_rounded),
-                label: const Text('Add User'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: _brandPrimary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                ),
-              ),
             ],
           ),
           if (_userManagementError != null) ...[
@@ -2095,42 +2078,50 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 direction: stacked ? Axis.vertical : Axis.horizontal,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    flex: stacked ? 0 : 8,
-                    child: TextField(
-                      controller: _managedUserSearchController,
-                      onChanged: _updateManagedUserSearch,
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.search_rounded),
-                        hintText: 'Search by name, email, role, or account ID',
-                        filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-                        suffixIcon: _userSearchQuery.isEmpty
-                            ? null
-                            : IconButton(
-                                onPressed: () {
-                                  _managedUserSearchController.clear();
-                                  _updateManagedUserSearch('');
-                                },
-                                icon: const Icon(Icons.close_rounded),
+                  Flexible(
+                    flex: stacked ? 0 : 1,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: stacked ? constraints.maxWidth : 460,
+                        ),
+                        child: TextField(
+                          controller: _managedUserSearchController,
+                          onChanged: _updateManagedUserSearch,
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(Icons.search_rounded),
+                            hintText: 'Search user',
+                            filled: true,
+                            fillColor: const Color(0xFFF8FAFC),
+                            suffixIcon: _userSearchQuery.isEmpty
+                                ? null
+                                : IconButton(
+                                    onPressed: () {
+                                      _managedUserSearchController.clear();
+                                      _updateManagedUserSearch('');
+                                    },
+                                    icon: const Icon(Icons.close_rounded),
+                                  ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFD7E4F4),
                               ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(18),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFD7E4F4),
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(18),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFD7E4F4),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(18),
-                          borderSide: const BorderSide(
-                            color: _brandPrimary,
-                            width: 1.4,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFD7E4F4),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              borderSide: const BorderSide(
+                                color: _brandPrimary,
+                                width: 1.4,
+                              ),
+                            ),
                           ),
                         ),
                       ),
