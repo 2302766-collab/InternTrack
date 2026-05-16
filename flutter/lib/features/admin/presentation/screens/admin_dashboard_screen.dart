@@ -7,6 +7,7 @@ import '../../../../core/constants/app_routes.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/admin_dashboard_service.dart';
 import '../../../../core/services/admin_student_service.dart';
+import '../../../../core/services/admin_user_management_service.dart';
 import '../../../../core/services/intern_reporting_service.dart';
 import '../../../../core/utils/file_picker_helper_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
@@ -50,15 +51,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   late final AdminStudentService _studentService;
   late final AdminDashboardService _dashboardService;
+  late final AdminUserManagementService _userManagementService;
   late final InternReportingService _reportingService;
 
   final List<AdminStudentSummary> _students = <AdminStudentSummary>[];
+  final List<AppUser> _managedUsers = <AppUser>[];
   final GlobalKey _profileMenuAnchorKey = GlobalKey();
   final Set<int> _exportingStudentIds = <int>{};
+  final Set<int> _deletingUserIds = <int>{};
 
   bool _isInitialLoading = true;
   bool _isPageLoading = false;
+  bool _isCreatingUser = false;
   String? _errorMessage;
+  String? _userManagementError;
   int _currentPage = 1;
   int _lastPage = 1;
   int _totalStudents = 0;
@@ -72,6 +78,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     super.initState();
     _studentService = context.read<AdminStudentService>();
     _dashboardService = context.read<AdminDashboardService>();
+    _userManagementService = context.read<AdminUserManagementService>();
     _reportingService = InternReportingService(context.read<ApiClient>());
     final now = DateTime.now();
     _exportStartDate = DateTime(now.year, now.month, 1);
@@ -132,12 +139,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final results = await Future.wait<dynamic>([
         _studentService.fetchStudents(page: page, perPage: _itemsPerPage),
         _dashboardService.getSummary(),
+        _userManagementService.fetchManagedUsers(),
       ]);
 
       if (!mounted) return;
 
       final studentsPage = results[0] as AdminStudentsPage;
       final summary = results[1] as AdminDashboardSummary;
+      final managedUsers = results[2] as List<AppUser>;
 
       setState(() {
         _currentPage = studentsPage.currentPage;
@@ -145,9 +154,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _totalStudents = studentsPage.total;
         _dashboardSummary = summary;
         _errorMessage = null;
+        _userManagementError = null;
         _students
           ..clear()
           ..addAll(studentsPage.students);
+        _managedUsers
+          ..clear()
+          ..addAll(managedUsers);
       });
     } catch (e) {
       if (!mounted) return;
@@ -170,6 +183,263 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     if (mounted) {
       await _loadDashboard(page: _currentPage);
+    }
+  }
+
+  List<AppUser> _usersForRole(String role) {
+    return _managedUsers.where((user) => user.role == role).toList();
+  }
+
+  Future<void> _openCreateUserDialog() async {
+    final nameController = TextEditingController();
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    var selectedRole = 'Student';
+    var obscurePassword = true;
+
+    final draft = await showDialog<_ManagedUserDraft>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Add User'),
+              content: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: nameController,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Full name',
+                          hintText: 'Enter the user name',
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Name is required.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          hintText: 'user@example.com',
+                        ),
+                        validator: (value) {
+                          final trimmed = value?.trim() ?? '';
+                          if (trimmed.isEmpty) {
+                            return 'Email is required.';
+                          }
+                          if (!trimmed.contains('@')) {
+                            return 'Enter a valid email address.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedRole,
+                        decoration: const InputDecoration(labelText: 'Role'),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'Student',
+                            child: Text('Student'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Adviser',
+                            child: Text('Adviser'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Supervisor',
+                            child: Text('Supervisor'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setDialogState(() {
+                            selectedRole = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: passwordController,
+                        obscureText: obscurePassword,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          hintText: 'Minimum 8 characters',
+                          suffixIcon: IconButton(
+                            onPressed: () {
+                              setDialogState(() {
+                                obscurePassword = !obscurePassword;
+                              });
+                            },
+                            icon: Icon(
+                              obscurePassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                            ),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Password is required.';
+                          }
+                          if (value.length < 8) {
+                            return 'Password must be at least 8 characters.';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    if (!formKey.currentState!.validate()) {
+                      return;
+                    }
+
+                    Navigator.of(dialogContext).pop(
+                      _ManagedUserDraft(
+                        name: nameController.text.trim(),
+                        email: emailController.text.trim(),
+                        password: passwordController.text,
+                        role: selectedRole,
+                      ),
+                    );
+                  },
+                  child: const Text('Create'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    nameController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+
+    if (draft == null) {
+      return;
+    }
+
+    await _createManagedUser(draft);
+  }
+
+  Future<void> _createManagedUser(_ManagedUserDraft draft) async {
+    if (_isCreatingUser) {
+      return;
+    }
+
+    setState(() {
+      _isCreatingUser = true;
+      _userManagementError = null;
+    });
+
+    try {
+      final createdUser = await _userManagementService.createManagedUser(
+        name: draft.name,
+        email: draft.email,
+        password: draft.password,
+        role: draft.role,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${createdUser.role} account created.')),
+      );
+      await _loadDashboard(page: _currentPage);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _userManagementError = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCreatingUser = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteManagedUser(AppUser user) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text('Remove ${user.role}'),
+          content: Text(
+            'Remove ${user.name} (${user.email})? Student records will be deleted. Adviser and supervisor assignments will be cleared automatically.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFB42318),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    setState(() {
+      _deletingUserIds.add(user.id);
+      _userManagementError = null;
+    });
+
+    try {
+      final removedUser = await _userManagementService.deleteManagedUser(
+        user.id,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${removedUser.role} account removed.')),
+      );
+      await _loadDashboard(page: _currentPage);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _userManagementError = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _deletingUserIds.remove(user.id);
+        });
+      }
     }
   }
 
@@ -1173,6 +1443,35 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             ),
                           ),
                         ),
+                        FilledButton.icon(
+                          onPressed: _isCreatingUser
+                              ? null
+                              : _openCreateUserDialog,
+                          icon: _isCreatingUser
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.person_add_alt_1_rounded),
+                          label: Text(
+                            _isCreatingUser ? 'Creating...' : 'Add User',
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _brandSecondary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                          ),
+                        ),
                         OutlinedButton.icon(
                           onPressed: () {
                             setState(() {
@@ -1571,7 +1870,267 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+<<<<<<< HEAD
   List<int> visiblePages(bool isCompact) {
+=======
+  Widget _buildManagedUserSection() {
+    final roleGroups = <_ManagedRoleGroup>[
+      _ManagedRoleGroup(
+        role: 'Student',
+        title: 'Students',
+        description: 'Create or remove student login accounts.',
+        color: const Color(0xFF175CD3),
+        icon: Icons.school_rounded,
+      ),
+      _ManagedRoleGroup(
+        role: 'Adviser',
+        title: 'Advisers',
+        description: 'Manage faculty accounts for student oversight.',
+        color: const Color(0xFF6941C6),
+        icon: Icons.campaign_rounded,
+      ),
+      _ManagedRoleGroup(
+        role: 'Supervisor',
+        title: 'Supervisors',
+        description: 'Manage workplace reviewer accounts.',
+        color: const Color(0xFF0F766E),
+        icon: Icons.badge_rounded,
+      ),
+    ];
+
+    return _buildSectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'User Management',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: _textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'Add or remove student, adviser, and supervisor accounts directly from the admin workspace.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: _textSecondary,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              FilledButton.icon(
+                onPressed: _isCreatingUser ? null : _openCreateUserDialog,
+                icon: const Icon(Icons.person_add_alt_1_rounded),
+                label: const Text('Add User'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _brandPrimary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_userManagementError != null) ...[
+            const SizedBox(height: 14),
+            Text(
+              _userManagementError!,
+              style: const TextStyle(
+                color: Color(0xFFB42318),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxWidth < 980;
+              final itemWidth = isCompact
+                  ? constraints.maxWidth
+                  : (constraints.maxWidth - 24) / 3;
+
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: roleGroups.map((group) {
+                  return SizedBox(
+                    width: itemWidth,
+                    child: _buildManagedRoleCard(group),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildManagedRoleCard(_ManagedRoleGroup group) {
+    final users = _usersForRole(group.role);
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBFDFF),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: group.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(group.icon, color: group.color),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      group.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: _textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${users.length} account${users.length == 1 ? '' : 's'}',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: _textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            group.description,
+            style: const TextStyle(
+              fontSize: 13,
+              color: _textSecondary,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 14),
+          if (users.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE4E7EC)),
+              ),
+              child: const Text(
+                'No accounts in this role yet.',
+                style: TextStyle(fontSize: 13.5, color: _textSecondary),
+              ),
+            )
+          else
+            ...users.map(_buildManagedUserTile),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildManagedUserTile(AppUser user) {
+    final isDeleting = _deletingUserIds.contains(user.id);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: const Color(0xFFEAF2FF),
+            child: Text(
+              _initialsFor(user.name),
+              style: const TextStyle(
+                color: _brandPrimary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  user.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: _textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  user.email,
+                  style: const TextStyle(fontSize: 12.5, color: _textSecondary),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Remove user',
+            onPressed: isDeleting
+                ? null
+                : () => _confirmDeleteManagedUser(user),
+            icon: isDeleting
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Color(0xFFB42318),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<int> _visiblePages(bool isCompact) {
+>>>>>>> 1822302 (admin user management)
     if (_lastPage <= 1) {
       return const <int>[1];
     }
@@ -1796,7 +2355,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               buildActionPanel(summary),
             ],
             const SizedBox(height: 22),
+<<<<<<< HEAD
             buildSectionCard(
+=======
+            _buildManagedUserSection(),
+            const SizedBox(height: 22),
+            _buildSectionCard(
+>>>>>>> 1822302 (admin user management)
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1956,4 +2521,34 @@ class _StudentFilter {
   final String label;
 
   const _StudentFilter({required this.key, required this.label});
+}
+
+class _ManagedRoleGroup {
+  final String role;
+  final String title;
+  final String description;
+  final Color color;
+  final IconData icon;
+
+  const _ManagedRoleGroup({
+    required this.role,
+    required this.title,
+    required this.description,
+    required this.color,
+    required this.icon,
+  });
+}
+
+class _ManagedUserDraft {
+  final String name;
+  final String email;
+  final String password;
+  final String role;
+
+  const _ManagedUserDraft({
+    required this.name,
+    required this.email,
+    required this.password,
+    required this.role,
+  });
 }
