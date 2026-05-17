@@ -189,4 +189,32 @@ class AuthController extends Controller
             'user' => $this->userPayload($user),
         ]);
     }
+
+    // PATCH /api/v1/auth/profile (auth:sanctum)
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user()?->loadMissing('role');
+        if (!$user) {
+            return $this->fail('Unauthenticated.', null, 401);
+        }
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'gender' => ['required', 'string', 'in:Male,Female'],
+        ]);
+
+        $originalName = $validated['name'];
+        $sanitizedName = $this->sanitizer->sanitizeString($validated['name']);
+
+        $this->sanitizer->logSanitization('name', $originalName, $sanitizedName);
+
+        $user->update([
+            'name' => $sanitizedName,
+            'gender' => $validated['gender'],
+        ]);
+
+        return $this->success('Profile updated successfully.', [
+            'user' => $this->userPayload($user->fresh()->loadMissing('role')),
+        ]);
+    }
 }

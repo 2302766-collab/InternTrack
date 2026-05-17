@@ -150,6 +150,43 @@ class AuthService extends BaseService {
     }
   }
 
+  Future<AppUser> updateProfile({
+    required String name,
+    required String gender,
+  }) async {
+    try {
+      return await _apiClient.patch<AppUser>(
+        path: '/auth/profile',
+        data: {'name': name, 'gender': gender},
+        converter: (data) {
+          if (data is! Map<String, dynamic>) {
+            throw ApiException(
+              message: 'Invalid profile update response format',
+              errorType: ApiErrorType.unknown,
+            );
+          }
+
+          final payload = data['data'];
+          final userData = payload is Map<String, dynamic>
+              ? payload['user']
+              : null;
+
+          if (userData is! Map<String, dynamic>) {
+            throw ApiException(
+              message: 'No user data in profile update response',
+              errorType: ApiErrorType.unknown,
+            );
+          }
+
+          return AppUser.fromJson(userData);
+        },
+      );
+    } on ApiException catch (e) {
+      handleApiError(e);
+      rethrow;
+    }
+  }
+
   /// Revokes the current access token on the server.
   ///
   /// Throws [ApiException] if the request fails. Callers may still choose to

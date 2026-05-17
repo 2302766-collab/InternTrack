@@ -117,6 +117,32 @@ class AuthFlowTest extends TestCase
             ->assertJsonPath('data.user.role', 'Supervisor');
     }
 
+    public function test_authenticated_user_can_update_name_and_gender_on_their_profile(): void
+    {
+        $user = $this->createUserWithRole('Student', [
+            'name' => 'Juan Dela Cruz',
+            'gender' => 'Male',
+        ]);
+        $token = $user->createToken('api-token')->plainTextToken;
+
+        $this->withHeader('Accept', 'application/json')
+            ->withToken($token)
+            ->patch('/api/v1/auth/profile', [
+                'name' => 'Maria Santos',
+                'gender' => 'Female',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Profile updated successfully.')
+            ->assertJsonPath('data.user.id', $user->id)
+            ->assertJsonPath('data.user.name', 'Maria Santos')
+            ->assertJsonPath('data.user.gender', 'Female')
+            ->assertJsonPath('data.user.role', 'Student');
+
+        $this->assertSame('Maria Santos', $user->fresh()->name);
+        $this->assertSame('Female', $user->fresh()->gender);
+    }
+
     public function test_login_access_token_can_be_reused_for_authenticated_requests_until_logout(): void
     {
         $user = $this->createUserWithRole('Adviser', [
