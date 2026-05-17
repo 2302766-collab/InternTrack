@@ -263,28 +263,41 @@ class _AuthOrbLogo extends StatelessWidget {
         ],
       ),
       child: Center(
-        child: Container(
-          width: 24,
-          height: 24,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white.withAlpha(235), width: 2.3),
-          ),
-          child: Align(
-            alignment: const Alignment(0.9, 0),
-            child: Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF1C3452),
-                border: Border.all(
-                  color: Colors.white.withAlpha(185),
-                  width: 1.4,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(
+              Icons.business_center_rounded,
+              size: 24,
+              color: Colors.white.withAlpha(228),
+            ),
+            Positioned(
+              right: 9,
+              bottom: 9,
+              child: Container(
+                width: 13,
+                height: 13,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF89E0FF),
+                  border: Border.all(
+                    color: const Color(0xFF1C3452),
+                    width: 1.2,
+                  ),
+                ),
+                child: Center(
+                  child: Container(
+                    width: 5,
+                    height: 5,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color(0xFF1C3452),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );

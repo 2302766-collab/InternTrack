@@ -22,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   static const _fieldBorder = Color(0x334EC9FF);
   static const _mutedText = Color(0xFFA9B7C8);
   static const _brightText = Color(0xFFF2F7FF);
+  static const _hintText = Color(0xFFD2DEEC);
 
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
@@ -148,14 +149,16 @@ class _LoginScreenState extends State<LoginScreen> {
       filled: true,
       fillColor: _fieldFill.withAlpha(235),
       labelStyle: const TextStyle(
-        color: _mutedText,
+        color: Color(0xFF89CFF2),
         fontSize: 13,
-        fontWeight: FontWeight.w500,
+        fontWeight: FontWeight.w600,
       ),
-      hintStyle: const TextStyle(
-        color: Color(0xFF6E8199),
-        fontWeight: FontWeight.w500,
+      floatingLabelStyle: const TextStyle(
+        color: Color(0xFF89CFF2),
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
       ),
+      hintStyle: const TextStyle(color: _hintText, fontWeight: FontWeight.w600),
       prefixIcon: label == 'Email'
           ? const Icon(Icons.alternate_email_rounded, color: _mutedText)
           : const Icon(Icons.lock_outline_rounded, color: _mutedText),
@@ -241,6 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
               enabled: !_isLoading,
               decoration: _inputDecoration('Email'),
               keyboardType: TextInputType.emailAddress,
+              cursorColor: const Color(0xFF75D8FF),
               style: const TextStyle(
                 color: _brightText,
                 fontWeight: FontWeight.w600,
@@ -267,6 +271,7 @@ class _LoginScreenState extends State<LoginScreen> {
               enabled: !_isLoading,
               decoration: _inputDecoration('Password'),
               obscureText: _obscurePassword,
+              cursorColor: const Color(0xFF75D8FF),
               style: const TextStyle(
                 color: _brightText,
                 fontWeight: FontWeight.w600,
