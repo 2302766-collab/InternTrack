@@ -10,6 +10,7 @@ import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/internship_service.dart';
 import '../../../../core/services/logbook_service.dart';
 import '../../../../core/services/student_report_service.dart';
+import '../../../../core/theme/ocean_breeze_palette.dart';
 import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/internship_profile.dart';
 import '../../../../shared/models/log_entry.dart';
@@ -48,6 +49,14 @@ class StudentDashboardScreen extends StatefulWidget {
 }
 
 class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
+  static const Color _canvasColor = OceanBreezePalette.canvas;
+  static const Color _headlineColor = OceanBreezePalette.textPrimary;
+  static const Color _bodyColor = OceanBreezePalette.textSecondary;
+  static const Color _heroStart = OceanBreezePalette.midnight;
+  static const Color _heroEnd = OceanBreezePalette.deepSea;
+  static const Color _accentPrimary = OceanBreezePalette.deepSea;
+  static const Color _accentSecondary = OceanBreezePalette.tide;
+
   late final InternshipService _internshipService;
   late final LogbookService _logbookService;
   late final StudentReportService _reportService;
@@ -471,12 +480,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   (Color, Color) get _attentionChipColors {
     if (!_profileComplete) {
-      return (const Color(0xFFFEECEE), const Color(0xFFB42318));
+      return (OceanBreezePalette.surfaceMuted, _heroStart);
     }
     if (!_hasTodayLog || _pendingLogsCount > 0 || ((_paceDelta ?? 0) < 0)) {
-      return (const Color(0xFFFFF4E5), const Color(0xFFB54708));
+      return (OceanBreezePalette.surfaceSoft, _accentPrimary);
     }
-    return (const Color(0xFFE8F7EE), const Color(0xFF027A48));
+    return (OceanBreezePalette.mist, _accentSecondary);
   }
 
   List<LogEntryItem> get _recentLogs => _logs.take(4).toList();
@@ -1089,8 +1098,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                             _buildProfileActionTile(
                               icon: Icons.edit_outlined,
                               title: 'Edit profile',
-                              subtitle:
-                                  'Update your display name and gender.',
+                              subtitle: 'Update your display name and gender.',
                               onTap: () async {
                                 Navigator.of(dialogContext).pop();
                                 await _showEditProfileDialog();
@@ -1212,15 +1220,15 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   Color get _nextActionColor {
     if (_profile == null) {
-      return const Color(0xFFB42318);
+      return _heroStart;
     }
     if (!_hasTodayLog) {
-      return const Color(0xFFB54708);
+      return _accentPrimary;
     }
     if (_pendingLogsCount > 0 || _isBehindPace) {
-      return const Color(0xFFB54708);
+      return _accentPrimary;
     }
-    return const Color(0xFF027A48);
+    return _accentSecondary;
   }
 
   Widget _buildHeader(AuthProvider authProvider) {
@@ -1238,7 +1246,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           padding: EdgeInsets.all(isCompact ? 20 : 24),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF0F4C81), Color(0xFF2267A5)],
+              colors: [_heroStart, _heroEnd],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -1293,11 +1301,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
-  Widget _buildHeaderText(
-    ThemeData theme,
-    AppUser? user,
-    bool isCompact,
-  ) {
+  Widget _buildHeaderText(ThemeData theme, AppUser? user, bool isCompact) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1310,7 +1314,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          _profile == null ? 'Set up your internship.' : 'Stay on top of your internship.',
+          _profile == null
+              ? 'Set up your internship.'
+              : 'Stay on top of your internship.',
           style: theme.textTheme.headlineMedium?.copyWith(
             color: Colors.white,
             fontWeight: FontWeight.w800,
@@ -1330,9 +1336,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         ),
         const SizedBox(height: 14),
         DefaultTextStyle(
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.84),
-          ),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.84)),
           child: DashboardRefreshStatus(
             lastUpdated: _lastUpdated,
             isRefreshing: _isRefreshing,
@@ -1352,10 +1356,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       alignment: WrapAlignment.end,
       children: [
         SettingsShortcutButton(iconColor: Colors.white),
-        NotificationBellButton(
-          token: token,
-          iconColor: Colors.white,
-        ),
+        NotificationBellButton(token: token, iconColor: Colors.white),
         Material(
           color: Colors.transparent,
           child: InkWell(
@@ -1363,30 +1364,19 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             onTap: _openProfilePanel,
             borderRadius: BorderRadius.circular(22),
             child: Ink(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.18),
-                ),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildAvatar(
-                    user: user,
-                    radius: 22,
-                    fontSize: 14,
-                  ),
+                  _buildAvatar(user: user, radius: 22, fontSize: 14),
                   const SizedBox(width: 10),
                   ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: 180,
-                    ),
+                    constraints: const BoxConstraints(maxWidth: 180),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1457,7 +1447,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 Text(
                   _nextActionTitle,
                   style: const TextStyle(
-                    color: Color(0xFF102A56),
+                    color: _headlineColor,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1471,7 +1461,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       child: Text(
                         _nextActionTitle,
                         style: const TextStyle(
-                          color: Color(0xFF102A56),
+                          color: _headlineColor,
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                         ),
@@ -1484,7 +1474,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               const SizedBox(height: 6),
               Text(
                 _nextActionDescription,
-                style: const TextStyle(color: Color(0xFF4A6480), height: 1.4),
+                style: const TextStyle(color: _bodyColor, height: 1.4),
               ),
               const SizedBox(height: 14),
               SizedBox(
@@ -2143,7 +2133,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 child: Text(
                   'Unable to load student dashboard',
                   style: TextStyle(
-                    color: Color(0xFF102A56),
+                    color: _headlineColor,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
@@ -2174,7 +2164,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     return StudentScaffold(
       currentRoute: AppRoutes.studentDashboard,
-      backgroundColor: const Color(0xFFF5F1E8),
+      backgroundColor: _canvasColor,
       body: RefreshIndicator(
         onRefresh: _loadDashboard,
         child: LayoutBuilder(
@@ -2245,14 +2235,14 @@ class _SummaryRow extends StatelessWidget {
       child: RichText(
         text: TextSpan(
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: const Color(0xFF4A6480),
+            color: OceanBreezePalette.textSecondary,
             height: 1.4,
           ),
           children: [
             TextSpan(
               text: '$label: ',
               style: const TextStyle(
-                color: Color(0xFF102A56),
+                color: OceanBreezePalette.textPrimary,
                 fontWeight: FontWeight.w700,
               ),
             ),

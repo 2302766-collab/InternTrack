@@ -8,6 +8,7 @@ import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/supervisor_dashboard_service.dart';
 import '../../../../core/services/supervisor_log_service.dart';
+import '../../../../core/theme/ocean_breeze_palette.dart';
 import '../../../../core/utils/file_picker_helper_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
     as file_picker;
@@ -45,19 +46,19 @@ class SupervisorDashboardScreen extends StatefulWidget {
 
 class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   static const double _maxContentWidth = 1520;
-  static const Color _canvasColor = Color(0xFFF5F1EB);
-  static const Color _panelColor = Colors.white;
-  static const Color _panelSoft = Color(0xFFFAF7F2);
-  static const Color _panelBorder = Color(0xFFE7DDD2);
-  static const Color _headlineColor = Color(0xFF2F312B);
-  static const Color _bodyColor = Color(0xFF6C6257);
-  static const Color _heroStart = Color(0xFF6A4331);
-  static const Color _heroEnd = Color(0xFF2F4A43);
-  static const Color _accentPrimary = Color(0xFF9A5F3F);
-  static const Color _accentSecondary = Color(0xFF55756A);
-  static const Color _accentMuted = Color(0xFF9A8F84);
-  static const Color _accentSoft = Color(0xFFF0E2D2);
-  static const Color _accentSoftAlt = Color(0xFFE6EFEA);
+  static const Color _canvasColor = OceanBreezePalette.canvas;
+  static const Color _panelColor = OceanBreezePalette.surface;
+  static const Color _panelSoft = OceanBreezePalette.surfaceSoft;
+  static const Color _panelBorder = OceanBreezePalette.border;
+  static const Color _headlineColor = OceanBreezePalette.textPrimary;
+  static const Color _bodyColor = OceanBreezePalette.textSecondary;
+  static const Color _heroStart = OceanBreezePalette.midnight;
+  static const Color _heroEnd = OceanBreezePalette.deepSea;
+  static const Color _accentPrimary = OceanBreezePalette.deepSea;
+  static const Color _accentSecondary = OceanBreezePalette.tide;
+  static const Color _accentMuted = OceanBreezePalette.sky;
+  static const Color _accentSoft = OceanBreezePalette.surfaceMuted;
+  static const Color _accentSoftAlt = OceanBreezePalette.mist;
 
   late final SupervisorLogService _logService;
   late final SupervisorDashboardService _dashboardService;
