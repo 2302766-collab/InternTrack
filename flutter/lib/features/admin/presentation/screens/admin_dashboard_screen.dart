@@ -2152,7 +2152,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
         return Row(
           children: [
-            Expanded(child: searchField),
+            SizedBox(width: 320, child: searchField),
             const SizedBox(width: 12),
             filterField,
           ],
