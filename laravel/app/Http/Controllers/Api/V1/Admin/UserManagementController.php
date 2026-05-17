@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\DashboardCacheService;
 use App\Services\InputSanitizationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -14,38 +15,45 @@ class UserManagementController extends Controller
 {
     private const MANAGEABLE_ROLES = ['Student', 'Adviser', 'Supervisor'];
 
-    public function __construct(private InputSanitizationService $sanitizer)
+    public function __construct(
+        private InputSanitizationService $sanitizer,
+        private readonly DashboardCacheService $dashboardCache
+    )
     {
     }
 
     public function index()
     {
-        $roles = Role::query()
-            ->whereIn('name', self::MANAGEABLE_ROLES)
-            ->pluck('id', 'name');
-
-        if ($roles->isEmpty()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Managed users retrieved successfully.',
-                'data' => [],
-            ], 200);
-        }
-
-        $users = User::query()
-            ->with('role')
-            ->whereIn('role_id', $roles->values())
-            ->orderByRaw(
-                "CASE role_id
-                    WHEN {$roles->get('Student', 0)} THEN 1
-                    WHEN {$roles->get('Adviser', 0)} THEN 2
-                    WHEN {$roles->get('Supervisor', 0)} THEN 3
-                    ELSE 4
-                END"
-            )
-            ->orderBy('name')
-            ->get()
-            ->map(fn (User $user) => $this->userPayload($user));
+        $users = $this->dashboardCache->rememberManagedUsers(function (): array {
+            return User::query()
+                ->join('roles', 'roles.id', '=', 'users.role_id')
+                ->whereIn('roles.name', self::MANAGEABLE_ROLES)
+                ->select([
+                    'users.id',
+                    'users.name',
+                    'users.email',
+                    'users.gender',
+                    'roles.name as role',
+                ])
+                ->orderByRaw(
+                    "CASE roles.name
+                        WHEN 'Student' THEN 1
+                        WHEN 'Adviser' THEN 2
+                        WHEN 'Supervisor' THEN 3
+                        ELSE 4
+                    END"
+                )
+                ->orderBy('users.name')
+                ->get()
+                ->map(fn ($user) => [
+                    'id' => (int) $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'gender' => $user->gender,
+                    'role' => $user->role,
+                ])
+                ->all();
+        });
 
         return response()->json([
             'success' => true,

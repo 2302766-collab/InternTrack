@@ -1,5 +1,5 @@
+import 'dart:async';
 import 'dart:math' as math;
-
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -69,7 +69,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   bool _isInitialLoading = true;
   bool _isPageLoading = false;
+  bool _isManagedUsersLoading = false;
   bool _isCreatingUser = false;
+  bool _hasStartedInitialLoad = false;
   String? _errorMessage;
   String? _userManagementError;
   int _currentPage = 1;
@@ -106,13 +108,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_isInitialLoading && _students.isEmpty && _dashboardSummary == null) {
-      _refreshDashboard();
+    if (!_hasStartedInitialLoad) {
+      _hasStartedInitialLoad = true;
+      unawaited(_refreshDashboard());
+      unawaited(_loadManagedUsers());
     }
   }
 
   Future<void> _refreshDashboard() async {
     await _loadDashboard(page: 1);
+  }
+
+  Future<void> _refreshDashboardData() async {
+    await _loadDashboard(page: 1);
+    unawaited(_loadManagedUsers(showLoader: _managedUsers.isEmpty));
   }
 
   Future<void> _goToPage(int page) async {
@@ -157,14 +166,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final results = await Future.wait<dynamic>([
         _studentService.fetchStudents(page: page, perPage: _itemsPerPage),
         _dashboardService.getSummary(),
-        _userManagementService.fetchManagedUsers(),
       ]);
 
       if (!mounted) return;
 
       final studentsPage = results[0] as AdminStudentsPage;
       final summary = results[1] as AdminDashboardSummary;
-      final managedUsers = results[2] as List<AppUser>;
 
       setState(() {
         _currentPage = studentsPage.currentPage;
@@ -172,13 +179,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _totalStudents = studentsPage.total;
         _dashboardSummary = summary;
         _errorMessage = null;
-        _userManagementError = null;
         _students
           ..clear()
           ..addAll(studentsPage.students);
-        _managedUsers
-          ..clear()
-          ..addAll(managedUsers);
       });
     } catch (e) {
       if (!mounted) return;
@@ -191,6 +194,44 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         setState(() {
           _isInitialLoading = false;
           _isPageLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadManagedUsers({bool showLoader = true}) async {
+    if (_isManagedUsersLoading) {
+      return;
+    }
+
+    final shouldShowLoader = showLoader || _managedUsers.isEmpty;
+
+    setState(() {
+      _isManagedUsersLoading = shouldShowLoader;
+      _userManagementError = null;
+    });
+
+    try {
+      final managedUsers = await _userManagementService.fetchManagedUsers();
+
+      if (!mounted) return;
+
+      setState(() {
+        _userManagementError = null;
+        _managedUsers
+          ..clear()
+          ..addAll(managedUsers);
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _userManagementError = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isManagedUsersLoading = false;
         });
       }
     }
@@ -484,6 +525,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         SnackBar(content: Text('${createdUser.role} account created.')),
       );
       await _loadDashboard(page: _currentPage);
+      await _loadManagedUsers(showLoader: false);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -545,6 +587,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         SnackBar(content: Text('${removedUser.role} account removed.')),
       );
       await _loadDashboard(page: _currentPage);
+      await _loadManagedUsers(showLoader: false);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -2233,7 +2276,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             'Review accounts faster with search, role filters, and shorter paged lists for each group.',
             style: TextStyle(fontSize: 14, color: _textSecondary, height: 1.45),
           ),
-          if (_userManagementError != null) ...[
+          if (_isManagedUsersLoading && _managedUsers.isEmpty) ...[
+            const SizedBox(height: 24),
+            const Center(child: CircularProgressIndicator()),
+          ] else if (_userManagementError != null && _managedUsers.isEmpty) ...[
             const SizedBox(height: 14),
             Text(
               _userManagementError!,
@@ -2242,6 +2288,46 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 fontWeight: FontWeight.w600,
               ),
             ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: _loadManagedUsers,
+                child: const Text('Retry user loading'),
+              ),
+            ),
+          ] else ...[
+            if (_userManagementError != null) ...[
+              const SizedBox(height: 14),
+              Text(
+                _userManagementError!,
+                style: const TextStyle(
+                  color: Color(0xFFB42318),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            if (_isManagedUsersLoading) ...[
+              const SizedBox(height: 12),
+              const Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'Refreshing user accounts...',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: _textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
           const SizedBox(height: 18),
           _buildManagedUserToolbar(),
@@ -2859,7 +2945,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 const SizedBox(height: 12),
                 FilledButton(
-                  onPressed: _refreshDashboard,
+                  onPressed: _refreshDashboardData,
                   style: FilledButton.styleFrom(
                     backgroundColor: _brandPrimary,
                     foregroundColor: Colors.white,
@@ -2877,7 +2963,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final filteredStudents = _filteredStudents;
 
     return RefreshIndicator(
-      onRefresh: _refreshDashboard,
+      onRefresh: _refreshDashboardData,
       child: LayoutBuilder(
         builder: (context, constraints) => ListView(
           physics: const AlwaysScrollableScrollPhysics(),

@@ -14,10 +14,12 @@ class UserObserver
     public function saved(User $user): void
     {
         $this->dashboardCache->forgetAdminDashboard();
+        $this->dashboardCache->forgetManagedUsers();
     }
 
     public function deleted(User $user): void
     {
         $this->dashboardCache->forgetAdminDashboard();
+        $this->dashboardCache->forgetManagedUsers();
     }
 }
