@@ -14,6 +14,11 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  static const _fieldFill = Color(0xFF223652);
+  static const _fieldBorder = Color(0x334EC9FF);
+  static const _mutedText = Color(0xFFA9B7C8);
+  static const _brightText = Color(0xFFF2F7FF);
+
   final _formKey = GlobalKey<FormState>();
 
   final _firstNameController = TextEditingController();
@@ -125,6 +130,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       case 'Confirm Password':
         prefix = Icons.lock_outline;
         break;
+      case 'Gender':
+        prefix = Icons.person_rounded;
+        break;
     }
 
     final isPassword = label == 'Password';
@@ -132,8 +140,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     return InputDecoration(
       labelText: label,
-      floatingLabelBehavior: FloatingLabelBehavior.never,
-      prefixIcon: prefix != null ? Icon(prefix) : null,
+      floatingLabelBehavior: FloatingLabelBehavior.always,
+      hintText: switch (label) {
+        'First Name' => 'Enter your first name',
+        'Last Name' => 'Enter your last name',
+        'Email' => 'Enter your email',
+        'Password' => 'Create a password',
+        'Confirm Password' => 'Re-enter your password',
+        'Gender' => 'Select gender',
+        _ => label,
+      },
+      filled: true,
+      fillColor: _fieldFill.withAlpha(235),
+      labelStyle: const TextStyle(
+        color: _mutedText,
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+      ),
+      hintStyle: const TextStyle(
+        color: Color(0xFF6E8199),
+        fontWeight: FontWeight.w500,
+      ),
+      prefixIcon: prefix != null ? Icon(prefix, color: _mutedText) : null,
       suffixIcon: (isPassword || isConfirm)
           ? IconButton(
               tooltip: (isPassword ? _obscurePassword : _obscureConfirm)
@@ -143,6 +171,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 (isPassword ? _obscurePassword : _obscureConfirm)
                     ? Icons.visibility_off
                     : Icons.visibility,
+                color: _mutedText,
               ),
               onPressed: () => setState(() {
                 if (isPassword) {
@@ -153,6 +182,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
               }),
             )
           : null,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(22),
+        borderSide: const BorderSide(color: _fieldBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(22),
+        borderSide: const BorderSide(color: _fieldBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(22),
+        borderSide: const BorderSide(color: Color(0xFF6ED6FF), width: 1.4),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(22),
+        borderSide: const BorderSide(color: Color(0xFFFF8A9B)),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(22),
+        borderSide: const BorderSide(color: Color(0xFFFFAAB6), width: 1.4),
+      ),
+      disabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(22),
+        borderSide: const BorderSide(color: Color(0x223C7CA3)),
+      ),
     );
   }
 
@@ -172,7 +226,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         children: [
           const Text(
             'Already have an account?',
-            style: TextStyle(color: Color(0xFF365A63)),
+            style: TextStyle(color: _mutedText),
           ),
           TextButton(
             onPressed: _isLoading
@@ -180,6 +234,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 : () {
                     Navigator.pushReplacementNamed(context, AppRoutes.login);
                   },
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF75D8FF),
+            ),
             child: const Text('Log in'),
           ),
         ],
@@ -197,6 +254,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               controller: _firstNameController,
               enabled: !_isLoading,
               decoration: _inputDecoration('First Name'),
+              style: const TextStyle(
+                color: _brightText,
+                fontWeight: FontWeight.w600,
+              ),
               textInputAction: TextInputAction.next,
               validator: (value) {
                 final text = value?.trim() ?? '';
@@ -217,6 +278,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               controller: _lastNameController,
               enabled: !_isLoading,
               decoration: _inputDecoration('Last Name'),
+              style: const TextStyle(
+                color: _brightText,
+                fontWeight: FontWeight.w600,
+              ),
               textInputAction: TextInputAction.next,
               validator: (value) {
                 final text = value?.trim() ?? '';
@@ -236,6 +301,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
             DropdownButtonFormField<String>(
               initialValue: _selectedGender,
               decoration: _inputDecoration('Gender'),
+              dropdownColor: const Color(0xFF223652),
+              style: const TextStyle(
+                color: _brightText,
+                fontWeight: FontWeight.w600,
+              ),
+              iconEnabledColor: _mutedText,
               items: const [
                 DropdownMenuItem(value: 'Male', child: Text('Male')),
                 DropdownMenuItem(value: 'Female', child: Text('Female')),
@@ -258,6 +329,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               enabled: !_isLoading,
               decoration: _inputDecoration('Email'),
               keyboardType: TextInputType.emailAddress,
+              style: const TextStyle(
+                color: _brightText,
+                fontWeight: FontWeight.w600,
+              ),
               textInputAction: TextInputAction.next,
               validator: (value) {
                 final text = value?.trim() ?? '';
@@ -280,6 +355,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               enabled: !_isLoading,
               decoration: _inputDecoration('Password'),
               obscureText: _obscurePassword,
+              style: const TextStyle(
+                color: _brightText,
+                fontWeight: FontWeight.w600,
+              ),
               textInputAction: TextInputAction.next,
               validator: (value) {
                 final text = value ?? '';
@@ -301,6 +380,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               enabled: !_isLoading,
               decoration: _inputDecoration('Confirm Password'),
               obscureText: _obscureConfirm,
+              style: const TextStyle(
+                color: _brightText,
+                fontWeight: FontWeight.w600,
+              ),
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) {
                 if (_isFormValid && !_isLoading) {
@@ -327,19 +410,60 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ],
             const SizedBox(height: 24),
             SizedBox(
-              height: 54,
-              child: ElevatedButton(
-                onPressed: (!_isFormValid || _isLoading) ? null : _register,
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+              height: 60,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6DE2FF), Color(0xFF42B9FF)],
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x553CB9FF),
+                      blurRadius: 20,
+                      offset: Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    disabledBackgroundColor: Colors.transparent,
+                    disabledForegroundColor: Colors.white54,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                  ),
+                  onPressed: (!_isFormValid || _isLoading) ? null : _register,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF0E2036),
+                          ),
+                        )
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Create Account',
+                              style: TextStyle(
+                                color: Color(0xFF0D1A2D),
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              color: Color(0xFF0D1A2D),
+                            ),
+                          ],
                         ),
-                      )
-                    : const Text('Create Account'),
+                ),
               ),
             ),
           ],
