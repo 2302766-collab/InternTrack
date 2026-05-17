@@ -4,7 +4,7 @@ import '../services/base_service.dart';
 import '../../shared/models/app_user.dart';
 
 /// Handles user authentication and token management
-/// 
+///
 /// Uses centralized error handling through ApiClient and ApiException
 /// All methods throw ApiException for consistency across the app
 class AuthService extends BaseService {
@@ -13,7 +13,7 @@ class AuthService extends BaseService {
   AuthService(this._apiClient);
 
   /// Registers a new user account
-  /// 
+  ///
   /// Throws [ApiException] with:
   /// - ValidationError (422): Field-level validation errors in details
   /// - ClientError (400): Invalid request format
@@ -22,6 +22,7 @@ class AuthService extends BaseService {
   Future<void> register({
     required String name,
     required String email,
+    required String gender,
     required String password,
     required String passwordConfirmation,
   }) async {
@@ -31,6 +32,7 @@ class AuthService extends BaseService {
         data: {
           'name': name,
           'email': email,
+          'gender': gender,
           'password': password,
           'password_confirmation': passwordConfirmation,
         },
@@ -43,9 +45,9 @@ class AuthService extends BaseService {
   }
 
   /// Logs in user with email and password
-  /// 
+  ///
   /// Returns map with 'token' (access token) and 'user' (AppUser data)
-  /// 
+  ///
   /// Throws [ApiException] with:
   /// - Unauthorized (401): Invalid credentials
   /// - ValidationError (422): Validation errors
@@ -57,10 +59,7 @@ class AuthService extends BaseService {
     try {
       final response = await _apiClient.post<Map<String, dynamic>>(
         path: '/auth/login',
-        data: {
-          'email': email,
-          'password': password,
-        },
+        data: {'email': email, 'password': password},
         converter: (data) {
           if (data is! Map<String, dynamic>) {
             throw ApiException(
@@ -85,10 +84,7 @@ class AuthService extends BaseService {
             );
           }
 
-          return {
-            'token': accessToken,
-            'user': responseData['user'],
-          };
+          return {'token': accessToken, 'user': responseData['user']};
         },
       );
 
@@ -100,7 +96,7 @@ class AuthService extends BaseService {
   }
 
   /// Fetches the authenticated user's profile
-  /// 
+  ///
   /// Throws [ApiException] with:
   /// - Unauthorized (401): Token expired or invalid
   /// - ServerError (5xx): Server-side errors
@@ -160,10 +156,7 @@ class AuthService extends BaseService {
   /// clear the local session when the server token has already expired.
   Future<void> logout() async {
     try {
-      await _apiClient.post<void>(
-        path: '/auth/logout',
-        converter: (_) {},
-      );
+      await _apiClient.post<void>(path: '/auth/logout', converter: (_) {});
     } on ApiException catch (e) {
       handleApiError(e);
       rethrow;

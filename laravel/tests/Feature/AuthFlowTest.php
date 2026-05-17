@@ -20,6 +20,7 @@ class AuthFlowTest extends TestCase
             ->post('/api/v1/auth/register', [
                 'name' => 'Juan Dela Cruz',
                 'email' => 'juan@example.com',
+                'gender' => 'Male',
                 'password' => 'Password123',
                 'password_confirmation' => 'Password123',
             ])
@@ -28,11 +29,13 @@ class AuthFlowTest extends TestCase
             ->assertJsonPath('message', 'Registered successfully')
             ->assertJsonPath('data.user.name', 'Juan Dela Cruz')
             ->assertJsonPath('data.user.email', 'juan@example.com')
+            ->assertJsonPath('data.user.gender', 'Male')
             ->assertJsonPath('data.user.role', 'Student');
 
         $user = User::query()->where('email', 'juan@example.com')->firstOrFail();
 
         $this->assertSame($studentRole->id, $user->role_id);
+        $this->assertSame('Male', $user->gender);
         $this->assertTrue(Hash::check('Password123', $user->password));
         $this->assertCount(1, $user->tokens);
     }
@@ -47,6 +50,7 @@ class AuthFlowTest extends TestCase
             ->post('/api/v1/auth/register', [
                 'name' => 'Juan Dela Cruz',
                 'email' => 'juan@example.com',
+                'gender' => 'Male',
                 'password' => 'Password123',
                 'password_confirmation' => 'Password123',
             ])
@@ -74,6 +78,7 @@ class AuthFlowTest extends TestCase
                 ->assertJsonPath('message', 'Login successful')
                 ->assertJsonPath('data.user.id', $user->id)
                 ->assertJsonPath('data.user.email', $user->email)
+                ->assertJsonPath('data.user.gender', $user->gender)
                 ->assertJsonPath('data.user.role', $roleName);
         }
     }
@@ -108,6 +113,7 @@ class AuthFlowTest extends TestCase
             ->assertJsonPath('message', 'Authenticated user')
             ->assertJsonPath('data.user.id', $user->id)
             ->assertJsonPath('data.user.email', $user->email)
+            ->assertJsonPath('data.user.gender', $user->gender)
             ->assertJsonPath('data.user.role', 'Supervisor');
     }
 

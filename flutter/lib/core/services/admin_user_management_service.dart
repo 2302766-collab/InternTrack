@@ -39,6 +39,7 @@ class AdminUserManagementService extends BaseService {
   Future<AppUser> createManagedUser({
     required String name,
     required String email,
+    required String gender,
     required String password,
     required String role,
   }) async {
@@ -48,6 +49,7 @@ class AdminUserManagementService extends BaseService {
         data: {
           'name': name,
           'email': email,
+          'gender': gender,
           'password': password,
           'password_confirmation': password,
           'role': role,

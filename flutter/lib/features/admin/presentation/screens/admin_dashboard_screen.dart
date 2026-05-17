@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -289,6 +291,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final passwordController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     var selectedRole = 'Student';
+    var selectedGender = 'Male';
     var obscurePassword = true;
 
     final draft = await showDialog<_ManagedUserDraft>(
@@ -364,6 +367,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         },
                       ),
                       const SizedBox(height: 14),
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedGender,
+                        decoration: const InputDecoration(labelText: 'Gender'),
+                        items: const [
+                          DropdownMenuItem(value: 'Male', child: Text('Male')),
+                          DropdownMenuItem(
+                            value: 'Female',
+                            child: Text('Female'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setDialogState(() {
+                            selectedGender = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 14),
                       TextFormField(
                         controller: passwordController,
                         obscureText: obscurePassword,
@@ -412,6 +433,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       _ManagedUserDraft(
                         name: nameController.text.trim(),
                         email: emailController.text.trim(),
+                        gender: selectedGender,
                         password: passwordController.text,
                         role: selectedRole,
                       ),
@@ -451,6 +473,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final createdUser = await _userManagementService.createManagedUser(
         name: draft.name,
         email: draft.email,
+        gender: draft.gender,
         password: draft.password,
         role: draft.role,
       );
@@ -1357,55 +1380,254 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget buildSummaryGrid(AdminDashboardSummary summary) {
-    final items = <_SummaryItem>[
-      _SummaryItem(
-        label: 'Pending Logs',
-        value: '${summary.pendingLogs}',
-        subtitle: 'Waiting in the review flow',
-        icon: Icons.pending_actions_rounded,
-        color: const Color(0xFFB54708),
-      ),
-      _SummaryItem(
-        label: 'Missing Profiles',
-        value: '${summary.studentsWithoutProfile}',
-        subtitle: 'Students who still need setup',
-        icon: Icons.description_outlined,
-        color: const Color(0xFF9E4F15),
-      ),
-      _SummaryItem(
-        label: 'No Supervisor',
-        value: '${summary.studentsWithoutSupervisor}',
-        subtitle: 'Internship profiles without supervision',
-        icon: Icons.badge_outlined,
-        color: const Color(0xFF175CD3),
-      ),
-      _SummaryItem(
-        label: 'No Adviser',
-        value: '${summary.studentsWithoutAdviser}',
-        subtitle: 'Students who need adviser assignment',
-        icon: Icons.school_outlined,
-        color: const Color(0xFF6941C6),
-      ),
-    ];
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 740;
-        final itemWidth = isCompact
+        final summaryItems = <_SummaryItem>[
+          _SummaryItem(
+            label: 'Pending Logs',
+            value: '${summary.pendingLogs}',
+            subtitle: 'Waiting in the review flow',
+            icon: Icons.pending_actions_rounded,
+            color: const Color(0xFFB54708),
+          ),
+          _SummaryItem(
+            label: 'Missing Profiles',
+            value: '${summary.studentsWithoutProfile}',
+            subtitle: 'Students who still need setup',
+            icon: Icons.description_outlined,
+            color: const Color(0xFF9E4F15),
+          ),
+          _SummaryItem(
+            label: 'No Supervisor',
+            value: '${summary.studentsWithoutSupervisor}',
+            subtitle: 'Internship profiles without supervision',
+            icon: Icons.badge_outlined,
+            color: const Color(0xFF175CD3),
+          ),
+          _SummaryItem(
+            label: 'No Adviser',
+            value: '${summary.studentsWithoutAdviser}',
+            subtitle: 'Students who need adviser assignment',
+            icon: Icons.school_outlined,
+            color: const Color(0xFF6941C6),
+          ),
+        ];
+        final metricItemWidth = isCompact
             ? constraints.maxWidth
             : (constraints.maxWidth - 18) / 2;
 
-        return Wrap(
-          spacing: 18,
-          runSpacing: 18,
-          children: items
-              .map(
-                (item) =>
-                    SizedBox(width: itemWidth, child: buildSummaryCard(item)),
-              )
-              .toList(),
+        return Column(
+          children: [
+            _buildPopulationChartCard(summary),
+            const SizedBox(height: 18),
+            Wrap(
+              spacing: 18,
+              runSpacing: 18,
+              children: summaryItems
+                  .map(
+                    (item) => SizedBox(
+                      width: metricItemWidth,
+                      child: buildSummaryCard(item),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
         );
       },
+    );
+  }
+
+  Widget _buildPopulationChartCard(AdminDashboardSummary summary) {
+    final segments = <_PopulationSegment>[
+      _PopulationSegment(
+        label: 'Male',
+        value: summary.maleStudents,
+        color: const Color(0xFF175CD3),
+      ),
+      _PopulationSegment(
+        label: 'Female',
+        value: summary.femaleStudents,
+        color: const Color(0xFFE85D75),
+      ),
+      if (summary.unspecifiedStudents > 0)
+        _PopulationSegment(
+          label: 'Unspecified',
+          value: summary.unspecifiedStudents,
+          color: const Color(0xFF98A2B3),
+        ),
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _surfaceColor,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: _borderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x120F172A),
+            blurRadius: 20,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stacked = constraints.maxWidth < 760;
+
+          return Flex(
+            direction: stacked ? Axis.vertical : Axis.horizontal,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: stacked ? 0 : 5,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Student Population',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: _textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      summary.unspecifiedStudents > 0
+                          ? 'Gender breakdown for registered students. ${summary.unspecifiedStudents} existing account${summary.unspecifiedStudents == 1 ? '' : 's'} still need gender information.'
+                          : 'Gender breakdown for registered students.',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: _textSecondary,
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: segments
+                          .map(
+                            (segment) => _buildPopulationLegendChip(
+                              segment,
+                              totalStudents: summary.totalStudents,
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
+                ),
+              ),
+              if (!stacked) const SizedBox(width: 20),
+              if (stacked) const SizedBox(height: 20),
+              Center(
+                child: SizedBox(
+                  width: 220,
+                  height: 220,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CustomPaint(
+                        size: const Size.square(220),
+                        painter: _PopulationPieChartPainter(segments),
+                      ),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Total',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: _textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '${summary.totalStudents}',
+                            style: const TextStyle(
+                              fontSize: 34,
+                              fontWeight: FontWeight.w800,
+                              color: _textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Students',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: _textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPopulationLegendChip(
+    _PopulationSegment segment, {
+    required int totalStudents,
+  }) {
+    final percentage = totalStudents == 0
+        ? 0
+        : ((segment.value / totalStudents) * 100).round();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFDCE3EB)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: segment.color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                segment.label,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: _textSecondary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${segment.value} student${segment.value == 1 ? '' : 's'} • $percentage%',
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                  color: _textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -2300,6 +2522,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   user.email,
                   style: const TextStyle(fontSize: 12.5, color: _textSecondary),
                 ),
+                if ((user.gender ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    user.gender!,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _brandSecondary,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -2841,13 +3074,75 @@ class _ManagedRoleGroup {
 class _ManagedUserDraft {
   final String name;
   final String email;
+  final String gender;
   final String password;
   final String role;
 
   const _ManagedUserDraft({
     required this.name,
     required this.email,
+    required this.gender,
     required this.password,
     required this.role,
   });
+}
+
+class _PopulationSegment {
+  final String label;
+  final int value;
+  final Color color;
+
+  const _PopulationSegment({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+}
+
+class _PopulationPieChartPainter extends CustomPainter {
+  const _PopulationPieChartPainter(this.segments);
+
+  final List<_PopulationSegment> segments;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final total = segments.fold<int>(0, (sum, segment) => sum + segment.value);
+    final center = Offset(size.width / 2, size.height / 2);
+    final strokeWidth = size.width * 0.16;
+    final radius = (size.width - strokeWidth) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    final basePaint = Paint()
+      ..color = const Color(0xFFE9EEF5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.butt;
+
+    canvas.drawArc(rect, 0, math.pi * 2, false, basePaint);
+
+    if (total <= 0) {
+      return;
+    }
+
+    final segmentPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.butt;
+    var startAngle = -math.pi / 2;
+
+    for (final segment in segments) {
+      if (segment.value <= 0) {
+        continue;
+      }
+
+      final sweepAngle = (segment.value / total) * math.pi * 2;
+      segmentPaint.color = segment.color;
+      canvas.drawArc(rect, startAngle, sweepAngle, false, segmentPaint);
+      startAngle += sweepAngle;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PopulationPieChartPainter oldDelegate) {
+    return oldDelegate.segments != segments;
+  }
 }

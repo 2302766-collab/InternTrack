@@ -59,6 +59,7 @@ class UserManagementController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'gender' => ['required', 'string', 'in:Male,Female'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'role' => ['required', 'string', Rule::in(self::MANAGEABLE_ROLES)],
         ]);
@@ -82,6 +83,7 @@ class UserManagementController extends Controller
         $user = User::create([
             'name' => $sanitizedName,
             'email' => $sanitizedEmail,
+            'gender' => $validated['gender'],
             'password' => Hash::make($validated['password']),
             'role_id' => $role->id,
         ])->load('role');
@@ -132,6 +134,7 @@ class UserManagementController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'gender' => $user->gender,
             'role' => $roleName,
         ];
     }

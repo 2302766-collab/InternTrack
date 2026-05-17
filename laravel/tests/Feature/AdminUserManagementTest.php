@@ -31,16 +31,19 @@ class AdminUserManagementTest extends TestCase
             ->assertJsonFragment([
                 'id' => $student->id,
                 'name' => 'Managed Student',
+                'gender' => $student->gender,
                 'role' => 'Student',
             ])
             ->assertJsonFragment([
                 'id' => $adviser->id,
                 'name' => 'Managed Adviser',
+                'gender' => $adviser->gender,
                 'role' => 'Adviser',
             ])
             ->assertJsonFragment([
                 'id' => $supervisor->id,
                 'name' => 'Managed Supervisor',
+                'gender' => $supervisor->gender,
                 'role' => 'Supervisor',
             ]);
     }
@@ -55,6 +58,7 @@ class AdminUserManagementTest extends TestCase
         $response = $this->postJson('/api/v1/admin/users', [
             'name' => '  <b>Jane Adviser</b>  ',
             'email' => 'JANE.ADVISER@example.com',
+            'gender' => 'Female',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'role' => 'Adviser',
@@ -65,10 +69,12 @@ class AdminUserManagementTest extends TestCase
             ->assertJsonPath('message', 'Adviser account created successfully.')
             ->assertJsonPath('data.name', 'Jane Adviser')
             ->assertJsonPath('data.email', 'jane.adviser@example.com')
+            ->assertJsonPath('data.gender', 'Female')
             ->assertJsonPath('data.role', 'Adviser');
 
         $this->assertDatabaseHas('users', [
             'email' => 'jane.adviser@example.com',
+            'gender' => 'Female',
         ]);
     }
 
@@ -145,6 +151,7 @@ class AdminUserManagementTest extends TestCase
         $response = $this->postJson('/api/v1/admin/users', [
             'name' => 'Blocked Admin',
             'email' => 'blocked-admin@example.com',
+            'gender' => 'Male',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'role' => 'Admin',
@@ -185,6 +192,7 @@ class AdminUserManagementTest extends TestCase
         $this->postJson('/api/v1/admin/users', [
             'name' => 'Blocked User',
             'email' => 'blocked-user@example.com',
+            'gender' => 'Female',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'role' => 'Student',

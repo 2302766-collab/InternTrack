@@ -28,6 +28,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _generalError;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
+  String _selectedGender = 'Male';
 
   @override
   void initState() {
@@ -81,6 +82,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await _authService.register(
         name: '$firstName $lastName',
         email: _emailController.text.trim(),
+        gender: _selectedGender,
         password: _passwordController.text,
         passwordConfirmation: _confirmPasswordController.text,
       );
@@ -158,7 +160,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return AuthShell(
       title: 'Create your account',
-      subtitle: 'Join InternTrack to log hours and collaborate with your supervisor.',
+      subtitle:
+          'Join InternTrack to log hours and collaborate with your supervisor.',
       onBack: () {
         Navigator.pop(context);
       },
@@ -228,6 +231,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 return null;
               },
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              initialValue: _selectedGender,
+              decoration: _inputDecoration('Gender'),
+              items: const [
+                DropdownMenuItem(value: 'Male', child: Text('Male')),
+                DropdownMenuItem(value: 'Female', child: Text('Female')),
+              ],
+              onChanged: _isLoading
+                  ? null
+                  : (value) {
+                      if (value == null) {
+                        return;
+                      }
+
+                      setState(() {
+                        _selectedGender = value;
+                      });
+                    },
             ),
             const SizedBox(height: 14),
             TextFormField(

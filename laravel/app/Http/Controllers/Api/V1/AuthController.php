@@ -45,6 +45,7 @@ class AuthController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'gender' => $user->gender,
             'role' => $roleName,
         ];
     }
@@ -55,6 +56,7 @@ class AuthController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'gender' => ['required', 'string', 'in:Male,Female'],
             'password' => ['required', 'string', 'min:8', 'confirmed'], // needs password_confirmation
         ]);
 
@@ -79,6 +81,7 @@ class AuthController extends Controller
         $user = User::create([
             'name' => $sanitizedName,
             'email' => $sanitizedEmail,
+            'gender' => $validated['gender'],
             'password' => Hash::make($validated['password']),
             'role_id' => $studentRoleId,
         ]);
@@ -92,6 +95,7 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'gender' => $user->gender,
                 'role' => $roleName,
             ],
         ], 201);
