@@ -3,7 +3,12 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_routes.dart';
 
 class SettingsShortcutButton extends StatelessWidget {
-  const SettingsShortcutButton({super.key});
+  const SettingsShortcutButton({
+    super.key,
+    this.iconColor,
+  });
+
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
@@ -12,7 +17,10 @@ class SettingsShortcutButton extends StatelessWidget {
       onPressed: () {
         Navigator.pushNamed(context, AppRoutes.settings);
       },
-      icon: const Icon(Icons.dark_mode_outlined),
+      icon: Icon(
+        Icons.dark_mode_outlined,
+        color: iconColor,
+      ),
     );
   }
 }

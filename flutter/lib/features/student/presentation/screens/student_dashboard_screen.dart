@@ -982,132 +982,154 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   }
 
   Future<void> _openProfilePanel() async {
-    final anchorContext = _profileMenuAnchorKey.currentContext;
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    final anchorBox = anchorContext?.findRenderObject() as RenderBox?;
-    final anchorOffset = anchorBox?.localToGlobal(
-      Offset.zero,
-      ancestor: overlay,
-    );
-    final anchorSize = anchorBox?.size ?? const Size(280, 64);
-
     await showGeneralDialog<void>(
       context: context,
       barrierLabel: 'Student profile',
       barrierDismissible: true,
-      barrierColor: Colors.black.withValues(alpha: 0.18),
+      barrierColor: Colors.black.withValues(alpha: 0.32),
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
         final authProvider = dialogContext.watch<AuthProvider>();
         final user = authProvider.user;
 
-        return SafeArea(
-          child: Stack(
-            children: [
-              Positioned(
-                top: (anchorOffset?.dy ?? 86) + anchorSize.height + 10,
-                left: (() {
-                  final desiredLeft =
-                      (anchorOffset?.dx ?? (overlay.size.width - 344)) -
-                      (344 - anchorSize.width);
-                  final maxLeft = overlay.size.width > 376
-                      ? overlay.size.width - 360.0
-                      : 16.0;
-                  return desiredLeft.clamp(16.0, maxLeft);
-                })(),
-                child: Material(
-                  color: Colors.transparent,
-                  child: Container(
-                    width: 344,
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(color: const Color(0xFFDCE6F2)),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x260F172A),
-                          blurRadius: 34,
-                          offset: Offset(0, 18),
+        return Material(
+          color: const Color(0xFFF4F8FC),
+          child: SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(Icons.close_rounded),
+                        tooltip: 'Close profile',
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Student Profile',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF102A56),
+                          ),
                         ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 720),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _buildAvatar(user: user, radius: 30, fontSize: 20),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
+                            Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF0F4C81),
+                                    Color(0xFF2267A5),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(28),
+                              ),
+                              child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    user?.name.isNotEmpty == true
-                                        ? user!.name
-                                        : widget.userName,
-                                    style: const TextStyle(
-                                      fontSize: 21,
-                                      fontWeight: FontWeight.w800,
-                                      color: Color(0xFF102A56),
+                                  _buildAvatar(
+                                    user: user,
+                                    radius: 34,
+                                    fontSize: 22,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          user?.name.isNotEmpty == true
+                                              ? user!.name
+                                              : widget.userName,
+                                          style: const TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          user?.email.isNotEmpty == true
+                                              ? user!.email
+                                              : 'No email available',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.white.withValues(
+                                              alpha: 0.82,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        _buildMiniTag(label: 'STUDENT'),
+                                      ],
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    user?.email.isNotEmpty == true
-                                        ? user!.email
-                                        : 'No email available',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Color(0xFF4A6480),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _buildMiniTag(label: 'STUDENT'),
                                 ],
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            _buildProfileActionTile(
+                              icon: Icons.edit_outlined,
+                              title: 'Edit profile',
+                              subtitle:
+                                  'Update your display name and gender.',
+                              onTap: () async {
+                                Navigator.of(dialogContext).pop();
+                                await _showEditProfileDialog();
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            _buildProfileInfoCard(user),
+                            const SizedBox(height: 18),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  Navigator.of(dialogContext).pop();
+                                  await _logout();
+                                },
+                                icon: const Icon(Icons.logout_rounded),
+                                label: const Text('Log out'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFFB42318),
+                                  side: const BorderSide(
+                                    color: Color(0xFFF0C4C0),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 18),
-                        _buildProfileActionTile(
-                          icon: Icons.edit_outlined,
-                          title: 'Edit profile',
-                          subtitle: 'Update your display name and gender.',
-                          onTap: () async {
-                            Navigator.of(dialogContext).pop();
-                            await _showEditProfileDialog();
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                        _buildProfileInfoCard(user),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              Navigator.of(dialogContext).pop();
-                              await _logout();
-                            },
-                            icon: const Icon(Icons.logout_rounded),
-                            label: const Text('Log out'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFFB42318),
-                              side: const BorderSide(color: Color(0xFFF0C4C0)),
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -1209,6 +1231,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 640;
+        final isNarrow = constraints.maxWidth < 980;
 
         return Container(
           width: double.infinity,
@@ -1231,147 +1254,176 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Wrap(
-                runSpacing: 16,
-                spacing: 16,
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
+              if (isNarrow)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeaderText(theme, user, isCompact),
+                    const SizedBox(height: 16),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: _buildHeaderControls(user, token),
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 560),
+                        child: _buildHeaderText(theme, user, isCompact),
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: _buildHeaderControls(user, token),
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHeaderText(
+    ThemeData theme,
+    AppUser? user,
+    bool isCompact,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${_greetingForHour()}, ${user?.name.split(' ').first ?? 'Student'}',
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _profile == null ? 'Set up your internship.' : 'Stay on top of your internship.',
+          style: theme.textTheme.headlineMedium?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: isCompact ? 28 : 30,
+            height: 1.12,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          _profile == null
+              ? 'Complete your profile and start logging your work.'
+              : 'Check progress, review logs, and keep your profile updated.',
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: Colors.white.withValues(alpha: 0.82),
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 14),
+        DefaultTextStyle(
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.84),
+          ),
+          child: DashboardRefreshStatus(
+            lastUpdated: _lastUpdated,
+            isRefreshing: _isRefreshing,
+            pullToRefreshLabel: 'Pull down to refresh dashboard data',
+            refreshingLabel: 'Refreshing student dashboard...',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeaderControls(AppUser? user, String token) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      alignment: WrapAlignment.end,
+      children: [
+        SettingsShortcutButton(iconColor: Colors.white),
+        NotificationBellButton(
+          token: token,
+          iconColor: Colors.white,
+        ),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            key: _profileMenuAnchorKey,
+            onTap: _openProfilePanel,
+            borderRadius: BorderRadius.circular(22),
+            child: Ink(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.18),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  _buildAvatar(
+                    user: user,
+                    radius: 22,
+                    fontSize: 14,
+                  ),
+                  const SizedBox(width: 10),
                   ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 640),
+                    constraints: const BoxConstraints(
+                      maxWidth: 180,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${_greetingForHour()}, ${user?.name.split(' ').first ?? 'Student'}',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _profile == null
-                              ? 'Set up your internship details and keep your profile current from one dashboard.'
-                              : 'Track your internship pace, stay on top of logs, and manage your student profile from one place.',
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            color: Colors.white,
+                          user?.name.isNotEmpty == true
+                              ? user!.name
+                              : widget.userName,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
                             fontWeight: FontWeight.w800,
-                            fontSize: isCompact ? 28 : 30,
-                            height: 1.12,
+                            color: Colors.white,
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 2),
                         Text(
-                          _profile == null
-                              ? 'Complete your setup, submit daily updates, and make sure your account details are accurate.'
-                              : 'Review progress, jump into the next action, and update your account details whenever they change.',
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.82),
-                            height: 1.45,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        DefaultTextStyle(
+                          (user?.gender ?? 'Student'),
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.84),
-                          ),
-                          child: DashboardRefreshStatus(
-                            lastUpdated: _lastUpdated,
-                            isRefreshing: _isRefreshing,
-                            pullToRefreshLabel:
-                                'Pull down to refresh dashboard data',
-                            refreshingLabel: 'Refreshing student dashboard...',
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.8),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      const SettingsShortcutButton(),
-                      NotificationBellButton(token: token),
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          key: _profileMenuAnchorKey,
-                          onTap: _openProfilePanel,
-                          borderRadius: BorderRadius.circular(22),
-                          child: Ink(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(22),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.18),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _buildAvatar(
-                                  user: user,
-                                  radius: 22,
-                                  fontSize: 14,
-                                ),
-                                const SizedBox(width: 10),
-                                ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 180,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        user?.name.isNotEmpty == true
-                                            ? user!.name
-                                            : widget.userName,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w800,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        (user?.gender ?? 'Student'),
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.white.withValues(
-                                            alpha: 0.8,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Icon(
-                                  Icons.keyboard_arrow_down_rounded,
-                                  color: Colors.white,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: Colors.white,
                   ),
                 ],
               ),
-            ],
+            ),
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 
@@ -2122,48 +2174,54 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     return StudentScaffold(
       currentRoute: AppRoutes.studentDashboard,
+      backgroundColor: const Color(0xFFF5F1E8),
       body: RefreshIndicator(
         onRefresh: _loadDashboard,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final horizontalPadding = constraints.maxWidth < 640 ? 12.0 : 16.0;
+            final horizontalPadding = constraints.maxWidth < 640
+                ? 14.0
+                : constraints.maxWidth < 1024
+                ? 20.0
+                : 28.0;
+            final verticalPadding = constraints.maxWidth < 900 ? 16.0 : 24.0;
 
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.all(horizontalPadding),
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                verticalPadding,
+                horizontalPadding,
+                verticalPadding,
+              ),
               children: [
-                Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1220),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildHeader(authProvider),
-                        const SizedBox(height: 20),
-                        if (_isInitialLoading && !_hasCompletedFirstLoad)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 32),
-                            child: Center(child: CircularProgressIndicator()),
-                          )
-                        else if (_dashboardError != null &&
-                            _profile == null &&
-                            _report == null &&
-                            _logs.isEmpty)
-                          _buildDashboardErrorState()
-                        else ...[
-                          _buildNextActionSection(),
-                          const SizedBox(height: 16),
-                          _buildSummaryAndMetricsSection(),
-                          const SizedBox(height: 16),
-                          _buildProgressAndPaceSection(),
-                          const SizedBox(height: 16),
-                          _buildRecentLogsSection(),
-                          const SizedBox(height: 16),
-                          _buildQuickActionsSection(),
-                        ],
-                      ],
-                    ),
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(authProvider),
+                    const SizedBox(height: 20),
+                    if (_isInitialLoading && !_hasCompletedFirstLoad)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 32),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (_dashboardError != null &&
+                        _profile == null &&
+                        _report == null &&
+                        _logs.isEmpty)
+                      _buildDashboardErrorState()
+                    else ...[
+                      _buildNextActionSection(),
+                      const SizedBox(height: 16),
+                      _buildSummaryAndMetricsSection(),
+                      const SizedBox(height: 16),
+                      _buildProgressAndPaceSection(),
+                      const SizedBox(height: 16),
+                      _buildRecentLogsSection(),
+                      const SizedBox(height: 16),
+                      _buildQuickActionsSection(),
+                    ],
+                  ],
                 ),
               ],
             );
