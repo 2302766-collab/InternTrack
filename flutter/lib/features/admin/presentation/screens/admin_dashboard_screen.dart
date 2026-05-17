@@ -34,11 +34,13 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   static const int _itemsPerPage = 10;
+  static const int _managedUsersPerPage = 5;
   static const String _filterAll = 'all';
   static const String _filterNeedsAttention = 'needs_attention';
   static const String _filterMissingProfile = 'missing_profile';
   static const String _filterMissingSupervisor = 'missing_supervisor';
   static const String _filterMissingAdviser = 'missing_adviser';
+  static const String _userRoleFilterAll = 'all_roles';
 
   static const Color _pageBackground = Color(0xFFF3F6FB);
   static const Color _surfaceColor = Colors.white;
@@ -59,6 +61,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final GlobalKey _profileMenuAnchorKey = GlobalKey();
   final Set<int> _exportingStudentIds = <int>{};
   final Set<int> _deletingUserIds = <int>{};
+  final TextEditingController _managedUserSearchController =
+      TextEditingController();
+  final Map<String, int> _managedUserPages = <String, int>{};
 
   bool _isInitialLoading = true;
   bool _isPageLoading = false;
@@ -69,6 +74,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _lastPage = 1;
   int _totalStudents = 0;
   String _selectedFilter = _filterAll;
+  String _selectedManagedUserRoleFilter = _userRoleFilterAll;
+  String _managedUserSearchQuery = '';
   AdminDashboardSummary? _dashboardSummary;
   late DateTime _exportStartDate;
   late DateTime _exportEndDate;
@@ -83,6 +90,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final now = DateTime.now();
     _exportStartDate = DateTime(now.year, now.month, 1);
     _exportEndDate = DateTime(now.year, now.month + 1, 0);
+    _managedUserSearchController.addListener(_handleManagedUserSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _managedUserSearchController
+      ..removeListener(_handleManagedUserSearchChanged)
+      ..dispose();
+    super.dispose();
   }
 
   @override
@@ -188,6 +204,83 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   List<AppUser> _usersForRole(String role) {
     return _managedUsers.where((user) => user.role == role).toList();
+  }
+
+  void _handleManagedUserSearchChanged() {
+    final nextQuery = _managedUserSearchController.text.trim();
+    if (nextQuery == _managedUserSearchQuery) {
+      return;
+    }
+
+    setState(() {
+      _managedUserSearchQuery = nextQuery;
+      _resetManagedUserPagination();
+    });
+  }
+
+  void _resetManagedUserPagination() {
+    _managedUserPages
+      ..clear()
+      ..addEntries(
+        const <String>[
+          'Student',
+          'Adviser',
+          'Supervisor',
+        ].map((role) => MapEntry<String, int>(role, 1)),
+      );
+  }
+
+  List<AppUser> _filteredUsersForRole(String role) {
+    final normalizedQuery = _managedUserSearchQuery.toLowerCase();
+
+    return _usersForRole(role).where((user) {
+      final matchesRole =
+          _selectedManagedUserRoleFilter == _userRoleFilterAll ||
+          _selectedManagedUserRoleFilter == role;
+      if (!matchesRole) {
+        return false;
+      }
+
+      if (normalizedQuery.isEmpty) {
+        return true;
+      }
+
+      return user.name.toLowerCase().contains(normalizedQuery) ||
+          user.email.toLowerCase().contains(normalizedQuery);
+    }).toList();
+  }
+
+  int _managedUserCurrentPageFor(String role, int totalItems) {
+    final totalPages = _managedUserTotalPages(totalItems);
+    final storedPage = _managedUserPages[role] ?? 1;
+    if (storedPage > totalPages) {
+      _managedUserPages[role] = totalPages;
+      return totalPages;
+    }
+    return storedPage;
+  }
+
+  int _managedUserTotalPages(int totalItems) {
+    if (totalItems <= 0) {
+      return 1;
+    }
+    return (totalItems / _managedUsersPerPage).ceil();
+  }
+
+  void _setManagedUserPage({
+    required String role,
+    required int page,
+    required int totalItems,
+  }) {
+    final totalPages = _managedUserTotalPages(totalItems);
+    final nextPage = page.clamp(1, totalPages);
+    if ((_managedUserPages[role] ?? 1) == nextPage) {
+      return;
+    }
+
+    setState(() {
+      _managedUserPages[role] = nextPage;
+    });
   }
 
   Future<void> _openCreateUserDialog() async {
@@ -1870,9 +1963,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-<<<<<<< HEAD
-  List<int> visiblePages(bool isCompact) {
-=======
   Widget _buildManagedUserSection() {
     final roleGroups = <_ManagedRoleGroup>[
       _ManagedRoleGroup(
@@ -1897,55 +1987,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         icon: Icons.badge_rounded,
       ),
     ];
+    final visibleRoleGroups =
+        _selectedManagedUserRoleFilter == _userRoleFilterAll
+        ? roleGroups
+        : roleGroups
+              .where((group) => group.role == _selectedManagedUserRoleFilter)
+              .toList();
 
-    return _buildSectionCard(
+    return buildSectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'User Management',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: _textPrimary,
-                      ),
-                    ),
-                    SizedBox(height: 6),
-                    Text(
-                      'Add or remove student, adviser, and supervisor accounts directly from the admin workspace.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: _textSecondary,
-                        height: 1.45,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              FilledButton.icon(
-                onPressed: _isCreatingUser ? null : _openCreateUserDialog,
-                icon: const Icon(Icons.person_add_alt_1_rounded),
-                label: const Text('Add User'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: _brandPrimary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                ),
-              ),
-            ],
+          const Text(
+            'User Management',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: _textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Review accounts faster with search, role filters, and shorter paged lists for each group.',
+            style: TextStyle(fontSize: 14, color: _textSecondary, height: 1.45),
           ),
           if (_userManagementError != null) ...[
             const SizedBox(height: 14),
@@ -1957,6 +2021,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
             ),
           ],
+          const SizedBox(height: 18),
+          _buildManagedUserToolbar(),
           const SizedBox(height: 20),
           LayoutBuilder(
             builder: (context, constraints) {
@@ -1968,7 +2034,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               return Wrap(
                 spacing: 12,
                 runSpacing: 12,
-                children: roleGroups.map((group) {
+                children: visibleRoleGroups.map((group) {
                   return SizedBox(
                     width: itemWidth,
                     child: _buildManagedRoleCard(group),
@@ -1982,8 +2048,126 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+  Widget _buildManagedUserToolbar() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked = constraints.maxWidth < 760;
+        final filterItems = const <DropdownMenuItem<String>>[
+          DropdownMenuItem<String>(
+            value: _userRoleFilterAll,
+            child: Text('All roles'),
+          ),
+          DropdownMenuItem<String>(value: 'Student', child: Text('Students')),
+          DropdownMenuItem<String>(value: 'Adviser', child: Text('Advisers')),
+          DropdownMenuItem<String>(
+            value: 'Supervisor',
+            child: Text('Supervisors'),
+          ),
+        ];
+
+        final searchField = TextField(
+          controller: _managedUserSearchController,
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            hintText: 'Search name or email',
+            prefixIcon: const Icon(Icons.search_rounded, color: _textSecondary),
+            isDense: true,
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: const BorderSide(color: Color(0xFFD0D5DD)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: const BorderSide(color: Color(0xFFD0D5DD)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: const BorderSide(color: _brandPrimary),
+            ),
+            suffixIcon: _managedUserSearchQuery.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: 'Clear search',
+                    onPressed: () {
+                      _managedUserSearchController.clear();
+                    },
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                  ),
+          ),
+        );
+
+        final filterField = SizedBox(
+          width: stacked ? double.infinity : 200,
+          child: DropdownButtonFormField<String>(
+            initialValue: _selectedManagedUserRoleFilter,
+            items: filterItems,
+            onChanged: (value) {
+              if (value == null) {
+                return;
+              }
+
+              setState(() {
+                _selectedManagedUserRoleFilter = value;
+                _resetManagedUserPagination();
+              });
+            },
+            decoration: InputDecoration(
+              labelText: 'Filter',
+              isDense: true,
+              filled: true,
+              fillColor: const Color(0xFFF8FAFC),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: const BorderSide(color: Color(0xFFD0D5DD)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: const BorderSide(color: Color(0xFFD0D5DD)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: const BorderSide(color: _brandPrimary),
+              ),
+            ),
+            icon: const Icon(Icons.tune_rounded),
+          ),
+        );
+
+        if (stacked) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [searchField, const SizedBox(height: 12), filterField],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: searchField),
+            const SizedBox(width: 12),
+            filterField,
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildManagedRoleCard(_ManagedRoleGroup group) {
-    final users = _usersForRole(group.role);
+    final users = _filteredUsersForRole(group.role);
+    final currentPage = _managedUserCurrentPageFor(group.role, users.length);
+    final totalPages = _managedUserTotalPages(users.length);
+    final startIndex = (currentPage - 1) * _managedUsersPerPage;
+    final endIndex = (startIndex + _managedUsersPerPage).clamp(0, users.length);
+    final visibleUsers = users.sublist(startIndex, endIndex);
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -2053,12 +2237,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 border: Border.all(color: const Color(0xFFE4E7EC)),
               ),
               child: const Text(
-                'No accounts in this role yet.',
+                'No accounts matched the current search or filter.',
                 style: TextStyle(fontSize: 13.5, color: _textSecondary),
               ),
             )
           else
-            ...users.map(_buildManagedUserTile),
+            ...visibleUsers.map(_buildManagedUserTile),
+          if (users.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _buildManagedUserPagination(
+              role: group.role,
+              currentPage: currentPage,
+              totalPages: totalPages,
+              totalItems: users.length,
+              startIndex: startIndex,
+              endIndex: endIndex,
+            ),
+          ],
         ],
       ),
     );
@@ -2080,7 +2275,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           CircleAvatar(
             backgroundColor: const Color(0xFFEAF2FF),
             child: Text(
-              _initialsFor(user.name),
+              initialsFor(user.name),
               style: const TextStyle(
                 color: _brandPrimary,
                 fontWeight: FontWeight.w800,
@@ -2129,8 +2324,116 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  List<int> _visiblePages(bool isCompact) {
->>>>>>> 1822302 (admin user management)
+  Widget _buildManagedUserPagination({
+    required String role,
+    required int currentPage,
+    required int totalPages,
+    required int totalItems,
+    required int startIndex,
+    required int endIndex,
+  }) {
+    final showControls = totalPages > 1;
+    final startItem = totalItems == 0 ? 0 : startIndex + 1;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Text(
+                '$startItem-$endIndex of $totalItems',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: _textSecondary,
+                ),
+              ),
+              const Spacer(),
+              if (showControls) ...[
+                _buildManagedUserPageArrow(
+                  icon: Icons.chevron_left_rounded,
+                  enabled: currentPage > 1,
+                  onTap: () => _setManagedUserPage(
+                    role: role,
+                    page: currentPage - 1,
+                    totalItems: totalItems,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEAF2FF),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '$currentPage / $totalPages',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: _brandPrimary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                _buildManagedUserPageArrow(
+                  icon: Icons.chevron_right_rounded,
+                  enabled: currentPage < totalPages,
+                  onTap: () => _setManagedUserPage(
+                    role: role,
+                    page: currentPage + 1,
+                    totalItems: totalItems,
+                  ),
+                ),
+              ] else
+                const Text(
+                  'Single page',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: _textSecondary,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildManagedUserPageArrow({
+    required IconData icon,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: enabled ? const Color(0xFFF5F8FC) : const Color(0xFFF8FAFC),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(
+            icon,
+            size: 18,
+            color: enabled ? _brandPrimary : const Color(0xFF98A2B3),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<int> visiblePages(bool isCompact) {
     if (_lastPage <= 1) {
       return const <int>[1];
     }
@@ -2355,13 +2658,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               buildActionPanel(summary),
             ],
             const SizedBox(height: 22),
-<<<<<<< HEAD
-            buildSectionCard(
-=======
             _buildManagedUserSection(),
             const SizedBox(height: 22),
-            _buildSectionCard(
->>>>>>> 1822302 (admin user management)
+            buildSectionCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

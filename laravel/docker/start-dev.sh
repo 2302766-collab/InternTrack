@@ -79,18 +79,37 @@ if [ -n "$db_test_name" ] && [ -n "$db_root_user" ]; then
     $appPassword = getenv("DB_PASSWORD") ?: "";
 
     if ($testDatabase !== "" && $appUser !== "") {
-        $pdo->exec(
-            "CREATE DATABASE IF NOT EXISTS " . $quoteIdentifier($testDatabase) .
-            " CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
-        );
+        try {
+            $pdo->exec(
+                "CREATE DATABASE IF NOT EXISTS " . $quoteIdentifier($testDatabase) .
+                " CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+            );
 
-        $pdo->exec(
-            "GRANT ALL PRIVILEGES ON " . $quoteIdentifier($testDatabase) . ".* TO " .
-            $pdo->quote($quoteString($appUser)) . "@'%' IDENTIFIED BY " .
-            $pdo->quote($quoteString($appPassword))
-        );
+            $quotedUser = $pdo->quote($quoteString($appUser));
+            $quotedPassword = $pdo->quote($quoteString($appPassword));
 
-        $pdo->exec("FLUSH PRIVILEGES");
+            $pdo->exec(
+                "CREATE USER IF NOT EXISTS " . $quotedUser . "@'%' IDENTIFIED BY " .
+                $quotedPassword
+            );
+
+            $pdo->exec(
+                "ALTER USER " . $quotedUser . "@'%' IDENTIFIED BY " . $quotedPassword
+            );
+
+            $pdo->exec(
+                "GRANT ALL PRIVILEGES ON " . $quoteIdentifier($testDatabase) . ".* TO " .
+                $quotedUser . "@'%'"
+            );
+
+            $pdo->exec("FLUSH PRIVILEGES");
+        } catch (Throwable $exception) {
+            fwrite(
+                STDERR,
+                "Warning: failed to prepare test database grants: " .
+                $exception->getMessage() . PHP_EOL
+            );
+        }
     }
     ' >/dev/null
 fi
