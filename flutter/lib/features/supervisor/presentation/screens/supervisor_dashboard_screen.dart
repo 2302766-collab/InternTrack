@@ -44,7 +44,20 @@ class SupervisorDashboardScreen extends StatefulWidget {
 }
 
 class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
-  static const double _maxContentWidth = 1360;
+  static const double _maxContentWidth = 1520;
+  static const Color _canvasColor = Color(0xFFF5F1EB);
+  static const Color _panelColor = Colors.white;
+  static const Color _panelSoft = Color(0xFFFAF7F2);
+  static const Color _panelBorder = Color(0xFFE7DDD2);
+  static const Color _headlineColor = Color(0xFF2F312B);
+  static const Color _bodyColor = Color(0xFF6C6257);
+  static const Color _heroStart = Color(0xFF6A4331);
+  static const Color _heroEnd = Color(0xFF2F4A43);
+  static const Color _accentPrimary = Color(0xFF9A5F3F);
+  static const Color _accentSecondary = Color(0xFF55756A);
+  static const Color _accentMuted = Color(0xFF9A8F84);
+  static const Color _accentSoft = Color(0xFFF0E2D2);
+  static const Color _accentSoftAlt = Color(0xFFE6EFEA);
 
   late final SupervisorLogService _logService;
   late final SupervisorDashboardService _dashboardService;
@@ -382,7 +395,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
     return CircleAvatar(
       radius: radius,
-      backgroundColor: const Color(0xFF06C167),
+      backgroundColor: _accentSecondary,
       backgroundImage: imageProvider,
       child: imageProvider == null
           ? Text(
@@ -471,9 +484,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     width: 344,
                     padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: _panelColor,
                       borderRadius: BorderRadius.circular(28),
-                      border: Border.all(color: const Color(0xFFD8E2EC)),
+                      border: Border.all(color: _panelBorder),
                       boxShadow: const [
                         BoxShadow(
                           color: Color(0x260F172A),
@@ -499,7 +512,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                   right: -2,
                                   bottom: -2,
                                   child: Material(
-                                    color: const Color(0xFF0F766E),
+                                    color: _accentPrimary,
                                     shape: const CircleBorder(),
                                     child: InkWell(
                                       customBorder: const CircleBorder(),
@@ -532,7 +545,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                     style: const TextStyle(
                                       fontSize: 21,
                                       fontWeight: FontWeight.w800,
-                                      color: Color(0xFF0F254A),
+                                      color: _headlineColor,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
@@ -542,7 +555,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                         : 'No email available',
                                     style: const TextStyle(
                                       fontSize: 14,
-                                      color: Color(0xFF5E718D),
+                                      color: _bodyColor,
                                     ),
                                   ),
                                   const SizedBox(height: 8),
@@ -620,7 +633,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF2FF),
+        color: _accentSoft,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -628,7 +641,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
-          color: Color(0xFF123C73),
+          color: _accentPrimary,
           letterSpacing: 0.5,
         ),
       ),
@@ -642,7 +655,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: const Color(0xFFF7F9FC),
+      color: _panelSoft,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -655,10 +668,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: _panelColor,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(icon, color: const Color(0xFF123C73)),
+                child: Icon(icon, color: _accentPrimary),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -670,16 +683,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F254A),
+                        color: _headlineColor,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        color: Color(0xFF5E718D),
-                      ),
+                      style: const TextStyle(fontSize: 12.5, color: _bodyColor),
                     ),
                   ],
                 ),
@@ -696,9 +706,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: _panelSoft,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFD8E2EC)),
+        border: Border.all(color: _panelBorder),
       ),
       child: Column(
         children: [
@@ -743,10 +753,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _panelColor,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, size: 18, color: const Color(0xFF123C73)),
+          child: Icon(icon, size: 18, color: _accentPrimary),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -758,7 +768,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF5E718D),
+                  color: _bodyColor,
                 ),
               ),
               const SizedBox(height: 2),
@@ -767,7 +777,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF0F254A),
+                  color: _headlineColor,
                 ),
               ),
             ],
@@ -818,7 +828,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             child: Text(
               label,
               style: const TextStyle(
-                color: Color(0xFF667085),
+                color: _bodyColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -865,24 +875,24 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   Color _statusBg(String status) {
     switch (status.toUpperCase()) {
       case 'APPROVED':
-        return const Color(0xFFD7F7E3);
+        return const Color(0xFFDDEEE6);
       case 'REJECTED':
-        return const Color(0xFFFDE0E0);
+        return const Color(0xFFF7DFDB);
       case 'PENDING':
       default:
-        return const Color(0xFFFFF0B3);
+        return const Color(0xFFF4E7C7);
     }
   }
 
   Color _statusFg(String status) {
     switch (status.toUpperCase()) {
       case 'APPROVED':
-        return const Color(0xFF039855);
+        return const Color(0xFF2F7A58);
       case 'REJECTED':
-        return const Color(0xFFD92D20);
+        return const Color(0xFFB24A3A);
       case 'PENDING':
       default:
-        return const Color(0xFFB54708);
+        return const Color(0xFF8A6426);
     }
   }
 
@@ -917,8 +927,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         final horizontalPadding = isNarrow
             ? 16.0
             : constraints.maxWidth >= 1440
-            ? 40.0
-            : 28.0;
+            ? 24.0
+            : 22.0;
         final profileMaxWidth = constraints.maxWidth >= 1280 ? 420.0 : 360.0;
 
         final profileSection = Row(
@@ -940,9 +950,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: _panelSoft,
                       borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: const Color(0xFFD8E2EC)),
+                      border: Border.all(color: _panelBorder),
                     ),
                     child: Row(
                       children: [
@@ -1084,7 +1094,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: const Color(0xFFE4EAF2)),
+            border: Border.all(color: _panelBorder),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x0F0F172A),
@@ -1105,7 +1115,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       style: TextStyle(
                         fontSize: isCompact ? 15 : 16,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF223A5E),
+                        color: _headlineColor,
                       ),
                     ),
                   ),
@@ -1127,7 +1137,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   fontSize: isCompact ? 30 : 36,
                   height: 1,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF102A56),
+                  color: _headlineColor,
                 ),
               ),
               const SizedBox(height: 10),
@@ -1136,7 +1146,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 style: const TextStyle(
                   fontSize: 13,
                   height: 1.45,
-                  color: Color(0xFF667085),
+                  color: _bodyColor,
                 ),
               ),
             ],
@@ -1168,7 +1178,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       padding: EdgeInsets.all(isNarrow ? 22 : 28),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: <Color>[Color(0xFF0F4C5C), Color(0xFF123C73)],
+          colors: <Color>[_heroStart, _heroEnd],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -1277,11 +1287,11 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     required VoidCallback onTap,
     required bool filled,
   }) {
-    final background = filled ? const Color(0xFF123C73) : Colors.white;
-    final foreground = filled ? Colors.white : const Color(0xFF102A56);
+    final background = filled ? _accentPrimary : _panelColor;
+    final foreground = filled ? Colors.white : _headlineColor;
     final secondary = filled
         ? Colors.white.withValues(alpha: 0.78)
-        : const Color(0xFF667085);
+        : _bodyColor;
 
     return Material(
       color: Colors.transparent,
@@ -1293,9 +1303,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           decoration: BoxDecoration(
             color: background,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: filled ? const Color(0xFF123C73) : const Color(0xFFE4EAF2),
-            ),
+            border: Border.all(color: filled ? _accentPrimary : _panelBorder),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x0F0F172A),
@@ -1310,7 +1318,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: filled ? _surfaceTone(0.14) : const Color(0xFFF3F7FB),
+                  color: filled ? _surfaceTone(0.14) : _panelSoft,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(icon, color: foreground),
@@ -1394,7 +1402,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   Widget _buildTableHeader() {
     const headerStyle = TextStyle(
       fontWeight: FontWeight.w700,
-      color: Color(0xFF4A6480),
+      color: _bodyColor,
       fontSize: 13,
     );
 
@@ -1419,9 +1427,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _panelColor,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE4EAF2)),
+        border: Border.all(color: _panelBorder),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0C0F172A),
@@ -1437,7 +1445,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             children: [
               CircleAvatar(
                 radius: 18,
-                backgroundColor: const Color(0xFF123C73),
+                backgroundColor: _accentPrimary,
                 child: Text(
                   _initialsFor(log.studentName),
                   style: const TextStyle(
@@ -1457,17 +1465,14 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF102A56),
+                        color: _headlineColor,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
                       _formatDate(log.date),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF68768A),
-                      ),
+                      style: const TextStyle(fontSize: 13, color: _bodyColor),
                     ),
                   ],
                 ),
@@ -1497,7 +1502,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             log.taskDescription,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF23395D)),
+            style: const TextStyle(fontSize: 14, color: _headlineColor),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -1510,18 +1515,14 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: log.hasAttachments
-                      ? const Color(0xFFE8F1FF)
-                      : const Color(0xFFF2F4F7),
+                  color: log.hasAttachments ? _accentSoft : _panelSoft,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   '${log.hasAttachments ? 'Attached' : 'None'} (Proof)',
                   style: TextStyle(
                     fontSize: 12,
-                    color: log.hasAttachments
-                        ? const Color(0xFF326DE6)
-                        : const Color(0xFF667085),
+                    color: log.hasAttachments ? _accentPrimary : _bodyColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1533,21 +1534,21 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF3F7FB),
+                    color: _accentSoftAlt,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
                     log.companyName!,
                     style: const TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF355070),
+                      color: _accentSecondary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               Text(
                 '${log.hoursRendered}h rendered',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF68768A)),
+                style: const TextStyle(fontSize: 12, color: _bodyColor),
               ),
             ],
           ),
@@ -1579,7 +1580,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               children: [
                 CircleAvatar(
                   radius: 19,
-                  backgroundColor: const Color(0xFF123C73),
+                  backgroundColor: _accentPrimary,
                   child: Text(
                     _initialsFor(log.studentName),
                     style: const TextStyle(
@@ -1595,7 +1596,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF102A56),
+                      color: _headlineColor,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1607,14 +1608,14 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             flex: 20,
             child: Text(
               _formatDate(log.date),
-              style: const TextStyle(fontSize: 15, color: Color(0xFF23395D)),
+              style: const TextStyle(fontSize: 15, color: _bodyColor),
             ),
           ),
           Expanded(
             flex: 12,
             child: Text(
               '${log.hoursRendered}h',
-              style: const TextStyle(fontSize: 15, color: Color(0xFF23395D)),
+              style: const TextStyle(fontSize: 15, color: _bodyColor),
             ),
           ),
           Expanded(
@@ -1623,7 +1624,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               log.taskDescription,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 15, color: Color(0xFF23395D)),
+              style: const TextStyle(fontSize: 15, color: _bodyColor),
             ),
           ),
           Expanded(
@@ -1636,17 +1637,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: log.hasAttachments
-                      ? const Color(0xFFE8F1FF)
-                      : const Color(0xFFF2F4F7),
+                  color: log.hasAttachments ? _accentSoft : _panelSoft,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   log.hasAttachments ? 'Attached' : 'None',
                   style: TextStyle(
-                    color: log.hasAttachments
-                        ? const Color(0xFF326DE6)
-                        : const Color(0xFF667085),
+                    color: log.hasAttachments ? _accentPrimary : _bodyColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1702,9 +1699,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
         return Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _panelColor,
             borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: const Color(0xFFE4EAF2)),
+            border: Border.all(color: _panelBorder),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x0F0F172A),
@@ -1730,7 +1727,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF102A56),
+                              color: _headlineColor,
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -1741,7 +1738,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                             style: const TextStyle(
                               fontSize: 13.5,
                               height: 1.45,
-                              color: Color(0xFF667085),
+                              color: _bodyColor,
                             ),
                           ),
                         ],
@@ -1754,7 +1751,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF3F7FB),
+                        color: _panelSoft,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
@@ -1762,7 +1759,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF355070),
+                          color: _accentPrimary,
                         ),
                       ),
                     ),
@@ -1808,9 +1805,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: _panelSoft,
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: const Color(0xFFE4EAF2)),
+                      border: Border.all(color: _panelBorder),
                     ),
                     child: Column(
                       children: [
@@ -1818,12 +1815,12 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           width: 56,
                           height: 56,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEAF2FF),
+                            color: _accentSoft,
                             borderRadius: BorderRadius.circular(18),
                           ),
                           child: const Icon(
                             Icons.task_alt_rounded,
-                            color: Color(0xFF123C73),
+                            color: _accentPrimary,
                           ),
                         ),
                         const SizedBox(height: 14),
@@ -1834,7 +1831,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF102A56),
+                            color: _headlineColor,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -1846,7 +1843,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           style: const TextStyle(
                             fontSize: 14,
                             height: 1.5,
-                            color: Color(0xFF667085),
+                            color: _bodyColor,
                           ),
                         ),
                       ],
@@ -1904,8 +1901,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           final horizontalPadding = constraints.maxWidth < 640
               ? 16.0
               : constraints.maxWidth >= 1440
-              ? 40.0
-              : 30.0;
+              ? 22.0
+              : 22.0;
           final contentWidth = (viewportWidth - (horizontalPadding * 2))
               .clamp(0.0, viewportWidth)
               .toDouble();
@@ -1946,7 +1943,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           title: 'Pending Review',
                           value: '$pendingCount',
                           icon: Icons.access_time_rounded,
-                          accent: const Color(0xFF326DE6),
+                          accent: _accentPrimary,
                           helper: 'Submissions waiting for your decision.',
                           width: statCardWidth,
                         ),
@@ -1954,7 +1951,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           title: 'Approved Today',
                           value: '$approvedToday',
                           icon: Icons.check_circle_outline_rounded,
-                          accent: const Color(0xFF06C167),
+                          accent: _accentSecondary,
                           helper: 'Logs you cleared within today\'s cycle.',
                           width: statCardWidth,
                         ),
@@ -1962,7 +1959,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           title: 'Total Students',
                           value: '$totalStudents',
                           icon: Icons.groups_rounded,
-                          accent: const Color(0xFF98A2B3),
+                          accent: _accentMuted,
                           helper:
                               'Interns currently assigned to your supervision.',
                           width: statCardWidth,
@@ -2000,7 +1997,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     final authProvider = context.watch<AuthProvider>();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F7),
+      backgroundColor: _canvasColor,
       body: SafeArea(
         child: Column(
           children: [
