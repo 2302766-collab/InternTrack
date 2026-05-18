@@ -5,14 +5,20 @@ import 'base_service.dart';
 
 class AdminDashboardService extends BaseService {
   AdminDashboardService([ApiClient? apiClient])
-      : _apiClient = apiClient ?? ApiClient();
+    : _apiClient = apiClient ?? ApiClient();
 
   final ApiClient _apiClient;
 
-  Future<AdminDashboardSummary> getSummary() async {
+  Future<AdminDashboardSummary> getSummary({int? month, int? year}) async {
     try {
+      final queryParameters = <String, dynamic>{
+        'month': month,
+        'year': year,
+      }..removeWhere((_, value) => value == null);
+
       return await _apiClient.get<AdminDashboardSummary>(
         path: '/admin/dashboard',
+        queryParameters: queryParameters,
         converter: (data) {
           if (data is! Map<String, dynamic>) {
             throw ApiException(

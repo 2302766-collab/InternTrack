@@ -61,7 +61,33 @@ class AdminDashboardTest extends TestCase
             ->assertJsonPath('data.logs_per_day.1.day', 2)
             ->assertJsonPath('data.logs_per_day.1.total_logs', 2)
             ->assertJsonPath('data.logs_per_day.2.day', 3)
-            ->assertJsonPath('data.logs_per_day.2.total_logs', 2);
+            ->assertJsonPath('data.logs_per_day.2.total_logs', 2)
+            ->assertJsonPath('data.available_log_years.0', 2026);
+    }
+
+    public function test_admin_can_filter_dashboard_log_series_by_month_and_year(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $supervisor = $this->createUserWithRole('Supervisor');
+        $student = $this->createUserWithRole('Student');
+
+        $profile = $this->createInternshipProfileFor($student, $supervisor, 40);
+
+        $this->createLogEntryFor($profile, 'APPROVED', 8, '2026-02-05');
+        $this->createLogEntryFor($profile, 'PENDING', 6, '2026-02-12');
+        $this->createLogEntryFor($profile, 'APPROVED', 7, '2026-03-02');
+
+        Sanctum::actingAs($admin);
+
+        $this->withHeader('Accept', 'application/json')
+            ->get('/api/v1/admin/dashboard?month=2&year=2026')
+            ->assertOk()
+            ->assertJsonPath('data.logs_per_day_month', '2026-02')
+            ->assertJsonPath('data.logs_per_day.4.day', 5)
+            ->assertJsonPath('data.logs_per_day.4.total_logs', 1)
+            ->assertJsonPath('data.logs_per_day.11.day', 12)
+            ->assertJsonPath('data.logs_per_day.11.total_logs', 1)
+            ->assertJsonPath('data.logs_per_day.1.total_logs', 0);
     }
 
     public function test_non_admin_cannot_retrieve_dashboard_metrics(): void

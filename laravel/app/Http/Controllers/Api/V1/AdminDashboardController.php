@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\DashboardCacheService;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class AdminDashboardController extends Controller
 {
@@ -15,9 +16,24 @@ class AdminDashboardController extends Controller
     {
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $data = $this->dashboardCache->rememberAdminDashboard(function () {
+        $latestLogDate = LogEntry::query()->max('date');
+        $latestChartMonth = $latestLogDate !== null
+            ? Carbon::parse($latestLogDate)->startOfMonth()
+            : now()->startOfMonth();
+
+        $requestedYear = $request->integer('year');
+        $requestedMonth = $request->integer('month');
+        $hasRequestedPeriod = $requestedYear !== null && $requestedMonth !== null
+            && $requestedMonth >= 1 && $requestedMonth <= 12;
+
+        $chartMonth = $hasRequestedPeriod
+            ? Carbon::create($requestedYear, $requestedMonth, 1, 0, 0, 0, config('app.timezone'))->startOfMonth()
+            : $latestChartMonth;
+        $periodKey = $chartMonth->format('Y-m');
+
+        $data = $this->dashboardCache->rememberAdminDashboard($periodKey, function () use ($chartMonth, $latestChartMonth) {
             $studentRoleId = Role::query()
                 ->where('name', 'Student')
                 ->value('id');
@@ -91,11 +107,16 @@ class AdminDashboardController extends Controller
                 ->selectRaw("SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) as approved_logs")
                 ->first();
 
-            $latestLogDate = LogEntry::query()->max('date');
-            $chartMonth = $latestLogDate !== null
-                ? Carbon::parse($latestLogDate)->startOfMonth()
-                : now()->startOfMonth();
             $chartMonthEnd = $chartMonth->copy()->endOfMonth();
+            $firstLogDate = LogEntry::query()->min('date');
+            $firstLogMonth = $firstLogDate !== null
+                ? Carbon::parse($firstLogDate)->startOfMonth()
+                : $latestChartMonth->copy();
+
+            $availableLogYears = range(
+                $firstLogMonth->year,
+                max($latestChartMonth->year, now()->year)
+            );
 
             $dailyLogCounts = LogEntry::query()
                 ->selectRaw('date, COUNT(*) as total_logs')
@@ -128,6 +149,7 @@ class AdminDashboardController extends Controller
                 'average_completion_percentage' => $averageCompletionPercentage,
                 'logs_per_day_month' => $chartMonth->format('Y-m'),
                 'logs_per_day' => $logsPerDay,
+                'available_log_years' => $availableLogYears,
             ];
         });
 

@@ -74,6 +74,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   bool _isInitialLoading = true;
   bool _isPageLoading = false;
+  bool _isChartLoading = false;
   bool _isCreatingUser = false;
   String? _errorMessage;
   String? _userManagementError;
@@ -86,6 +87,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   String _userSearchQuery = '';
   String _selectedUserRoleFilter = _userRoleAll;
   AdminDashboardSummary? _dashboardSummary;
+  int? _selectedLogsMonth;
+  int? _selectedLogsYear;
   late DateTime _exportStartDate;
   late DateTime _exportEndDate;
 
@@ -161,7 +164,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     try {
       final results = await Future.wait<dynamic>([
         _studentService.fetchStudents(page: page, perPage: _itemsPerPage),
-        _dashboardService.getSummary(),
+        _dashboardService.getSummary(
+          month: _selectedLogsMonth,
+          year: _selectedLogsYear,
+        ),
         _userManagementService.fetchManagedUsers(),
         _editRequestService.fetchAdminEditRequests(),
       ]);
@@ -178,6 +184,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _lastPage = studentsPage.lastPage == 0 ? 1 : studentsPage.lastPage;
         _totalStudents = studentsPage.total;
         _dashboardSummary = summary;
+        _syncSelectedLogsPeriod(summary);
         _errorMessage = null;
         _userManagementError = null;
         _editRequestError = null;
@@ -206,6 +213,60 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         });
       }
     }
+  }
+
+  Future<void> _loadLogsForPeriod({
+    required int month,
+    required int year,
+  }) async {
+    if (_isChartLoading) {
+      return;
+    }
+
+    setState(() {
+      _isChartLoading = true;
+      _selectedLogsMonth = month;
+      _selectedLogsYear = year;
+      _errorMessage = null;
+    });
+
+    try {
+      final summary = await _dashboardService.getSummary(
+        month: month,
+        year: year,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _dashboardSummary = summary;
+        _syncSelectedLogsPeriod(summary);
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isChartLoading = false;
+        });
+      }
+    }
+  }
+
+  void _syncSelectedLogsPeriod(AdminDashboardSummary summary) {
+    final parsed = DateTime.tryParse('${summary.logsPerDayMonth}-01');
+    if (parsed != null) {
+      _selectedLogsMonth = parsed.month;
+      _selectedLogsYear = parsed.year;
+      return;
+    }
+
+    _selectedLogsMonth ??= DateTime.now().month;
+    _selectedLogsYear ??= DateTime.now().year;
   }
 
   Future<void> _openAdviserAssignment() async {
@@ -1696,14 +1757,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return buildSectionCard(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final splitLayout = constraints.maxWidth >= 1180;
+          final splitLayout = constraints.maxWidth >= 1080;
 
           return Flex(
             direction: splitLayout ? Axis.horizontal : Axis.vertical,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                flex: splitLayout ? 7 : 0,
                 child: _buildPopulationPanel(
                   population: population,
                   chartSegments: chartSegments,
@@ -1716,11 +1776,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 height: splitLayout ? 0 : 24,
               ),
               Expanded(
-                flex: splitLayout ? 5 : 0,
                 child: _buildLogsPerDayPanel(
+                  availableYears: summary?.availableLogYears ?? const <int>[],
+                  selectedMonth: _selectedLogsMonth,
+                  selectedYear: _selectedLogsYear,
                   monthKey: summary?.logsPerDayMonth ?? '',
                   points:
                       summary?.logsPerDay ?? const <AdminDashboardLogPoint>[],
+                  isLoading: _isChartLoading,
                 ),
               ),
             ],
@@ -1859,8 +1922,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildLogsPerDayPanel({
+    required List<int> availableYears,
+    required int? selectedMonth,
+    required int? selectedYear,
     required String monthKey,
     required List<AdminDashboardLogPoint> points,
+    required bool isLoading,
   }) {
     final monthLabel = _formatLogsPerDayMonth(monthKey);
     final totalLogs = points.fold<int>(
@@ -1870,6 +1937,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final peakLogs = points.isEmpty
         ? 0
         : points.map((point) => point.totalLogs).reduce(math.max);
+    final chartYears = availableYears.isEmpty
+        ? <int>[DateTime.now().year]
+        : availableYears;
+    final fallbackYear = chartYears.last;
+    final resolvedMonth = selectedMonth ?? DateTime.now().month;
+    final resolvedYear = chartYears.contains(selectedYear)
+        ? selectedYear!
+        : fallbackYear;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1901,6 +1976,37 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
           ),
           const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildChartDropdown<int>(
+                  label: 'Month',
+                  value: resolvedMonth,
+                  items: List<int>.generate(12, (index) => index + 1),
+                  itemLabel: (month) =>
+                      DateFormat('MMMM').format(DateTime(2000, month)),
+                  onChanged: (month) {
+                    final year = _selectedLogsYear ?? resolvedYear;
+                    _loadLogsForPeriod(month: month, year: year);
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildChartDropdown<int>(
+                  label: 'Year',
+                  value: resolvedYear,
+                  items: chartYears,
+                  itemLabel: (year) => '$year',
+                  onChanged: (year) {
+                    final month = _selectedLogsMonth ?? resolvedMonth;
+                    _loadLogsForPeriod(month: month, year: year);
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -1924,9 +2030,52 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ],
           ),
           const SizedBox(height: 18),
-          _DailyLogsLineChart(points: points),
+          _DailyLogsLineChart(points: points, isLoading: isLoading),
         ],
       ),
+    );
+  }
+
+  Widget _buildChartDropdown<T>({
+    required String label,
+    required T value,
+    required List<T> items,
+    required String Function(T value) itemLabel,
+    required ValueChanged<T> onChanged,
+  }) {
+    return DropdownButtonFormField<T>(
+      key: ValueKey('$label-$value'),
+      initialValue: value,
+      decoration: InputDecoration(
+        labelText: label,
+        isDense: true,
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _borderColor),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _borderColor),
+        ),
+      ),
+      items: items
+          .map(
+            (item) =>
+                DropdownMenuItem<T>(value: item, child: Text(itemLabel(item))),
+          )
+          .toList(),
+      onChanged: (nextValue) {
+        if (nextValue == null || nextValue == value) {
+          return;
+        }
+        onChanged(nextValue);
+      },
     );
   }
 
@@ -3869,12 +4018,13 @@ class _PieChartPainter extends CustomPainter {
 
 class _DailyLogsLineChart extends StatelessWidget {
   final List<AdminDashboardLogPoint> points;
+  final bool isLoading;
 
-  const _DailyLogsLineChart({required this.points});
+  const _DailyLogsLineChart({required this.points, required this.isLoading});
 
   @override
   Widget build(BuildContext context) {
-    if (points.isEmpty) {
+    if (points.isEmpty && !isLoading) {
       return Container(
         height: 260,
         alignment: Alignment.center,
@@ -3899,29 +4049,43 @@ class _DailyLogsLineChart extends StatelessWidget {
         .fold<int>(0, math.max);
     final yAxisMax = math.max(4, highestValue);
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 18, 12, 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _AdminDashboardScreenState._borderColor),
-      ),
-      child: Column(
-        children: [
-          SizedBox(
-            height: 200,
-            child: CustomPaint(
-              painter: _DailyLogsLineChartPainter(
-                points: points,
-                yAxisMax: yAxisMax,
+    return Stack(
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 18, 12, 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _AdminDashboardScreenState._borderColor),
+          ),
+          child: Column(
+            children: [
+              SizedBox(
+                height: 200,
+                child: CustomPaint(
+                  painter: _DailyLogsLineChartPainter(
+                    points: points,
+                    yAxisMax: yAxisMax,
+                  ),
+                  child: Container(),
+                ),
               ),
-              child: Container(),
+              const SizedBox(height: 10),
+              Row(children: _buildBottomLabels(points)),
+            ],
+          ),
+        ),
+        if (isLoading)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.72),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Center(child: CircularProgressIndicator()),
             ),
           ),
-          const SizedBox(height: 10),
-          Row(children: _buildBottomLabels(points)),
-        ],
-      ),
+      ],
     );
   }
 

@@ -12,6 +12,7 @@ class AdminDashboardSummary {
   final double averageCompletionPercentage;
   final String logsPerDayMonth;
   final List<AdminDashboardLogPoint> logsPerDay;
+  final List<int> availableLogYears;
 
   const AdminDashboardSummary({
     required this.totalStudents,
@@ -27,6 +28,7 @@ class AdminDashboardSummary {
     required this.averageCompletionPercentage,
     required this.logsPerDayMonth,
     required this.logsPerDay,
+    required this.availableLogYears,
   });
 
   factory AdminDashboardSummary.fromJson(Map<String, dynamic> json) {
@@ -51,6 +53,10 @@ class AdminDashboardSummary {
           .whereType<Map<String, dynamic>>()
           .map(AdminDashboardLogPoint.fromJson)
           .toList(),
+      availableLogYears:
+          (json['available_log_years'] as List<dynamic>? ?? const [])
+              .map(_parseInt)
+              .toList(),
     );
   }
 

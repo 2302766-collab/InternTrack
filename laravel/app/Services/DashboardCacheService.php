@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Cache;
 class DashboardCacheService
 {
     public const TTL_SECONDS = 300;
+    private const ADMIN_DASHBOARD_VERSION_KEY = 'dashboard:admin:version';
 
     public function rememberSupervisorDashboard(int $supervisorId, Closure $callback): array
     {
@@ -19,10 +20,10 @@ class DashboardCacheService
         );
     }
 
-    public function rememberAdminDashboard(Closure $callback): array
+    public function rememberAdminDashboard(string $periodKey, Closure $callback): array
     {
         return Cache::remember(
-            $this->adminDashboardKey(),
+            $this->adminDashboardKey($periodKey),
             self::TTL_SECONDS,
             $callback,
         );
@@ -46,9 +47,13 @@ class DashboardCacheService
         );
     }
 
-    public function adminDashboardKey(): string
+    public function adminDashboardKey(?string $periodKey = null): string
     {
-        return 'dashboard:admin';
+        return sprintf(
+            'dashboard:admin:v%s:%s',
+            $this->adminDashboardVersion(),
+            $periodKey ?? 'latest',
+        );
     }
 
     public function managedUsersKey(): string
@@ -67,7 +72,7 @@ class DashboardCacheService
 
     public function forgetAdminDashboard(): void
     {
-        Cache::forget($this->adminDashboardKey());
+        Cache::increment(self::ADMIN_DASHBOARD_VERSION_KEY);
     }
 
     public function forgetManagedUsers(): void
@@ -92,5 +97,18 @@ class DashboardCacheService
         }
 
         $this->forgetAdminDashboard();
+    }
+
+    private function adminDashboardVersion(): int
+    {
+        $version = Cache::get(self::ADMIN_DASHBOARD_VERSION_KEY);
+
+        if (! is_numeric($version)) {
+            Cache::forever(self::ADMIN_DASHBOARD_VERSION_KEY, 1);
+
+            return 1;
+        }
+
+        return (int) $version;
     }
 }
