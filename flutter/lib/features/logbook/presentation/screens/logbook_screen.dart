@@ -188,13 +188,6 @@ class _LogbookScreenState extends State<LogbookScreen> {
   }
 
   Future<void> _openEditLog(LogEntryItem log) async {
-    if (!log.isPending) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Only pending logs can be edited.')),
-      );
-      return;
-    }
-
     final updated = await Navigator.push<bool>(
       context,
       MaterialPageRoute(

@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\AdminDashboardController;
 use App\Http\Controllers\Api\V1\DailyTimeRecordExportController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\Admin\EditRequestController as AdminEditRequestController;
 use App\Http\Controllers\Api\V1\Admin\UserManagementController;
 use App\Http\Controllers\Api\V1\Supervisor\SupervisorDashboardController;
 use App\Http\Controllers\Api\V1\Supervisor\SupervisorInternController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\Api\V1\Supervisor\SupervisorLogController;
 use App\Http\Controllers\Api\V1\Adviser\AdviserInternController;
 use App\Http\Controllers\Api\V1\Adviser\AdviserLogController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\Student\EditRequestController as StudentEditRequestController;
 use App\Http\Controllers\Api\V1\Student\LogController;
 
 Route::prefix('v1')->group(function () {
@@ -114,6 +116,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/users', [UserManagementController::class, 'index']);
         Route::post('/users', [UserManagementController::class, 'store']);
         Route::delete('/users/{id}', [UserManagementController::class, 'destroy']);
+        Route::get('/edit-requests', [AdminEditRequestController::class, 'index']);
+        Route::patch('/edit-requests/{id}/approve', [AdminEditRequestController::class, 'approve']);
+        Route::patch('/edit-requests/{id}/reject', [AdminEditRequestController::class, 'reject']);
         Route::get('/students/{id}/dtr/export/pdf', [DailyTimeRecordExportController::class, 'adminPdf']);
         Route::get('/students/{id}/dtr/export/excel', [DailyTimeRecordExportController::class, 'adminExcel']);
         Route::patch('/students/{id}/assign-adviser', [StudentAdviserController::class, 'assignAdviser']);
@@ -129,6 +134,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/logs', [LogController::class, 'index']);
         Route::get('/logs/{id}', [LogController::class, 'show']);
         Route::put('/logs/{id}', [LogController::class, 'update']);
+        Route::post('/logs/{id}/edit-request', [StudentEditRequestController::class, 'requestLogEdit']);
+        Route::post('/dtr/edit-request', [StudentEditRequestController::class, 'requestDtrEdit']);
         Route::post('/logs/{id}/attachments', [LogController::class, 'uploadAttachment'])
             ->middleware('throttle:10,1');
         Route::get('/logs/{id}/attachments/{attachmentId}', [LogController::class, 'downloadAttachment']);

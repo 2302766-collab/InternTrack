@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:http_parser/http_parser.dart';
 
 import '../../shared/models/log_attachment.dart';
+import '../../shared/models/edit_request.dart';
 import '../../shared/models/log_entry.dart';
 import '../exceptions/api_exception.dart';
 import 'api_client.dart';
@@ -23,7 +24,7 @@ class LogbookAttachmentFile {
 
 class LogbookService extends BaseService {
   LogbookService([ApiClient? apiClient])
-      : _apiClient = apiClient ?? ApiClient();
+    : _apiClient = apiClient ?? ApiClient();
 
   final ApiClient _apiClient;
 
@@ -68,7 +69,8 @@ class LogbookService extends BaseService {
     try {
       return await _apiClient.get<LogEntryItem>(
         path: '/student/logs/$id',
-        converter: (data) => _parseLogEntry(data, 'Invalid log details response format.'),
+        converter: (data) =>
+            _parseLogEntry(data, 'Invalid log details response format.'),
       );
     } on ApiException catch (e) {
       handleApiError(e);
@@ -114,6 +116,47 @@ class LogbookService extends BaseService {
         },
         converter: (data) =>
             _parseLogEntry(data, 'Invalid update log response format.'),
+      );
+    } on ApiException catch (e) {
+      handleApiError(e);
+      rethrow;
+    }
+  }
+
+  Future<EditRequestItem> requestLogEdit({
+    required int id,
+    required String date,
+    required int hoursRendered,
+    required String taskDescription,
+    required String reason,
+  }) async {
+    try {
+      return await _apiClient.post<EditRequestItem>(
+        path: '/student/logs/$id/edit-request',
+        data: {
+          'date': date,
+          'hours_rendered': hoursRendered,
+          'task_description': taskDescription,
+          'reason': reason,
+        },
+        converter: (data) {
+          if (data is! Map<String, dynamic>) {
+            throw ApiException(
+              message: 'Invalid edit request response format.',
+              errorType: ApiErrorType.unknown,
+            );
+          }
+
+          final requestData = data['data'];
+          if (requestData is! Map<String, dynamic>) {
+            throw ApiException(
+              message: 'Invalid edit request response format.',
+              errorType: ApiErrorType.unknown,
+            );
+          }
+
+          return EditRequestItem.fromJson(requestData);
+        },
       );
     } on ApiException catch (e) {
       handleApiError(e);

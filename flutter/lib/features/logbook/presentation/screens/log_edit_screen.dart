@@ -9,11 +9,7 @@ class LogEditScreen extends StatefulWidget {
   final LogEntryItem log;
   final LogbookService service;
 
-  const LogEditScreen({
-    super.key,
-    required this.log,
-    required this.service,
-  });
+  const LogEditScreen({super.key, required this.log, required this.service});
 
   @override
   State<LogEditScreen> createState() => _LogEditScreenState();
@@ -25,6 +21,7 @@ class _LogEditScreenState extends State<LogEditScreen> {
   late final TextEditingController _dateController;
   late final TextEditingController _hoursController;
   late final TextEditingController _taskController;
+  late final TextEditingController _reasonController;
 
   bool _autoValidate = false;
   bool _isSaving = false;
@@ -39,10 +36,12 @@ class _LogEditScreenState extends State<LogEditScreen> {
       text: widget.log.hoursRendered.toString(),
     );
     _taskController = TextEditingController(text: widget.log.taskDescription);
+    _reasonController = TextEditingController();
 
     _dateController.addListener(() => _clearFieldError('date'));
     _hoursController.addListener(() => _clearFieldError('hours'));
     _taskController.addListener(() => _clearFieldError('task'));
+    _reasonController.addListener(() => _clearFieldError('reason'));
   }
 
   @override
@@ -50,6 +49,7 @@ class _LogEditScreenState extends State<LogEditScreen> {
     _dateController.dispose();
     _hoursController.dispose();
     _taskController.dispose();
+    _reasonController.dispose();
     super.dispose();
   }
 
@@ -57,6 +57,7 @@ class _LogEditScreenState extends State<LogEditScreen> {
     'date': null,
     'hours': null,
     'task': null,
+    'reason': null,
   };
 
   void _clearFieldError(String key) {
@@ -126,6 +127,9 @@ class _LogEditScreenState extends State<LogEditScreen> {
         case 'description':
           mapped['task'] = first;
           break;
+        case 'reason':
+          mapped['reason'] = first;
+          break;
         default:
           break;
       }
@@ -143,13 +147,6 @@ class _LogEditScreenState extends State<LogEditScreen> {
   }
 
   Future<void> _save() async {
-    if (!widget.log.isPending) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot edit non-pending logs.')),
-      );
-      return;
-    }
-
     setState(() {
       _autoValidate = true;
       _formError = null;
@@ -163,16 +160,43 @@ class _LogEditScreenState extends State<LogEditScreen> {
     });
 
     try {
-      await widget.service.updateLog(
-        id: widget.log.id,
-        date: _dateController.text.trim(),
-        hoursRendered: int.parse(_hoursController.text.trim()),
-        taskDescription: _taskController.text.trim(),
-      );
+      final isDirectEdit = widget.log.isPending;
+      if (isDirectEdit) {
+        await widget.service.updateLog(
+          id: widget.log.id,
+          date: _dateController.text.trim(),
+          hoursRendered: int.parse(_hoursController.text.trim()),
+          taskDescription: _taskController.text.trim(),
+        );
+      } else {
+        final reason = _reasonController.text.trim();
+        if (reason.length < 5) {
+          setState(() {
+            _fieldErrors['reason'] = 'Reason must be at least 5 characters';
+            _isSaving = false;
+          });
+          _formKey.currentState?.validate();
+          return;
+        }
+
+        await widget.service.requestLogEdit(
+          id: widget.log.id,
+          date: _dateController.text.trim(),
+          hoursRendered: int.parse(_hoursController.text.trim()),
+          taskDescription: _taskController.text.trim(),
+          reason: reason,
+        );
+      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Log updated successfully.')),
+        SnackBar(
+          content: Text(
+            widget.log.isPending
+                ? 'Log updated successfully.'
+                : 'Edit request sent to admin for approval.',
+          ),
+        ),
       );
       Navigator.pop(context, true);
     } on ApiException catch (e) {
@@ -245,6 +269,35 @@ class _LogEditScreenState extends State<LogEditScreen> {
                 validator: (value) =>
                     _validateTask(value, serverError: _fieldErrors['task']),
               ),
+              if (!widget.log.isPending) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _reasonController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Reason for admin approval',
+                    alignLabelWithHint: true,
+                    hintText:
+                        'Explain what was wrong and why it needs correction.',
+                  ),
+                  validator: (value) {
+                    final trimmed = (value ?? '').trim();
+                    if (trimmed.isEmpty) {
+                      return _fieldErrors['reason'] ?? 'Reason is required';
+                    }
+                    if (trimmed.length < 5) {
+                      return _fieldErrors['reason'] ??
+                          'Reason must be at least 5 characters';
+                    }
+                    return _fieldErrors['reason'];
+                  },
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This log is no longer pending, so changes will be sent to admin for approval before they are applied.',
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+              ],
               if (_formError != null) ...[
                 const SizedBox(height: 8),
                 Text(_formError!, style: const TextStyle(color: Colors.red)),
@@ -268,7 +321,11 @@ class _LogEditScreenState extends State<LogEditScreen> {
                             const Text('Saving...'),
                           ],
                         )
-                      : const Text('Save Changes'),
+                      : Text(
+                          widget.log.isPending
+                              ? 'Save Changes'
+                              : 'Send Edit Request',
+                        ),
                 ),
               ),
             ],

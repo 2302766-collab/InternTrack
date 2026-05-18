@@ -36,4 +36,9 @@ class LogEntry extends Model
             ->orderByDesc('acted_at')
             ->orderByDesc('id');
     }
+
+    public function editRequests(): HasMany
+    {
+        return $this->hasMany(EditRequest::class);
+    }
 }

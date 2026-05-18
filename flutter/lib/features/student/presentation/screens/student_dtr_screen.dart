@@ -36,6 +36,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
   bool _isLoading = true;
   bool _isSubmitting = false;
   bool _isExporting = false;
+  bool _isRequestingEdit = false;
   String? _errorMessage;
 
   @override
@@ -194,6 +195,220 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
       startDate: selection.startDate,
       endDate: selection.endDate,
     );
+  }
+
+  Future<void> _openEditRequestDialog() async {
+    final record = _record;
+    if (record == null ||
+        record.id == null ||
+        record.timeInAt == null ||
+        record.lunchOutAt == null ||
+        record.lunchInAt == null ||
+        record.timeOutAt == null ||
+        _isRequestingEdit) {
+      return;
+    }
+
+    final request = await showDialog<_DtrEditRequestDraft>(
+      context: context,
+      builder: (dialogContext) {
+        var timeIn = record.timeInAt!;
+        var lunchOut = record.lunchOutAt!;
+        var lunchIn = record.lunchInAt!;
+        var timeOut = record.timeOutAt!;
+        final reasonController = TextEditingController();
+        String? error;
+
+        Future<DateTime?> pickTime(
+          DateTime initialValue,
+          StateSetter setDialogState,
+        ) async {
+          final picked = await showTimePicker(
+            context: dialogContext,
+            initialTime: TimeOfDay.fromDateTime(initialValue),
+          );
+          if (picked == null) {
+            return null;
+          }
+
+          final baseDate = DateTime.parse(record.date);
+          return DateTime(
+            baseDate.year,
+            baseDate.month,
+            baseDate.day,
+            picked.hour,
+            picked.minute,
+          );
+        }
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            String display(DateTime value) =>
+                DateFormat('hh:mm a').format(value);
+
+            return AlertDialog(
+              title: const Text('Request DTR Correction'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Update the corrected punch times below. Admin will review this request before any change is applied.',
+                    ),
+                    const SizedBox(height: 14),
+                    _buildTimePickerTile(
+                      label: 'Time In',
+                      value: display(timeIn),
+                      onTap: () async {
+                        final picked = await pickTime(timeIn, setDialogState);
+                        if (picked == null) return;
+                        setDialogState(() => timeIn = picked);
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    _buildTimePickerTile(
+                      label: 'Lunch Out',
+                      value: display(lunchOut),
+                      onTap: () async {
+                        final picked = await pickTime(lunchOut, setDialogState);
+                        if (picked == null) return;
+                        setDialogState(() => lunchOut = picked);
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    _buildTimePickerTile(
+                      label: 'Lunch In',
+                      value: display(lunchIn),
+                      onTap: () async {
+                        final picked = await pickTime(lunchIn, setDialogState);
+                        if (picked == null) return;
+                        setDialogState(() => lunchIn = picked);
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    _buildTimePickerTile(
+                      label: 'Time Out',
+                      value: display(timeOut),
+                      onTap: () async {
+                        final picked = await pickTime(timeOut, setDialogState);
+                        if (picked == null) return;
+                        setDialogState(() => timeOut = picked);
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: reasonController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Reason',
+                        hintText: 'Explain what was entered incorrectly.',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    if (error != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        error!,
+                        style: const TextStyle(color: Color(0xFFB42318)),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final reason = reasonController.text.trim();
+                    if (reason.length < 5) {
+                      setDialogState(() {
+                        error = 'Reason must be at least 5 characters.';
+                      });
+                      return;
+                    }
+
+                    if (!(timeIn.isBefore(lunchOut) &&
+                        lunchOut.isBefore(lunchIn) &&
+                        lunchIn.isBefore(timeOut))) {
+                      setDialogState(() {
+                        error = 'Please keep the times in the correct order.';
+                      });
+                      return;
+                    }
+
+                    Navigator.of(dialogContext).pop(
+                      _DtrEditRequestDraft(
+                        timeInAt: timeIn,
+                        lunchOutAt: lunchOut,
+                        lunchInAt: lunchIn,
+                        timeOutAt: timeOut,
+                        reason: reason,
+                      ),
+                    );
+                  },
+                  child: const Text('Send Request'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (request == null) {
+      return;
+    }
+
+    await _submitEditRequest(request);
+  }
+
+  Future<void> _submitEditRequest(_DtrEditRequestDraft request) async {
+    final record = _record;
+    if (record?.id == null || _isRequestingEdit) {
+      return;
+    }
+
+    setState(() {
+      _isRequestingEdit = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await _dtrService.requestEdit(
+        dailyTimeRecordId: record!.id!,
+        timeInAt: request.timeInAt,
+        lunchOutAt: request.lunchOutAt,
+        lunchInAt: request.lunchInAt,
+        timeOutAt: request.timeOutAt,
+        reason: request.reason,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('DTR correction request sent to admin for review.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final message = e.toString().replaceFirst('Exception: ', '');
+      setState(() {
+        _errorMessage = message;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRequestingEdit = false;
+        });
+      }
+    }
   }
 
   Future<void> _exportMonthly({
@@ -703,10 +918,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
               const SizedBox(height: 8),
               Text(
                 detail,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF98A2B3),
-                ),
+                style: const TextStyle(fontSize: 12, color: Color(0xFF98A2B3)),
               ),
               const SizedBox(height: 8),
               Text(
@@ -893,6 +1105,117 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     );
   }
 
+  Widget _buildTimePickerTile({
+    required String label,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFD0D5DD)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF667085),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF102A56),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.schedule_rounded),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCorrectionCard(DailyTimeRecord record) {
+    final canRequestCorrection =
+        record.id != null &&
+        record.status == 'COMPLETED' &&
+        record.timeInAt != null &&
+        record.lunchOutAt != null &&
+        record.lunchInAt != null &&
+        record.timeOutAt != null;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x120F172A),
+            blurRadius: 18,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Need a Correction?',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF102A56),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            canRequestCorrection
+                ? 'If you recorded the wrong punch time, send a correction request to admin for approval.'
+                : 'Admin correction requests become available after the day is completed and all four punch times are recorded.',
+            style: const TextStyle(fontSize: 14, color: Color(0xFF667085)),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: canRequestCorrection && !_isRequestingEdit
+                ? _openEditRequestDialog
+                : null,
+            icon: _isRequestingEdit
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.edit_calendar_rounded),
+            label: Text(
+              _isRequestingEdit ? 'Sending...' : 'Request Admin Correction',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final record = _record;
@@ -980,8 +1303,8 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                             isNext: record.nextAction == 'TIME_IN',
                             actionLabel: _actionLabel(record.nextAction),
                             onAction: _submitPunch,
-                            isSubmitting: _isSubmitting &&
-                                record.nextAction == 'TIME_IN',
+                            isSubmitting:
+                                _isSubmitting && record.nextAction == 'TIME_IN',
                           ),
                           const SizedBox(height: 10),
                           _buildPunchRow(
@@ -990,7 +1313,8 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                             isNext: record.nextAction == 'LUNCH_OUT',
                             actionLabel: _actionLabel(record.nextAction),
                             onAction: _submitPunch,
-                            isSubmitting: _isSubmitting &&
+                            isSubmitting:
+                                _isSubmitting &&
                                 record.nextAction == 'LUNCH_OUT',
                           ),
                           const SizedBox(height: 10),
@@ -1000,7 +1324,8 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                             isNext: record.nextAction == 'LUNCH_IN',
                             actionLabel: _actionLabel(record.nextAction),
                             onAction: _submitPunch,
-                            isSubmitting: _isSubmitting &&
+                            isSubmitting:
+                                _isSubmitting &&
                                 record.nextAction == 'LUNCH_IN',
                           ),
                           const SizedBox(height: 10),
@@ -1010,11 +1335,14 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                             isNext: record.nextAction == 'TIME_OUT',
                             actionLabel: _actionLabel(record.nextAction),
                             onAction: _submitPunch,
-                            isSubmitting: _isSubmitting &&
+                            isSubmitting:
+                                _isSubmitting &&
                                 record.nextAction == 'TIME_OUT',
                           ),
                           const SizedBox(height: 16),
                           _buildSummaryCard(record),
+                          const SizedBox(height: 16),
+                          _buildCorrectionCard(record),
                           const SizedBox(height: 16),
                           _buildExportCard(),
                           if (_errorMessage != null) ...[
@@ -1033,4 +1361,20 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
             ),
     );
   }
+}
+
+class _DtrEditRequestDraft {
+  final DateTime timeInAt;
+  final DateTime lunchOutAt;
+  final DateTime lunchInAt;
+  final DateTime timeOutAt;
+  final String reason;
+
+  const _DtrEditRequestDraft({
+    required this.timeInAt,
+    required this.lunchOutAt,
+    required this.lunchInAt,
+    required this.timeOutAt,
+    required this.reason,
+  });
 }

@@ -13,6 +13,7 @@ import 'core/services/admin_user_management_service.dart';
 import 'core/services/adviser_management_service.dart';
 import 'core/services/api_client.dart';
 import 'core/services/auth_service.dart';
+import 'core/services/edit_request_service.dart';
 import 'core/services/internship_service.dart';
 import 'core/services/logbook_service.dart';
 import 'core/services/notification_service.dart';
@@ -139,6 +140,10 @@ class InternTrackApp extends StatelessWidget {
         ProxyProvider<ApiClient, AdminUserManagementService>(
           update: (context, apiClient, previous) =>
               AdminUserManagementService(apiClient),
+        ),
+        ProxyProvider<ApiClient, EditRequestService>(
+          update: (context, apiClient, previous) =>
+              EditRequestService(apiClient),
         ),
         ProxyProvider<ApiClient, AdviserManagementService>(
           update: (context, apiClient, previous) =>

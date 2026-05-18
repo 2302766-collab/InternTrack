@@ -9,6 +9,7 @@ import '../../../../core/services/api_client.dart';
 import '../../../../core/services/admin_dashboard_service.dart';
 import '../../../../core/services/admin_student_service.dart';
 import '../../../../core/services/admin_user_management_service.dart';
+import '../../../../core/services/edit_request_service.dart';
 import '../../../../core/services/intern_reporting_service.dart';
 import '../../../../core/utils/file_picker_helper_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
@@ -20,6 +21,7 @@ import '../../../../shared/models/admin_dashboard_summary.dart';
 import '../../../../shared/models/admin_student_summary.dart';
 import '../../../../shared/models/admin_students_page.dart';
 import '../../../../shared/models/app_user.dart';
+import '../../../../shared/models/edit_request.dart';
 import '../../../../shared/widgets/dtr_export_dialog.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -55,21 +57,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   late final AdminStudentService _studentService;
   late final AdminDashboardService _dashboardService;
   late final AdminUserManagementService _userManagementService;
+  late final EditRequestService _editRequestService;
   late final InternReportingService _reportingService;
 
   final List<AdminStudentSummary> _students = <AdminStudentSummary>[];
   final List<AppUser> _managedUsers = <AppUser>[];
+  final List<EditRequestItem> _pendingEditRequests = <EditRequestItem>[];
   final GlobalKey _profileMenuAnchorKey = GlobalKey();
   final TextEditingController _managedUserSearchController =
       TextEditingController();
   final Set<int> _exportingStudentIds = <int>{};
   final Set<int> _deletingUserIds = <int>{};
+  final Set<int> _processingEditRequestIds = <int>{};
 
   bool _isInitialLoading = true;
   bool _isPageLoading = false;
   bool _isCreatingUser = false;
   String? _errorMessage;
   String? _userManagementError;
+  String? _editRequestError;
   int _currentPage = 1;
   int _lastPage = 1;
   int _totalStudents = 0;
@@ -87,6 +93,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _studentService = context.read<AdminStudentService>();
     _dashboardService = context.read<AdminDashboardService>();
     _userManagementService = context.read<AdminUserManagementService>();
+    _editRequestService = context.read<EditRequestService>();
     _reportingService = InternReportingService(context.read<ApiClient>());
     final now = DateTime.now();
     _exportStartDate = DateTime(now.year, now.month, 1);
@@ -154,6 +161,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _studentService.fetchStudents(page: page, perPage: _itemsPerPage),
         _dashboardService.getSummary(),
         _userManagementService.fetchManagedUsers(),
+        _editRequestService.fetchAdminEditRequests(),
       ]);
 
       if (!mounted) return;
@@ -161,6 +169,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final studentsPage = results[0] as AdminStudentsPage;
       final summary = results[1] as AdminDashboardSummary;
       final managedUsers = results[2] as List<AppUser>;
+      final editRequests = results[3] as List<EditRequestItem>;
 
       setState(() {
         _currentPage = studentsPage.currentPage;
@@ -169,12 +178,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _dashboardSummary = summary;
         _errorMessage = null;
         _userManagementError = null;
+        _editRequestError = null;
         _students
           ..clear()
           ..addAll(studentsPage.students);
         _managedUsers
           ..clear()
           ..addAll(managedUsers);
+        _pendingEditRequests
+          ..clear()
+          ..addAll(editRequests);
         _syncManagedUsersPage();
       });
     } catch (e) {
@@ -656,6 +669,142 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       AppRoutes.login,
       (route) => false,
     );
+  }
+
+  Future<void> _approveEditRequest(EditRequestItem request) async {
+    if (_processingEditRequestIds.contains(request.id)) {
+      return;
+    }
+
+    setState(() {
+      _processingEditRequestIds.add(request.id);
+      _editRequestError = null;
+    });
+
+    try {
+      await _editRequestService.approveRequest(requestId: request.id);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Edit request approved.')));
+      await _loadDashboard(page: _currentPage);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _editRequestError = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingEditRequestIds.remove(request.id);
+        });
+      }
+    }
+  }
+
+  Future<void> _rejectEditRequest(EditRequestItem request) async {
+    if (_processingEditRequestIds.contains(request.id)) {
+      return;
+    }
+
+    final commentController = TextEditingController();
+    String? validationError;
+
+    final comment = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Reject Edit Request'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: commentController,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Reason for rejection',
+                      hintText: 'Explain what the student needs to fix.',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  if (validationError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      validationError!,
+                      style: const TextStyle(color: Color(0xFFB42318)),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFB42318),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    final trimmed = commentController.text.trim();
+                    if (trimmed.length < 3) {
+                      setDialogState(() {
+                        validationError =
+                            'Rejection reason must be at least 3 characters.';
+                      });
+                      return;
+                    }
+                    Navigator.of(dialogContext).pop(trimmed);
+                  },
+                  child: const Text('Reject'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    commentController.dispose();
+
+    if (comment == null) {
+      return;
+    }
+
+    setState(() {
+      _processingEditRequestIds.add(request.id);
+      _editRequestError = null;
+    });
+
+    try {
+      await _editRequestService.rejectRequest(
+        requestId: request.id,
+        comment: comment,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Edit request rejected.')));
+      await _loadDashboard(page: _currentPage);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _editRequestError = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingEditRequestIds.remove(request.id);
+        });
+      }
+    }
   }
 
   Future<void> _exportStudentDtr(AdminStudentSummary student) async {
@@ -2274,6 +2423,256 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+  String _editRequestValueLabel(Object? value) {
+    if (value == null) {
+      return 'Not set';
+    }
+
+    final raw = value.toString();
+    final dateTime = DateTime.tryParse(raw);
+    if (dateTime != null) {
+      final hour = dateTime.hour % 12 == 0 ? 12 : dateTime.hour % 12;
+      final minute = dateTime.minute.toString().padLeft(2, '0');
+      final suffix = dateTime.hour >= 12 ? 'PM' : 'AM';
+      return '${dateTime.year.toString().padLeft(4, '0')}-'
+          '${dateTime.month.toString().padLeft(2, '0')}-'
+          '${dateTime.day.toString().padLeft(2, '0')} $hour:$minute $suffix';
+    }
+
+    return raw;
+  }
+
+  Widget _buildEditRequestSection() {
+    return buildSectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Edit Requests',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: _textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Review student correction requests for submitted logs and completed DTR records.',
+            style: TextStyle(fontSize: 14, color: _textSecondary, height: 1.45),
+          ),
+          if (_editRequestError != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _editRequestError!,
+              style: const TextStyle(
+                color: Color(0xFFB42318),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          const SizedBox(height: 18),
+          if (_pendingEditRequests.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFE4E7EC)),
+              ),
+              child: const Text(
+                'No pending edit requests right now.',
+                style: TextStyle(fontSize: 14, color: _textSecondary),
+              ),
+            )
+          else
+            ..._pendingEditRequests.map(_buildEditRequestCard),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditRequestCard(EditRequestItem request) {
+    final isProcessing = _processingEditRequestIds.contains(request.id);
+    final currentValues = request.currentValues;
+    final requestedChanges = request.requestedChanges;
+
+    Widget valuePair(String label, Object? current, Object? requested) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE4E7EC)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: _textSecondary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Current: ${_editRequestValueLabel(current)}',
+              style: const TextStyle(
+                fontSize: 13,
+                color: _textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Requested: ${_editRequestValueLabel(requested)}',
+              style: const TextStyle(
+                fontSize: 13,
+                color: _brandSecondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final comparisonWidgets = request.isLog
+        ? <Widget>[
+            valuePair('Date', currentValues['date'], requestedChanges['date']),
+            valuePair(
+              'Hours Rendered',
+              currentValues['hours_rendered'],
+              requestedChanges['hours_rendered'],
+            ),
+            valuePair(
+              'Task Description',
+              currentValues['task_description'],
+              requestedChanges['task_description'],
+            ),
+          ]
+        : <Widget>[
+            valuePair(
+              'Time In',
+              currentValues['time_in_at'],
+              requestedChanges['time_in_at'],
+            ),
+            valuePair(
+              'Lunch Out',
+              currentValues['lunch_out_at'],
+              requestedChanges['lunch_out_at'],
+            ),
+            valuePair(
+              'Lunch In',
+              currentValues['lunch_in_at'],
+              requestedChanges['lunch_in_at'],
+            ),
+            valuePair(
+              'Time Out',
+              currentValues['time_out_at'],
+              requestedChanges['time_out_at'],
+            ),
+          ];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBFDFF),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              buildStatusBadge(
+                label: request.isLog ? 'Log Request' : 'DTR Request',
+                backgroundColor: const Color(0xFFE8F1FF),
+                foregroundColor: const Color(0xFF175CD3),
+              ),
+              buildStatusBadge(
+                label: 'Request #${request.id}',
+                backgroundColor: const Color(0xFFF2F4F7),
+                foregroundColor: const Color(0xFF344054),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            request.student?.name.isNotEmpty == true
+                ? request.student!.name
+                : request.requester?.name ?? 'Unknown student',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: _textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            request.requester?.email ?? '',
+            style: const TextStyle(fontSize: 13, color: _textSecondary),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Reason: ${request.reason}',
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.45,
+              color: _textPrimary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          ...comparisonWidgets
+              .expand((widget) => [widget, const SizedBox(height: 10)])
+              .toList()
+            ..removeLast(),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              FilledButton.icon(
+                onPressed: isProcessing
+                    ? null
+                    : () => _approveEditRequest(request),
+                icon: isProcessing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.check_circle_outline_rounded),
+                label: const Text('Approve'),
+              ),
+              OutlinedButton.icon(
+                onPressed: isProcessing
+                    ? null
+                    : () => _rejectEditRequest(request),
+                icon: const Icon(Icons.close_rounded),
+                label: const Text('Reject'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFB42318),
+                  side: const BorderSide(color: Color(0xFFF0C4C0)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildManagedUserSection() {
     final filteredUsers = _filteredManagedUsers;
     final paginatedUsers = _paginatedManagedUsers;
@@ -2981,6 +3380,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SizedBox(height: 22),
               buildActionPanel(summary),
             ],
+            const SizedBox(height: 22),
+            _buildEditRequestSection(),
             const SizedBox(height: 22),
             _buildManagedUserSection(),
             const SizedBox(height: 22),

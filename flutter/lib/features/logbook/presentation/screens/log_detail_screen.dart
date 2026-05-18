@@ -609,10 +609,7 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 560;
-        final buttons = <Widget>[
-          ?secondary,
-          ?primary,
-        ];
+        final buttons = <Widget>[?secondary, ?primary];
 
         if (isCompact) {
           return Column(
@@ -1234,9 +1231,9 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                 const SizedBox(height: 6),
                 Text(
                   _log.status.toUpperCase() == 'APPROVED'
-                      ? 'This log has been accepted and can no longer be edited.'
+                      ? 'This log has been accepted. If you spot a mistake, you can send a correction request to admin.'
                       : _log.status.toUpperCase() == 'REJECTED'
-                      ? 'Please review the supervisor feedback above. This entry cannot be edited here because only pending logs can be updated.'
+                      ? 'Please review the supervisor feedback above. You can still prepare corrections and send them to admin for approval.'
                       : 'Editing is disabled because this log is no longer pending review.',
                   style: const TextStyle(
                     fontSize: 14,
@@ -1245,7 +1242,18 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                _buildFooterButtons(primary: _buildBackToLogbookButton()),
+                _buildFooterButtons(
+                  secondary: _buildBackToLogbookButton(),
+                  primary: FilledButton.icon(
+                    onPressed: _openEdit,
+                    icon: const Icon(Icons.edit_note_rounded),
+                    label: Text(
+                      _log.status.toUpperCase() == 'PENDING'
+                          ? 'Edit Log'
+                          : 'Request Admin Edit',
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -1255,13 +1263,6 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
   }
 
   Future<void> _openEdit() async {
-    if (!_log.isPending) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot edit non-pending logs.')),
-      );
-      return;
-    }
-
     final updated = await Navigator.push<bool>(
       context,
       MaterialPageRoute(

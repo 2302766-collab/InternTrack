@@ -1,4 +1,5 @@
 import '../../shared/models/daily_time_record.dart';
+import '../../shared/models/edit_request.dart';
 import '../exceptions/api_exception.dart';
 import '../services/api_client.dart';
 import '../services/base_service.dart';
@@ -134,6 +135,50 @@ class DtrService extends BaseService {
         bytes: bytes,
         filename: filename,
         mimeType: fallbackMimeType,
+      );
+    } on ApiException catch (e) {
+      handleApiError(e);
+      rethrow;
+    }
+  }
+
+  Future<EditRequestItem> requestEdit({
+    required int dailyTimeRecordId,
+    required DateTime timeInAt,
+    required DateTime lunchOutAt,
+    required DateTime lunchInAt,
+    required DateTime timeOutAt,
+    required String reason,
+  }) async {
+    try {
+      return await _apiClient.post<EditRequestItem>(
+        path: '/student/dtr/edit-request',
+        data: {
+          'daily_time_record_id': dailyTimeRecordId,
+          'time_in_at': timeInAt.toIso8601String(),
+          'lunch_out_at': lunchOutAt.toIso8601String(),
+          'lunch_in_at': lunchInAt.toIso8601String(),
+          'time_out_at': timeOutAt.toIso8601String(),
+          'reason': reason,
+        },
+        converter: (data) {
+          if (data is! Map<String, dynamic>) {
+            throw ApiException(
+              message: 'Invalid DTR edit request response format',
+              errorType: ApiErrorType.unknown,
+            );
+          }
+
+          final requestData = data['data'];
+          if (requestData is! Map<String, dynamic>) {
+            throw ApiException(
+              message: 'Invalid DTR edit request response format',
+              errorType: ApiErrorType.unknown,
+            );
+          }
+
+          return EditRequestItem.fromJson(requestData);
+        },
       );
     } on ApiException catch (e) {
       handleApiError(e);
