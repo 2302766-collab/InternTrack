@@ -1990,9 +1990,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-<<<<<<< HEAD
-  List<int> visiblePages(bool isCompact) {
-=======
   Widget _buildManagedUserSection() {
     final filteredUsers = _filteredManagedUsers;
     final paginatedUsers = _paginatedManagedUsers;
@@ -2027,7 +2024,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
     ];
 
-    return _buildSectionCard(
+    return buildSectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2284,12 +2281,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _buildStatusBadge(
+              buildStatusBadge(
                 label: roleMeta.label,
                 backgroundColor: roleMeta.background,
                 foregroundColor: roleMeta.foreground,
               ),
-              _buildStatusBadge(
+              buildStatusBadge(
                 label: 'Account #${user.id}',
                 backgroundColor: const Color(0xFFF2F4F7),
                 foregroundColor: const Color(0xFF344054),
@@ -2335,6 +2332,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
+  String _initialsFor(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+
+    if (parts.isEmpty) {
+      return '?';
+    }
+
+    if (parts.length == 1) {
+      return parts.first.substring(0, 1).toUpperCase();
+    }
+
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
+        .toUpperCase();
+  }
+
   Widget _buildManagedUserPaginationControls(
     BoxConstraints constraints,
     int totalUsers,
@@ -2355,7 +2371,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildArrowButton(
+              buildArrowButton(
                 icon: Icons.chevron_left_rounded,
                 compact: true,
                 onPressed: _managedUsersPage > 1
@@ -2363,14 +2379,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     : null,
               ),
               ...visiblePages.map(
-                (page) => _buildPageButton(
+                (page) => buildPageButton(
                   page: page,
                   selected: page == _managedUsersPage,
                   compact: true,
                   onTap: () => _goToManagedUsersPage(page),
                 ),
               ),
-              _buildArrowButton(
+              buildArrowButton(
                 icon: Icons.chevron_right_rounded,
                 compact: true,
                 onPressed: _managedUsersPage < _managedUsersLastPage
@@ -2394,33 +2410,33 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       spacing: 4,
       runSpacing: 10,
       children: [
-        _buildArrowButton(
+        buildArrowButton(
           icon: Icons.keyboard_double_arrow_left_rounded,
           onPressed: _managedUsersPage > 1
               ? () => _goToManagedUsersPage(1)
               : null,
         ),
-        _buildArrowButton(
+        buildArrowButton(
           icon: Icons.chevron_left_rounded,
           onPressed: _managedUsersPage > 1
               ? () => _goToManagedUsersPage(_managedUsersPage - 1)
               : null,
         ),
         ...visiblePages.map(
-          (page) => _buildPageButton(
+          (page) => buildPageButton(
             page: page,
             selected: page == _managedUsersPage,
             compact: false,
             onTap: () => _goToManagedUsersPage(page),
           ),
         ),
-        _buildArrowButton(
+        buildArrowButton(
           icon: Icons.chevron_right_rounded,
           onPressed: _managedUsersPage < _managedUsersLastPage
               ? () => _goToManagedUsersPage(_managedUsersPage + 1)
               : null,
         ),
-        _buildArrowButton(
+        buildArrowButton(
           icon: Icons.keyboard_double_arrow_right_rounded,
           onPressed: _managedUsersPage < _managedUsersLastPage
               ? () => _goToManagedUsersPage(_managedUsersLastPage)
@@ -2435,8 +2451,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  List<int> _visiblePages(bool isCompact) {
->>>>>>> 1822302 (admin user management)
+  List<int> visiblePages(bool isCompact) {
     if (_lastPage <= 1) {
       return const <int>[1];
     }
@@ -2662,13 +2677,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               buildActionPanel(summary),
             ],
             const SizedBox(height: 22),
-<<<<<<< HEAD
-            buildSectionCard(
-=======
             _buildManagedUserSection(),
             const SizedBox(height: 22),
-            _buildSectionCard(
->>>>>>> 1822302 (admin user management)
+            buildSectionCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
