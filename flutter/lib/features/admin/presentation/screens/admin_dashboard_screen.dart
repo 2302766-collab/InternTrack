@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -218,6 +219,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       return user.name.toLowerCase().contains(query) ||
           user.email.toLowerCase().contains(query) ||
           user.role.toLowerCase().contains(query) ||
+          _managedUserGenderLabel(user.gender).toLowerCase().contains(query) ||
           user.id.toString().contains(query);
     }).toList();
   }
@@ -256,6 +258,68 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   int _managedUserCountForRole(String role) {
     return _managedUsers.where((user) => user.role == role).length;
+  }
+
+  _ManagedGenderPopulation get _managedGenderPopulation {
+    var male = 0;
+    var female = 0;
+    var unspecified = 0;
+
+    for (final user in _managedUsers) {
+      switch (_normalizedGender(user.gender)) {
+        case 'Male':
+          male++;
+          break;
+        case 'Female':
+          female++;
+          break;
+        default:
+          unspecified++;
+      }
+    }
+
+    return _ManagedGenderPopulation(
+      maleCount: male,
+      femaleCount: female,
+      unspecifiedCount: unspecified,
+    );
+  }
+
+  String? _normalizedGender(String? gender) {
+    final normalized = gender?.trim().toLowerCase();
+    if (normalized == 'male') {
+      return 'Male';
+    }
+    if (normalized == 'female') {
+      return 'Female';
+    }
+    return null;
+  }
+
+  String _managedUserGenderLabel(String? gender) {
+    return _normalizedGender(gender) ?? 'Not set';
+  }
+
+  Color _managedUserGenderBackground(String? gender) {
+    switch (_normalizedGender(gender)) {
+      case 'Male':
+        return const Color(0xFFE8F1FF);
+      case 'Female':
+        return const Color(0xFFFFEDF5);
+      default:
+        return const Color(0xFFFFF4E5);
+    }
+  }
+
+  Color _managedUserGenderForeground(String? gender) {
+    switch (_normalizedGender(gender)) {
+      case 'Male':
+        return const Color(0xFF175CD3);
+      case 'Female':
+        return const Color(0xFFC11574);
+      default:
+        return const Color(0xFFB54708);
+    }
   }
 
   void _updateManagedUserSearch(String value) {
@@ -1457,6 +1521,205 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+  Widget buildPopulationCard() {
+    final population = _managedGenderPopulation;
+    final chartSegments = <_PieChartSegment>[
+      if (population.maleCount > 0)
+        const _PieChartSegment(
+          label: 'Male',
+          color: Color(0xFF175CD3),
+          value: 0,
+        ).copyWith(value: population.maleCount.toDouble()),
+      if (population.femaleCount > 0)
+        const _PieChartSegment(
+          label: 'Female',
+          color: Color(0xFFC11574),
+          value: 0,
+        ).copyWith(value: population.femaleCount.toDouble()),
+    ];
+
+    final populationTotal = population.totalCount;
+    final knownPopulation = population.knownCount;
+
+    return buildSectionCard(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stacked = constraints.maxWidth < 840;
+
+          return Flex(
+            direction: stacked ? Axis.vertical : Axis.horizontal,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: stacked ? 0 : 5,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Population Breakdown',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: _textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Gender distribution across all student, adviser, and supervisor accounts in the admin workspace.',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: _textSecondary,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        buildStatusBadge(
+                          label: '$populationTotal total users',
+                          backgroundColor: const Color(0xFFEAF2FF),
+                          foregroundColor: _brandPrimary,
+                        ),
+                        buildStatusBadge(
+                          label: '$knownPopulation with gender recorded',
+                          backgroundColor: const Color(0xFFE7F6EC),
+                          foregroundColor: const Color(0xFF067647),
+                        ),
+                        if (population.unspecifiedCount > 0)
+                          buildStatusBadge(
+                            label:
+                                '${population.unspecifiedCount} need gender update',
+                            backgroundColor: const Color(0xFFFFF4E5),
+                            foregroundColor: const Color(0xFFB54708),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    buildPopulationLegend(
+                      label: 'Male',
+                      count: population.maleCount,
+                      total: populationTotal,
+                      color: const Color(0xFF175CD3),
+                    ),
+                    const SizedBox(height: 10),
+                    buildPopulationLegend(
+                      label: 'Female',
+                      count: population.femaleCount,
+                      total: populationTotal,
+                      color: const Color(0xFFC11574),
+                    ),
+                    if (population.unspecifiedCount > 0) ...[
+                      const SizedBox(height: 10),
+                      buildPopulationLegend(
+                        label: 'Not set',
+                        count: population.unspecifiedCount,
+                        total: populationTotal,
+                        color: const Color(0xFFB54708),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              SizedBox(width: stacked ? 0 : 24, height: stacked ? 24 : 0),
+              Expanded(
+                flex: stacked ? 0 : 4,
+                child: Center(
+                  child: chartSegments.isEmpty
+                      ? Container(
+                          width: 240,
+                          height: 240,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: _borderColor, width: 18),
+                          ),
+                          child: const Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Text(
+                              'No gender data is available yet.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: _textSecondary,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        )
+                      : _PopulationPieChart(
+                          segments: chartSegments,
+                          centerLabel: '$knownPopulation',
+                          centerSubtitle: population.unspecifiedCount > 0
+                              ? 'known profiles'
+                              : 'profiles tracked',
+                        ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget buildPopulationLegend({
+    required String label,
+    required int count,
+    required int total,
+    required Color color,
+  }) {
+    final percentage = total == 0 ? 0 : ((count / total) * 100).round();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 14,
+            height: 14,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: _textPrimary,
+              ),
+            ),
+          ),
+          Text(
+            '$count users',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: _textSecondary,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            '$percentage%',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget buildSummaryCard(_SummaryItem item) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -2015,6 +2278,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final filteredUsers = _filteredManagedUsers;
     final paginatedUsers = _paginatedManagedUsers;
     final totalUsers = filteredUsers.length;
+    final population = _managedGenderPopulation;
     final startItem = totalUsers == 0
         ? 0
         : ((_managedUsersPage - 1) * _managedUsersPerPage) + 1;
@@ -2077,6 +2341,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
             ],
           ),
+          if (population.unspecifiedCount > 0) ...[
+            const SizedBox(height: 12),
+            Text(
+              '${population.unspecifiedCount} older account${population.unspecifiedCount == 1 ? '' : 's'} still ${population.unspecifiedCount == 1 ? 'has' : 'have'} no saved gender. They appear as "Not set" below until the user updates their profile.',
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF9E4F15),
+                height: 1.45,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           if (_userManagementError != null) ...[
             const SizedBox(height: 14),
             Text(
@@ -2245,6 +2521,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _buildManagedUserTile(AppUser user) {
     final isDeleting = _deletingUserIds.contains(user.id);
     final roleMeta = _managedRoleMeta(user.role);
+    final genderLabel = _managedUserGenderLabel(user.gender);
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -2311,6 +2588,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 label: 'Account #${user.id}',
                 backgroundColor: const Color(0xFFF2F4F7),
                 foregroundColor: const Color(0xFF344054),
+              ),
+              buildStatusBadge(
+                label: genderLabel,
+                backgroundColor: _managedUserGenderBackground(user.gender),
+                foregroundColor: _managedUserGenderForeground(user.gender),
               ),
             ],
           ),
@@ -2695,6 +2977,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SizedBox(height: 22),
               buildSummaryGrid(summary),
               const SizedBox(height: 22),
+              buildPopulationCard(),
+              const SizedBox(height: 22),
               buildActionPanel(summary),
             ],
             const SizedBox(height: 22),
@@ -2900,4 +3184,155 @@ class _ManagedRoleMeta {
     required this.background,
     required this.foreground,
   });
+}
+
+class _ManagedGenderPopulation {
+  final int maleCount;
+  final int femaleCount;
+  final int unspecifiedCount;
+
+  const _ManagedGenderPopulation({
+    required this.maleCount,
+    required this.femaleCount,
+    required this.unspecifiedCount,
+  });
+
+  int get totalCount => maleCount + femaleCount + unspecifiedCount;
+  int get knownCount => maleCount + femaleCount;
+}
+
+class _PieChartSegment {
+  final String label;
+  final Color color;
+  final double value;
+
+  const _PieChartSegment({
+    required this.label,
+    required this.color,
+    required this.value,
+  });
+
+  _PieChartSegment copyWith({String? label, Color? color, double? value}) {
+    return _PieChartSegment(
+      label: label ?? this.label,
+      color: color ?? this.color,
+      value: value ?? this.value,
+    );
+  }
+}
+
+class _PopulationPieChart extends StatelessWidget {
+  final List<_PieChartSegment> segments;
+  final String centerLabel;
+  final String centerSubtitle;
+
+  const _PopulationPieChart({
+    required this.segments,
+    required this.centerLabel,
+    required this.centerSubtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 240,
+      height: 240,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CustomPaint(
+            size: const Size.square(240),
+            painter: _PieChartPainter(segments),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                centerLabel,
+                style: const TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w800,
+                  color: _AdminDashboardScreenState._textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                centerSubtitle,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: _AdminDashboardScreenState._textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PieChartPainter extends CustomPainter {
+  final List<_PieChartSegment> segments;
+
+  const _PieChartPainter(this.segments);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (segments.isEmpty) {
+      return;
+    }
+
+    final total = segments.fold<double>(
+      0,
+      (runningTotal, segment) => runningTotal + segment.value,
+    );
+    if (total <= 0) {
+      return;
+    }
+
+    final strokeWidth = size.width * 0.16;
+    final rect = Offset.zero & size;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.butt;
+
+    var startAngle = -math.pi / 2;
+
+    for (final segment in segments) {
+      final sweepAngle = (segment.value / total) * math.pi * 2;
+      paint.color = segment.color;
+      canvas.drawArc(
+        rect.deflate(strokeWidth / 2),
+        startAngle,
+        sweepAngle,
+        false,
+        paint,
+      );
+      startAngle += sweepAngle;
+    }
+
+    final holePaint = Paint()..color = Colors.white;
+    canvas.drawCircle(rect.center, (size.width - strokeWidth) / 2.6, holePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PieChartPainter oldDelegate) {
+    if (oldDelegate.segments.length != segments.length) {
+      return true;
+    }
+
+    for (var index = 0; index < segments.length; index++) {
+      final current = segments[index];
+      final previous = oldDelegate.segments[index];
+      if (current.label != previous.label ||
+          current.color != previous.color ||
+          current.value != previous.value) {
+        return true;
+      }
+    }
+
+    return false;
+  }
 }
