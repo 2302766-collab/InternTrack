@@ -10,6 +10,8 @@ class AdminDashboardSummary {
   final int femaleStudents;
   final int unspecifiedStudents;
   final double averageCompletionPercentage;
+  final String logsPerDayMonth;
+  final List<AdminDashboardLogPoint> logsPerDay;
 
   const AdminDashboardSummary({
     required this.totalStudents,
@@ -23,6 +25,8 @@ class AdminDashboardSummary {
     required this.femaleStudents,
     required this.unspecifiedStudents,
     required this.averageCompletionPercentage,
+    required this.logsPerDayMonth,
+    required this.logsPerDay,
   });
 
   factory AdminDashboardSummary.fromJson(Map<String, dynamic> json) {
@@ -42,6 +46,11 @@ class AdminDashboardSummary {
       averageCompletionPercentage: _parseDouble(
         json['average_completion_percentage'],
       ),
+      logsPerDayMonth: json['logs_per_day_month']?.toString() ?? '',
+      logsPerDay: (json['logs_per_day'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(AdminDashboardLogPoint.fromJson)
+          .toList(),
     );
   }
 
@@ -53,5 +62,25 @@ class AdminDashboardSummary {
   static double _parseDouble(Object? value) {
     if (value is num) return value.toDouble();
     return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+}
+
+class AdminDashboardLogPoint {
+  final String date;
+  final int day;
+  final int totalLogs;
+
+  const AdminDashboardLogPoint({
+    required this.date,
+    required this.day,
+    required this.totalLogs,
+  });
+
+  factory AdminDashboardLogPoint.fromJson(Map<String, dynamic> json) {
+    return AdminDashboardLogPoint(
+      date: json['date']?.toString() ?? '',
+      day: AdminDashboardSummary._parseInt(json['day']),
+      totalLogs: AdminDashboardSummary._parseInt(json['total_logs']),
+    );
   }
 }

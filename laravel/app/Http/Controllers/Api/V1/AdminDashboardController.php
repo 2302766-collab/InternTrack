@@ -7,6 +7,7 @@ use App\Models\LogEntry;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\DashboardCacheService;
+use Carbon\Carbon;
 
 class AdminDashboardController extends Controller
 {
@@ -90,6 +91,29 @@ class AdminDashboardController extends Controller
                 ->selectRaw("SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) as approved_logs")
                 ->first();
 
+            $latestLogDate = LogEntry::query()->max('date');
+            $chartMonth = $latestLogDate !== null
+                ? Carbon::parse($latestLogDate)->startOfMonth()
+                : now()->startOfMonth();
+            $chartMonthEnd = $chartMonth->copy()->endOfMonth();
+
+            $dailyLogCounts = LogEntry::query()
+                ->selectRaw('date, COUNT(*) as total_logs')
+                ->whereBetween('date', [$chartMonth->toDateString(), $chartMonthEnd->toDateString()])
+                ->groupBy('date')
+                ->orderBy('date')
+                ->pluck('total_logs', 'date');
+
+            $logsPerDay = [];
+            for ($cursor = $chartMonth->copy(); $cursor->lte($chartMonthEnd); $cursor->addDay()) {
+                $date = $cursor->toDateString();
+                $logsPerDay[] = [
+                    'date' => $date,
+                    'day' => $cursor->day,
+                    'total_logs' => (int) ($dailyLogCounts[$date] ?? 0),
+                ];
+            }
+
             return [
                 'total_students' => $totalStudents,
                 'pending_logs' => (int) ($logSummary?->pending_logs ?? 0),
@@ -102,6 +126,8 @@ class AdminDashboardController extends Controller
                 'female_students' => $femaleStudents,
                 'unspecified_students' => $unspecifiedStudents,
                 'average_completion_percentage' => $averageCompletionPercentage,
+                'logs_per_day_month' => $chartMonth->format('Y-m'),
+                'logs_per_day' => $logsPerDay,
             ];
         });
 

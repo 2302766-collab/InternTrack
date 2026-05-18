@@ -54,7 +54,14 @@ class AdminDashboardTest extends TestCase
             ->assertJsonPath('data.male_students', 1)
             ->assertJsonPath('data.female_students', 1)
             ->assertJsonPath('data.unspecified_students', 1)
-            ->assertJsonPath('data.average_completion_percentage', 30);
+            ->assertJsonPath('data.average_completion_percentage', 30)
+            ->assertJsonPath('data.logs_per_day_month', '2026-03')
+            ->assertJsonPath('data.logs_per_day.0.day', 1)
+            ->assertJsonPath('data.logs_per_day.0.total_logs', 2)
+            ->assertJsonPath('data.logs_per_day.1.day', 2)
+            ->assertJsonPath('data.logs_per_day.1.total_logs', 2)
+            ->assertJsonPath('data.logs_per_day.2.day', 3)
+            ->assertJsonPath('data.logs_per_day.2.total_logs', 2);
     }
 
     public function test_non_admin_cannot_retrieve_dashboard_metrics(): void

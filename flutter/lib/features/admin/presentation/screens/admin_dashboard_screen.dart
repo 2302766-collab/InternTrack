@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_routes.dart';
@@ -1671,6 +1673,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget buildPopulationCard() {
+    final summary = _dashboardSummary;
     final population = _managedGenderPopulation;
     final chartSegments = <_PieChartSegment>[
       if (population.maleCount > 0)
@@ -1693,118 +1696,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return buildSectionCard(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final stacked = constraints.maxWidth < 840;
+          final splitLayout = constraints.maxWidth >= 1180;
 
           return Flex(
-            direction: stacked ? Axis.vertical : Axis.horizontal,
+            direction: splitLayout ? Axis.horizontal : Axis.vertical,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                flex: stacked ? 0 : 5,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Population Breakdown',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: _textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Gender distribution across all student, adviser, and supervisor accounts in the admin workspace.',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: _textSecondary,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        buildStatusBadge(
-                          label: '$populationTotal total users',
-                          backgroundColor: const Color(0xFFEAF2FF),
-                          foregroundColor: _brandPrimary,
-                        ),
-                        buildStatusBadge(
-                          label: '$knownPopulation with gender recorded',
-                          backgroundColor: const Color(0xFFE7F6EC),
-                          foregroundColor: const Color(0xFF067647),
-                        ),
-                        if (population.unspecifiedCount > 0)
-                          buildStatusBadge(
-                            label:
-                                '${population.unspecifiedCount} need gender update',
-                            backgroundColor: const Color(0xFFFFF4E5),
-                            foregroundColor: const Color(0xFFB54708),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    buildPopulationLegend(
-                      label: 'Male',
-                      count: population.maleCount,
-                      total: populationTotal,
-                      color: const Color(0xFF175CD3),
-                    ),
-                    const SizedBox(height: 10),
-                    buildPopulationLegend(
-                      label: 'Female',
-                      count: population.femaleCount,
-                      total: populationTotal,
-                      color: const Color(0xFFC11574),
-                    ),
-                    if (population.unspecifiedCount > 0) ...[
-                      const SizedBox(height: 10),
-                      buildPopulationLegend(
-                        label: 'Not set',
-                        count: population.unspecifiedCount,
-                        total: populationTotal,
-                        color: const Color(0xFFB54708),
-                      ),
-                    ],
-                  ],
+                flex: splitLayout ? 7 : 0,
+                child: _buildPopulationPanel(
+                  population: population,
+                  chartSegments: chartSegments,
+                  populationTotal: populationTotal,
+                  knownPopulation: knownPopulation,
                 ),
               ),
-              SizedBox(width: stacked ? 0 : 24, height: stacked ? 24 : 0),
+              SizedBox(
+                width: splitLayout ? 24 : 0,
+                height: splitLayout ? 0 : 24,
+              ),
               Expanded(
-                flex: stacked ? 0 : 4,
-                child: Center(
-                  child: chartSegments.isEmpty
-                      ? Container(
-                          width: 240,
-                          height: 240,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: _borderColor, width: 18),
-                          ),
-                          child: const Padding(
-                            padding: EdgeInsets.all(32),
-                            child: Text(
-                              'No gender data is available yet.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: _textSecondary,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-                        )
-                      : _PopulationPieChart(
-                          segments: chartSegments,
-                          centerLabel: '$knownPopulation',
-                          centerSubtitle: population.unspecifiedCount > 0
-                              ? 'known profiles'
-                              : 'profiles tracked',
-                        ),
+                flex: splitLayout ? 5 : 0,
+                child: _buildLogsPerDayPanel(
+                  monthKey: summary?.logsPerDayMonth ?? '',
+                  points:
+                      summary?.logsPerDay ?? const <AdminDashboardLogPoint>[],
                 ),
               ),
             ],
@@ -1812,6 +1728,219 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         },
       ),
     );
+  }
+
+  Widget _buildPopulationPanel({
+    required _ManagedGenderPopulation population,
+    required List<_PieChartSegment> chartSegments,
+    required int populationTotal,
+    required int knownPopulation,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked = constraints.maxWidth < 840;
+
+        return Flex(
+          direction: stacked ? Axis.vertical : Axis.horizontal,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: stacked ? 0 : 5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Population Breakdown',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Gender distribution across all student, adviser, and supervisor accounts in the admin workspace.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      buildStatusBadge(
+                        label: '$populationTotal total users',
+                        backgroundColor: const Color(0xFFEAF2FF),
+                        foregroundColor: _brandPrimary,
+                      ),
+                      buildStatusBadge(
+                        label: '$knownPopulation with gender recorded',
+                        backgroundColor: const Color(0xFFE7F6EC),
+                        foregroundColor: const Color(0xFF067647),
+                      ),
+                      if (population.unspecifiedCount > 0)
+                        buildStatusBadge(
+                          label:
+                              '${population.unspecifiedCount} need gender update',
+                          backgroundColor: const Color(0xFFFFF4E5),
+                          foregroundColor: const Color(0xFFB54708),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  buildPopulationLegend(
+                    label: 'Male',
+                    count: population.maleCount,
+                    total: populationTotal,
+                    color: const Color(0xFF175CD3),
+                  ),
+                  const SizedBox(height: 10),
+                  buildPopulationLegend(
+                    label: 'Female',
+                    count: population.femaleCount,
+                    total: populationTotal,
+                    color: const Color(0xFFC11574),
+                  ),
+                  if (population.unspecifiedCount > 0) ...[
+                    const SizedBox(height: 10),
+                    buildPopulationLegend(
+                      label: 'Not set',
+                      count: population.unspecifiedCount,
+                      total: populationTotal,
+                      color: const Color(0xFFB54708),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            SizedBox(width: stacked ? 0 : 24, height: stacked ? 24 : 0),
+            Expanded(
+              flex: stacked ? 0 : 4,
+              child: Center(
+                child: chartSegments.isEmpty
+                    ? Container(
+                        width: 240,
+                        height: 240,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: _borderColor, width: 18),
+                        ),
+                        child: const Padding(
+                          padding: EdgeInsets.all(32),
+                          child: Text(
+                            'No gender data is available yet.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: _textSecondary,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      )
+                    : _PopulationPieChart(
+                        segments: chartSegments,
+                        centerLabel: '$knownPopulation',
+                        centerSubtitle: population.unspecifiedCount > 0
+                            ? 'known profiles'
+                            : 'profiles tracked',
+                      ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildLogsPerDayPanel({
+    required String monthKey,
+    required List<AdminDashboardLogPoint> points,
+  }) {
+    final monthLabel = _formatLogsPerDayMonth(monthKey);
+    final totalLogs = points.fold<int>(
+      0,
+      (runningTotal, point) => runningTotal + point.totalLogs,
+    );
+    final peakLogs = points.isEmpty
+        ? 0
+        : points.map((point) => point.totalLogs).reduce(math.max);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Logs Per Day',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: _textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            monthLabel.isEmpty
+                ? 'Daily log volume from admin analytics.'
+                : 'Daily log volume recorded for $monthLabel.',
+            style: const TextStyle(
+              fontSize: 14,
+              color: _textSecondary,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              if (monthLabel.isNotEmpty)
+                buildStatusBadge(
+                  label: monthLabel,
+                  backgroundColor: const Color(0xFFEAF2FF),
+                  foregroundColor: _brandPrimary,
+                ),
+              buildStatusBadge(
+                label: '$totalLogs logs tracked',
+                backgroundColor: const Color(0xFFE7F6EC),
+                foregroundColor: const Color(0xFF067647),
+              ),
+              buildStatusBadge(
+                label: '$peakLogs peak in a day',
+                backgroundColor: const Color(0xFFFFF4E5),
+                foregroundColor: const Color(0xFFB54708),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _DailyLogsLineChart(points: points),
+        ],
+      ),
+    );
+  }
+
+  String _formatLogsPerDayMonth(String monthKey) {
+    if (monthKey.isEmpty) {
+      return '';
+    }
+
+    final parsed = DateTime.tryParse('$monthKey-01');
+    if (parsed == null) {
+      return monthKey;
+    }
+
+    return DateFormat('MMMM yyyy').format(parsed);
   }
 
   Widget buildPopulationLegend({
@@ -3730,6 +3859,235 @@ class _PieChartPainter extends CustomPainter {
       if (current.label != previous.label ||
           current.color != previous.color ||
           current.value != previous.value) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+}
+
+class _DailyLogsLineChart extends StatelessWidget {
+  final List<AdminDashboardLogPoint> points;
+
+  const _DailyLogsLineChart({required this.points});
+
+  @override
+  Widget build(BuildContext context) {
+    if (points.isEmpty) {
+      return Container(
+        height: 260,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _AdminDashboardScreenState._borderColor),
+        ),
+        child: const Text(
+          'No log activity is available yet.',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: _AdminDashboardScreenState._textSecondary,
+          ),
+        ),
+      );
+    }
+
+    final highestValue = points
+        .map((point) => point.totalLogs)
+        .fold<int>(0, math.max);
+    final yAxisMax = math.max(4, highestValue);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 18, 12, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _AdminDashboardScreenState._borderColor),
+      ),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 200,
+            child: CustomPaint(
+              painter: _DailyLogsLineChartPainter(
+                points: points,
+                yAxisMax: yAxisMax,
+              ),
+              child: Container(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(children: _buildBottomLabels(points)),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildBottomLabels(List<AdminDashboardLogPoint> points) {
+    final lastPoint = points.isNotEmpty ? points.last.day : 1;
+    final targetDays = <int>{
+      1,
+      if (lastPoint >= 7) 7,
+      if (lastPoint >= 14) 14,
+      if (lastPoint >= 21) 21,
+      lastPoint,
+    }.toList()..sort();
+
+    return targetDays
+        .map(
+          (day) => Expanded(
+            child: Text(
+              '$day',
+              textAlign: day == 1
+                  ? TextAlign.left
+                  : day == lastPoint
+                  ? TextAlign.right
+                  : TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: _AdminDashboardScreenState._textSecondary,
+              ),
+            ),
+          ),
+        )
+        .toList();
+  }
+}
+
+class _DailyLogsLineChartPainter extends CustomPainter {
+  final List<AdminDashboardLogPoint> points;
+  final int yAxisMax;
+
+  const _DailyLogsLineChartPainter({
+    required this.points,
+    required this.yAxisMax,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (points.isEmpty || size.isEmpty) {
+      return;
+    }
+
+    const leftPadding = 40.0;
+    const rightPadding = 12.0;
+    const topPadding = 12.0;
+    const bottomPadding = 12.0;
+    final chartWidth = size.width - leftPadding - rightPadding;
+    final chartHeight = size.height - topPadding - bottomPadding;
+
+    if (chartWidth <= 0 || chartHeight <= 0) {
+      return;
+    }
+
+    final chartRect = Rect.fromLTWH(
+      leftPadding,
+      topPadding,
+      chartWidth,
+      chartHeight,
+    );
+
+    final gridPaint = Paint()
+      ..color = const Color(0xFFE4E7EC)
+      ..strokeWidth = 1;
+    final axisLabelStyle = const TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      color: _AdminDashboardScreenState._textSecondary,
+    );
+
+    final yTicks = <int>{0, (yAxisMax / 2).ceil(), yAxisMax}.toList()..sort();
+    for (final tick in yTicks) {
+      final y = chartRect.bottom - (tick / yAxisMax) * chartRect.height;
+      canvas.drawLine(
+        Offset(chartRect.left, y),
+        Offset(chartRect.right, y),
+        gridPaint,
+      );
+
+      final labelPainter = TextPainter(
+        text: TextSpan(text: '$tick', style: axisLabelStyle),
+        textDirection: ui.TextDirection.ltr,
+      )..layout(maxWidth: leftPadding - 8);
+      labelPainter.paint(
+        canvas,
+        Offset(
+          leftPadding - labelPainter.width - 8,
+          y - (labelPainter.height / 2),
+        ),
+      );
+    }
+
+    final fillPath = Path();
+    final linePath = Path();
+    final pointOffsets = <Offset>[];
+    final denominator = math.max(1, points.length - 1);
+
+    for (var index = 0; index < points.length; index++) {
+      final point = points[index];
+      final dx = chartRect.left + (index / denominator) * chartRect.width;
+      final dy =
+          chartRect.bottom - ((point.totalLogs / yAxisMax) * chartRect.height);
+      final offset = Offset(dx, dy);
+      pointOffsets.add(offset);
+
+      if (index == 0) {
+        linePath.moveTo(dx, dy);
+        fillPath
+          ..moveTo(dx, chartRect.bottom)
+          ..lineTo(dx, dy);
+      } else {
+        linePath.lineTo(dx, dy);
+        fillPath.lineTo(dx, dy);
+      }
+    }
+
+    fillPath
+      ..lineTo(pointOffsets.last.dx, chartRect.bottom)
+      ..close();
+
+    final fillPaint = Paint()
+      ..shader = const LinearGradient(
+        colors: [Color(0x33175CD3), Color(0x05175CD3)],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      ).createShader(chartRect);
+
+    final linePaint = Paint()
+      ..color = const Color(0xFF175CD3)
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final pointPaint = Paint()..color = const Color(0xFF175CD3);
+    final pointBorderPaint = Paint()..color = Colors.white;
+
+    canvas.drawPath(fillPath, fillPaint);
+    canvas.drawPath(linePath, linePaint);
+
+    for (final offset in pointOffsets) {
+      canvas.drawCircle(offset, 4.5, pointPaint);
+      canvas.drawCircle(offset, 2, pointBorderPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DailyLogsLineChartPainter oldDelegate) {
+    if (oldDelegate.yAxisMax != yAxisMax ||
+        oldDelegate.points.length != points.length) {
+      return true;
+    }
+
+    for (var index = 0; index < points.length; index++) {
+      final current = points[index];
+      final previous = oldDelegate.points[index];
+      if (current.date != previous.date ||
+          current.day != previous.day ||
+          current.totalLogs != previous.totalLogs) {
         return true;
       }
     }
