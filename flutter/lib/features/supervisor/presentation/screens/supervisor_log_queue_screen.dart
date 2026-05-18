@@ -41,6 +41,17 @@ class SupervisorLogQueueScreen extends StatefulWidget {
 }
 
 class _SupervisorLogQueueScreenState extends State<SupervisorLogQueueScreen> {
+  static const Color _canvasColor = Color(0xFFF5F1EB);
+  static const Color _panelColor = Colors.white;
+  static const Color _panelSoft = Color(0xFFFAF7F2);
+  static const Color _panelBorder = Color(0xFFE7DDD2);
+  static const Color _headlineColor = Color(0xFF2F312B);
+  static const Color _bodyColor = Color(0xFF6C6257);
+  static const Color _accentPrimary = Color(0xFF9A5F3F);
+  static const Color _accentSecondary = Color(0xFF55756A);
+  static const Color _accentSoft = Color(0xFFF0E2D2);
+  static const Color _accentSoftAlt = Color(0xFFE6EFEA);
+
   late final SupervisorLogService _service;
   final TextEditingController _searchController = TextEditingController();
 
@@ -52,7 +63,8 @@ class _SupervisorLogQueueScreenState extends State<SupervisorLogQueueScreen> {
   @override
   void initState() {
     super.initState();
-    _service = widget.service ?? SupervisorLogService(context.read<ApiClient>());
+    _service =
+        widget.service ?? SupervisorLogService(context.read<ApiClient>());
     _loadLogs();
   }
 
@@ -145,8 +157,7 @@ class _SupervisorLogQueueScreenState extends State<SupervisorLogQueueScreen> {
     final updated = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            reviewScreenBuilder(context, log, _service),
+        builder: (context) => reviewScreenBuilder(context, log, _service),
       ),
     );
 
@@ -157,16 +168,59 @@ class _SupervisorLogQueueScreenState extends State<SupervisorLogQueueScreen> {
 
   Widget _buildErrorState() {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            _errorMessage ?? 'Failed to load pending logs.',
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton(onPressed: _loadLogs, child: const Text('Retry')),
-        ],
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 420),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: _panelColor,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: _panelBorder),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x120F172A),
+              blurRadius: 22,
+              offset: Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: _accentSoft,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                color: _accentPrimary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _errorMessage ?? 'Failed to load pending logs.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: _headlineColor,
+                fontSize: 15,
+                height: 1.45,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _loadLogs,
+              style: FilledButton.styleFrom(
+                backgroundColor: _accentPrimary,
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -182,7 +236,57 @@ class _SupervisorLogQueueScreenState extends State<SupervisorLogQueueScreen> {
     final message = _searchQuery.trim().isEmpty
         ? 'No pending logs to review.'
         : 'No pending logs matched your search.';
-    return Center(child: Text(message));
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 460),
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          color: _panelColor,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: _panelBorder),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: _panelSoft,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(
+                _searchQuery.trim().isEmpty
+                    ? Icons.task_alt_rounded
+                    : Icons.search_off_rounded,
+                color: _accentPrimary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _searchQuery.trim().isEmpty
+                  ? 'All caught up'
+                  : 'No results found',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: _headlineColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: _bodyColor,
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   List<SupervisorLogItem> get _filteredLogs {
@@ -205,7 +309,7 @@ class _SupervisorLogQueueScreenState extends State<SupervisorLogQueueScreen> {
       },
       decoration: InputDecoration(
         hintText: 'Search by student or date',
-        prefixIcon: const Icon(Icons.search),
+        prefixIcon: const Icon(Icons.search, color: _accentPrimary),
         suffixIcon: _searchQuery.trim().isEmpty
             ? null
             : IconButton(
@@ -218,11 +322,17 @@ class _SupervisorLogQueueScreenState extends State<SupervisorLogQueueScreen> {
                 icon: const Icon(Icons.close),
                 tooltip: 'Clear search',
               ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: _panelColor,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: _panelBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: _accentPrimary, width: 1.4),
+        ),
       ),
     );
   }
@@ -231,50 +341,104 @@ class _SupervisorLogQueueScreenState extends State<SupervisorLogQueueScreen> {
     final dateLabel = _formatDate(log.date);
 
     return Card(
+      color: _panelColor,
+      surfaceTintColor: _panelColor,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: const BorderSide(color: _panelBorder),
+      ),
       clipBehavior: Clip.antiAlias,
       child: ListTile(
         onTap: () => _openLogDetails(log),
         title: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: Text(
-                'Student: ${log.studentName}',
-                style: const TextStyle(fontWeight: FontWeight.w700),
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    log.studentName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: _headlineColor,
+                      fontSize: 16,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if ((log.companyName ?? '').isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      log.companyName!,
+                      style: const TextStyle(
+                        color: _accentSecondary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
               ),
             ),
             const SizedBox(width: 12),
-            Text(
-              '$dateLabel (${_formatHours(log.hoursRendered)})',
-              style: const TextStyle(
-                color: Color(0xFF526171),
-                fontWeight: FontWeight.w600,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: _panelSoft,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                '$dateLabel\n${_formatHours(log.hoursRendered)}',
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  color: _headlineColor,
+                  fontWeight: FontWeight.w700,
+                  height: 1.35,
+                ),
               ),
             ),
           ],
         ),
         subtitle: Padding(
-          padding: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.only(top: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'Status: ${log.status.toUpperCase()}',
-                style: const TextStyle(
-                  color: Color(0xFFB54708),
-                  fontWeight: FontWeight.w700,
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: _accentSoft,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'Pending approval',
+                  style: TextStyle(
+                    color: _accentPrimary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
                 ),
               ),
               if (log.taskDescription.trim().isNotEmpty) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 10),
                 Text(
                   log.taskDescription,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _bodyColor,
+                    fontSize: 14,
+                    height: 1.45,
+                  ),
                 ),
               ],
-              const SizedBox(height: 8),
+              const SizedBox(height: 14),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -283,7 +447,12 @@ class _SupervisorLogQueueScreenState extends State<SupervisorLogQueueScreen> {
                     avatar: const Icon(Icons.schedule, size: 16),
                     label: const Text('Pending review'),
                     visualDensity: VisualDensity.compact,
-                    backgroundColor: const Color(0xFFFFF7E6),
+                    backgroundColor: _panelSoft,
+                    side: const BorderSide(color: _panelBorder),
+                    labelStyle: const TextStyle(
+                      color: _headlineColor,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   Chip(
                     avatar: Icon(
@@ -291,20 +460,37 @@ class _SupervisorLogQueueScreenState extends State<SupervisorLogQueueScreen> {
                           ? Icons.attach_file_rounded
                           : Icons.hide_image_outlined,
                       size: 16,
+                      color: log.hasAttachments ? _accentSecondary : _bodyColor,
                     ),
-                    label: Text(
-                      log.hasAttachments ? 'With Proof' : 'No Proof',
-                    ),
+                    label: Text(log.hasAttachments ? 'With Proof' : 'No Proof'),
                     visualDensity: VisualDensity.compact,
+                    backgroundColor: log.hasAttachments
+                        ? _accentSoftAlt
+                        : _panelSoft,
+                    side: const BorderSide(color: _panelBorder),
+                    labelStyle: TextStyle(
+                      color: log.hasAttachments ? _accentSecondary : _bodyColor,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
             ],
           ),
         ),
-        trailing: const Icon(Icons.chevron_right),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        trailing: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: _panelSoft,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(Icons.chevron_right_rounded, color: _accentPrimary),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
     );
   }
@@ -334,7 +520,10 @@ class _SupervisorLogQueueScreenState extends State<SupervisorLogQueueScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _canvasColor,
       appBar: AppBar(
+        backgroundColor: _canvasColor,
+        surfaceTintColor: _canvasColor,
         title: const Text('Pending Logs'),
         actions: [
           IconButton(
@@ -345,14 +534,45 @@ class _SupervisorLogQueueScreenState extends State<SupervisorLogQueueScreen> {
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _errorMessage != null
             ? _buildErrorState()
             : Column(
                 children: [
-                  _buildSearchField(),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                    decoration: BoxDecoration(
+                      color: _panelColor,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: _panelBorder),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Review Queue',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: _headlineColor,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${_filteredLogs.length} pending log${_filteredLogs.length == 1 ? '' : 's'} ready for review.',
+                          style: const TextStyle(
+                            color: _bodyColor,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildSearchField(),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   Expanded(
                     child: _filteredLogs.isEmpty

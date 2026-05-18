@@ -8,6 +8,7 @@ use App\Models\LogAction;
 use App\Models\LogEntry;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\DashboardCacheService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
@@ -111,6 +112,7 @@ class BulkStudentDemoSeeder extends Seeder
                             ['email' => $email],
                             [
                                 'name' => "{$firstName} {$lastName}",
+                                'gender' => $faker->randomElement(['Male', 'Female']),
                                 'password' => $defaultPassword,
                                 'role_id' => $studentRoleId,
                             ],
@@ -201,6 +203,8 @@ class BulkStudentDemoSeeder extends Seeder
             ));
             $this->command?->line('Password for all generated students: password');
             $this->command?->line('Password for generated supervisors/advisers: password');
+
+            app(DashboardCacheService::class)->forgetAdminDashboard();
         });
     }
 
@@ -214,6 +218,7 @@ class BulkStudentDemoSeeder extends Seeder
                     ['email' => "supervisor{$i}@example.com"],
                     [
                         'name' => "Supervisor {$i}",
+                        'gender' => $i % 2 === 0 ? 'Male' : 'Female',
                         'password' => $defaultPassword,
                         'role_id' => $supervisorRoleId,
                     ],
@@ -229,6 +234,7 @@ class BulkStudentDemoSeeder extends Seeder
                     ['email' => "adviser{$i}@example.com"],
                     [
                         'name' => "Adviser {$i}",
+                        'gender' => $i % 2 === 0 ? 'Female' : 'Male',
                         'password' => $defaultPassword,
                         'role_id' => $adviserRoleId,
                     ],

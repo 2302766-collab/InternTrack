@@ -26,6 +26,7 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
+            'gender' => fake()->randomElement(['Male', 'Female']),
             'password' => static::$password ??= Hash::make('password'),
             'role_id' => Role::query()->firstOrCreate(['name' => 'Student'])->id,
         ];

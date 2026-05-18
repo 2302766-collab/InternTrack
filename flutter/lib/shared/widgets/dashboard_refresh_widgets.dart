@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/theme/ocean_breeze_palette.dart';
+
 class DashboardRefreshStatus extends StatelessWidget {
   const DashboardRefreshStatus({
     super.key,
@@ -18,8 +20,9 @@ class DashboardRefreshStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final mutedColor = theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.78) ??
-        const Color(0xFF6B7F99);
+    final mutedColor =
+        theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.78) ??
+        OceanBreezePalette.textSecondary;
     final labelStyle = theme.textTheme.bodyMedium?.copyWith(
       color: mutedColor,
       fontWeight: FontWeight.w600,
@@ -76,9 +79,9 @@ class DashboardInlineNotice extends StatelessWidget {
             icon: Icons.error_outline,
           )
         : const (
-            background: Color(0xFFEFF8FF),
-            border: Color(0xFFB2DDFF),
-            foreground: Color(0xFF175CD3),
+            background: OceanBreezePalette.infoBackground,
+            border: OceanBreezePalette.border,
+            foreground: OceanBreezePalette.infoForeground,
             icon: Icons.info_outline,
           );
 
@@ -140,7 +143,7 @@ class DashboardSkeletonBlock extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: const Color(0xFFE9EEF4),
+        color: OceanBreezePalette.skeleton,
         borderRadius: BorderRadius.circular(radius),
       ),
     );

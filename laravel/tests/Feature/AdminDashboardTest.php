@@ -20,8 +20,8 @@ class AdminDashboardTest extends TestCase
         $supervisor = $this->createUserWithRole('Supervisor');
 
         $studentOne = $this->createUserWithRole('Student');
-        $studentTwo = $this->createUserWithRole('Student');
-        $studentThree = $this->createUserWithRole('Student');
+        $studentTwo = $this->createUserWithRole('Student', 'Student User', 'Female');
+        $studentThree = $this->createUserWithRole('Student', 'Student User', null);
         $adviser = $this->createUserWithRole('Adviser');
 
         $profileOne = $this->createInternshipProfileFor($studentOne, $supervisor, 40);
@@ -51,6 +51,9 @@ class AdminDashboardTest extends TestCase
             ->assertJsonPath('data.students_without_supervisor', 0)
             ->assertJsonPath('data.students_without_adviser', 1)
             ->assertJsonPath('data.students_requiring_attention', 2)
+            ->assertJsonPath('data.male_students', 1)
+            ->assertJsonPath('data.female_students', 1)
+            ->assertJsonPath('data.unspecified_students', 1)
             ->assertJsonPath('data.average_completion_percentage', 30);
     }
 
@@ -67,9 +70,15 @@ class AdminDashboardTest extends TestCase
             ->assertJsonPath('message', 'Only admins can access dashboard metrics.');
     }
 
-    private function createUserWithRole(string $roleName): User
+    private function createUserWithRole(
+        string $roleName,
+        string $name = 'Student User',
+        ?string $gender = 'Male'
+    ): User
     {
         return User::factory()->create([
+            'name' => $name,
+            'gender' => $gender,
             'role_id' => Role::query()->firstOrCreate(['name' => $roleName])->id,
         ]);
     }

@@ -11,10 +11,12 @@ import '../models/app_notification.dart';
 
 class NotificationBellButton extends StatefulWidget {
   final String token;
+  final Color? iconColor;
 
   const NotificationBellButton({
     super.key,
     required this.token,
+    this.iconColor,
   });
 
   @override
@@ -153,12 +155,20 @@ class _NotificationBellButtonState extends State<NotificationBellButton> {
           tooltip: 'Notifications',
           onPressed: widget.token.trim().isEmpty ? null : _openNotifications,
           icon: _isLoading && !_hasLoaded
-              ? const SizedBox(
+              ? SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color?>(
+                      widget.iconColor,
+                    ),
+                  ),
                 )
-              : const Icon(Icons.notifications_none_rounded),
+              : Icon(
+                  Icons.notifications_none_rounded,
+                  color: widget.iconColor,
+                ),
         ),
         if (_unreadCount > 0)
           Positioned(

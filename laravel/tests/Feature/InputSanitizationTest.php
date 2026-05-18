@@ -33,6 +33,7 @@ class InputSanitizationTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'name' => '  <script>alert("xss")</script>  Test User  ',
             'email' => '  TEST@EXAMPLE.COM  ',
+            'gender' => 'Female',
             'password' => 'password123',
             'password_confirmation' => 'password123',
         ]);
@@ -44,6 +45,7 @@ class InputSanitizationTest extends TestCase
         $this->assertNotNull($user);
         $this->assertEquals('Test User', $user->name); // HTML tags removed, whitespace trimmed
         $this->assertEquals('test@example.com', $user->email); // Lowercase, trimmed
+        $this->assertEquals('Female', $user->gender);
     }
 
     #[Test]

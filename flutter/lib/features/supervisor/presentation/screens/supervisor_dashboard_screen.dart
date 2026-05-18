@@ -8,6 +8,7 @@ import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/supervisor_dashboard_service.dart';
 import '../../../../core/services/supervisor_log_service.dart';
+import '../../../../core/theme/ocean_breeze_palette.dart';
 import '../../../../core/utils/file_picker_helper_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
     as file_picker;
@@ -44,7 +45,20 @@ class SupervisorDashboardScreen extends StatefulWidget {
 }
 
 class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
-  static const double _maxContentWidth = 1360;
+  static const double _maxContentWidth = 1520;
+  static const Color _canvasColor = OceanBreezePalette.canvas;
+  static const Color _panelColor = OceanBreezePalette.surface;
+  static const Color _panelSoft = OceanBreezePalette.surfaceSoft;
+  static const Color _panelBorder = OceanBreezePalette.border;
+  static const Color _headlineColor = OceanBreezePalette.textPrimary;
+  static const Color _bodyColor = OceanBreezePalette.textSecondary;
+  static const Color _heroStart = OceanBreezePalette.midnight;
+  static const Color _heroEnd = OceanBreezePalette.deepSea;
+  static const Color _accentPrimary = OceanBreezePalette.deepSea;
+  static const Color _accentSecondary = OceanBreezePalette.tide;
+  static const Color _accentMuted = OceanBreezePalette.sky;
+  static const Color _accentSoft = OceanBreezePalette.surfaceMuted;
+  static const Color _accentSoftAlt = OceanBreezePalette.mist;
 
   late final SupervisorLogService _logService;
   late final SupervisorDashboardService _dashboardService;
@@ -382,7 +396,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
     return CircleAvatar(
       radius: radius,
-      backgroundColor: const Color(0xFF06C167),
+      backgroundColor: _accentSecondary,
       backgroundImage: imageProvider,
       child: imageProvider == null
           ? Text(
@@ -471,9 +485,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     width: 344,
                     padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: _panelColor,
                       borderRadius: BorderRadius.circular(28),
-                      border: Border.all(color: const Color(0xFFD8E2EC)),
+                      border: Border.all(color: _panelBorder),
                       boxShadow: const [
                         BoxShadow(
                           color: Color(0x260F172A),
@@ -499,7 +513,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                   right: -2,
                                   bottom: -2,
                                   child: Material(
-                                    color: const Color(0xFF0F766E),
+                                    color: _accentPrimary,
                                     shape: const CircleBorder(),
                                     child: InkWell(
                                       customBorder: const CircleBorder(),
@@ -532,7 +546,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                     style: const TextStyle(
                                       fontSize: 21,
                                       fontWeight: FontWeight.w800,
-                                      color: Color(0xFF0F254A),
+                                      color: _headlineColor,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
@@ -542,7 +556,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                         : 'No email available',
                                     style: const TextStyle(
                                       fontSize: 14,
-                                      color: Color(0xFF5E718D),
+                                      color: _bodyColor,
                                     ),
                                   ),
                                   const SizedBox(height: 8),
@@ -620,7 +634,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF2FF),
+        color: _accentSoft,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -628,7 +642,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
-          color: Color(0xFF123C73),
+          color: _accentPrimary,
           letterSpacing: 0.5,
         ),
       ),
@@ -642,7 +656,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: const Color(0xFFF7F9FC),
+      color: _panelSoft,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -655,10 +669,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: _panelColor,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(icon, color: const Color(0xFF123C73)),
+                child: Icon(icon, color: _accentPrimary),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -670,16 +684,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F254A),
+                        color: _headlineColor,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        color: Color(0xFF5E718D),
-                      ),
+                      style: const TextStyle(fontSize: 12.5, color: _bodyColor),
                     ),
                   ],
                 ),
@@ -696,9 +707,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: _panelSoft,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFD8E2EC)),
+        border: Border.all(color: _panelBorder),
       ),
       child: Column(
         children: [
@@ -743,10 +754,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _panelColor,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, size: 18, color: const Color(0xFF123C73)),
+          child: Icon(icon, size: 18, color: _accentPrimary),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -758,7 +769,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF5E718D),
+                  color: _bodyColor,
                 ),
               ),
               const SizedBox(height: 2),
@@ -767,7 +778,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF0F254A),
+                  color: _headlineColor,
                 ),
               ),
             ],
@@ -818,7 +829,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             child: Text(
               label,
               style: const TextStyle(
-                color: Color(0xFF667085),
+                color: _bodyColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -865,24 +876,24 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   Color _statusBg(String status) {
     switch (status.toUpperCase()) {
       case 'APPROVED':
-        return const Color(0xFFD7F7E3);
+        return const Color(0xFFDDEEE6);
       case 'REJECTED':
-        return const Color(0xFFFDE0E0);
+        return const Color(0xFFF7DFDB);
       case 'PENDING':
       default:
-        return const Color(0xFFFFF0B3);
+        return const Color(0xFFF4E7C7);
     }
   }
 
   Color _statusFg(String status) {
     switch (status.toUpperCase()) {
       case 'APPROVED':
-        return const Color(0xFF039855);
+        return const Color(0xFF2F7A58);
       case 'REJECTED':
-        return const Color(0xFFD92D20);
+        return const Color(0xFFB24A3A);
       case 'PENDING':
       default:
-        return const Color(0xFFB54708);
+        return const Color(0xFF8A6426);
     }
   }
 
@@ -895,6 +906,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       return normalized.toUpperCase();
     }
     return normalized[0].toUpperCase() + normalized.substring(1).toLowerCase();
+  }
+
+  Color _surfaceTone(double opacity) {
+    return Colors.white.withValues(alpha: opacity);
   }
 
   Widget _buildHeader(AuthProvider authProvider) {
@@ -913,8 +928,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         final horizontalPadding = isNarrow
             ? 16.0
             : constraints.maxWidth >= 1440
-            ? 40.0
-            : 28.0;
+            ? 24.0
+            : 22.0;
         final profileMaxWidth = constraints.maxWidth >= 1280 ? 420.0 : 360.0;
 
         final profileSection = Row(
@@ -936,9 +951,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: _panelSoft,
                       borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: const Color(0xFFD8E2EC)),
+                      border: Border.all(color: _panelBorder),
                     ),
                     child: Row(
                       children: [
@@ -954,9 +969,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                     : widget.userName,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
+                                  color: primaryTextColor,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -1004,7 +1020,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Review and manage student logs',
+              'Monitor intern activity, review submissions, and keep approvals moving.',
               style: TextStyle(
                 fontSize: isCompact ? 13 : 14,
                 color: secondaryTextColor,
@@ -1064,6 +1080,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     required String value,
     required IconData icon,
     required Color accent,
+    required String helper,
     double? width,
   }) {
     final cardWidget = LayoutBuilder(
@@ -1072,53 +1089,66 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
         return Container(
           padding: EdgeInsets.symmetric(
-            horizontal: isCompact ? 22 : 28,
-            vertical: isCompact ? 22 : 26,
+            horizontal: isCompact ? 20 : 24,
+            vertical: isCompact ? 20 : 22,
           ),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: _panelBorder),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x120F172A),
-                blurRadius: 18,
-                offset: Offset(0, 6),
+                color: Color(0x0F0F172A),
+                blurRadius: 24,
+                offset: Offset(0, 10),
               ),
             ],
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
                       title,
                       style: TextStyle(
                         fontSize: isCompact ? 15 : 16,
-                        color: const Color(0xFF355070),
+                        fontWeight: FontWeight.w700,
+                        color: _headlineColor,
                       ),
                     ),
-                    SizedBox(height: isCompact ? 10 : 12),
-                    Text(
-                      value,
-                      style: TextStyle(
-                        fontSize: isCompact ? 32 : 40,
-                        fontWeight: FontWeight.w600,
-                        color: accent,
-                      ),
+                  ),
+                  Container(
+                    width: isCompact ? 46 : 50,
+                    height: isCompact ? 46 : 50,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                  ],
+                    child: Icon(icon, color: accent, size: isCompact ? 24 : 26),
+                  ),
+                ],
+              ),
+              SizedBox(height: isCompact ? 18 : 20),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: isCompact ? 30 : 36,
+                  height: 1,
+                  fontWeight: FontWeight.w800,
+                  color: _headlineColor,
                 ),
               ),
-              Container(
-                width: isCompact ? 50 : 54,
-                height: isCompact ? 50 : 54,
-                decoration: BoxDecoration(
-                  color: accent.withAlpha(28),
-                  shape: BoxShape.circle,
+              const SizedBox(height: 10),
+              Text(
+                helper,
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.45,
+                  color: _bodyColor,
                 ),
-                child: Icon(icon, color: accent, size: isCompact ? 30 : 34),
               ),
             ],
           ),
@@ -1130,6 +1160,202 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       return SizedBox(width: width, child: cardWidget);
     }
     return Expanded(child: cardWidget);
+  }
+
+  Widget _buildHeroPanel({
+    required int pendingCount,
+    required int approvedToday,
+    required int totalStudents,
+    required bool isNarrow,
+  }) {
+    final quickStats = <({String label, String value})>[
+      (label: 'Pending reviews', value: '$pendingCount'),
+      (label: 'Approved today', value: '$approvedToday'),
+      (label: 'Assigned interns', value: '$totalStudents'),
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isNarrow ? 22 : 28),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: <Color>[_heroStart, _heroEnd],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x220F172A),
+            blurRadius: 30,
+            offset: Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: _surfaceTone(0.14),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: _surfaceTone(0.12)),
+            ),
+            child: const Text(
+              'Supervisor workspace',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            pendingCount == 0
+                ? 'Everything is reviewed for now.'
+                : '$pendingCount log${pendingCount == 1 ? '' : 's'} waiting for your review.',
+            style: TextStyle(
+              fontSize: isNarrow ? 24 : 30,
+              height: 1.15,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Stay on top of submissions, keep intern progress visible, and move from triage to approval with less friction.',
+            style: TextStyle(
+              fontSize: isNarrow ? 14 : 15,
+              height: 1.55,
+              color: Colors.white.withValues(alpha: 0.88),
+            ),
+          ),
+          const SizedBox(height: 22),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: quickStats
+                .map(
+                  (stat) => Container(
+                    constraints: BoxConstraints(minWidth: isNarrow ? 150 : 170),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _surfaceTone(0.1),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: _surfaceTone(0.16)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          stat.label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.78),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          stat.value,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionCard({
+    required String title,
+    required String description,
+    required IconData icon,
+    required VoidCallback onTap,
+    required bool filled,
+  }) {
+    final background = filled ? _accentPrimary : _panelColor;
+    final foreground = filled ? Colors.white : _headlineColor;
+    final secondary = filled
+        ? Colors.white.withValues(alpha: 0.78)
+        : _bodyColor;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Ink(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: filled ? _accentPrimary : _panelBorder),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0F0F172A),
+                blurRadius: 20,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: filled ? _surfaceTone(0.14) : _panelSoft,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: foreground),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: foreground,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        height: 1.45,
+                        color: secondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Icon(Icons.arrow_forward_rounded, color: foreground, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildActionBar() {
@@ -1148,18 +1374,24 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           children: [
             SizedBox(
               width: actionWidth,
-              child: ElevatedButton.icon(
-                onPressed: _openAssignedInterns,
-                icon: const Icon(Icons.groups_2_outlined),
-                label: const Text('View Assigned Interns'),
+              child: _buildQuickActionCard(
+                title: 'Assigned Interns',
+                description:
+                    'Open the intern roster and check who you are currently supervising.',
+                icon: Icons.groups_2_outlined,
+                onTap: _openAssignedInterns,
+                filled: true,
               ),
             ),
             SizedBox(
               width: actionWidth,
-              child: OutlinedButton.icon(
-                onPressed: _openPendingQueue,
-                icon: const Icon(Icons.fact_check_outlined),
-                label: const Text('Review Pending Logs'),
+              child: _buildQuickActionCard(
+                title: 'Pending Log Queue',
+                description:
+                    'Jump straight into submitted logs that still need a decision.',
+                icon: Icons.fact_check_outlined,
+                onTap: _openPendingQueue,
+                filled: false,
               ),
             ),
           ],
@@ -1171,12 +1403,12 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   Widget _buildTableHeader() {
     const headerStyle = TextStyle(
       fontWeight: FontWeight.w700,
-      color: Color(0xFF243B63),
-      fontSize: 15,
+      color: _bodyColor,
+      fontSize: 13,
     );
 
     return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 28, vertical: 22),
+      padding: EdgeInsets.fromLTRB(28, 18, 28, 18),
       child: Row(
         children: [
           Expanded(flex: 24, child: Text('Student', style: headerStyle)),
@@ -1194,11 +1426,18 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   Widget _buildLogCardRow(SupervisorLogItem log) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE7EBF0)),
+        color: _panelColor,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _panelBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0C0F172A),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1206,8 +1445,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           Row(
             children: [
               CircleAvatar(
-                radius: 16,
-                backgroundColor: const Color(0xFF326DE6),
+                radius: 18,
+                backgroundColor: _accentPrimary,
                 child: Text(
                   _initialsFor(log.studentName),
                   style: const TextStyle(
@@ -1226,18 +1465,15 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       log.studentName,
                       style: const TextStyle(
                         fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF102A56),
+                        fontWeight: FontWeight.w700,
+                        color: _headlineColor,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
                       _formatDate(log.date),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF68768A),
-                      ),
+                      style: const TextStyle(fontSize: 13, color: _bodyColor),
                     ),
                   ],
                 ),
@@ -1267,11 +1503,11 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             log.taskDescription,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF23395D)),
+            style: const TextStyle(fontSize: 14, color: _headlineColor),
           ),
           const SizedBox(height: 12),
           Wrap(
-            spacing: 12,
+            spacing: 10,
             runSpacing: 8,
             children: [
               Container(
@@ -1280,25 +1516,40 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: log.hasAttachments
-                      ? const Color(0xFFE8F1FF)
-                      : const Color(0xFFF2F4F7),
+                  color: log.hasAttachments ? _accentSoft : _panelSoft,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   '${log.hasAttachments ? 'Attached' : 'None'} (Proof)',
                   style: TextStyle(
                     fontSize: 12,
-                    color: log.hasAttachments
-                        ? const Color(0xFF326DE6)
-                        : const Color(0xFF667085),
+                    color: log.hasAttachments ? _accentPrimary : _bodyColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
+              if ((log.companyName ?? '').isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _accentSoftAlt,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    log.companyName!,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: _accentSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               Text(
                 '${log.hoursRendered}h rendered',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF68768A)),
+                style: const TextStyle(fontSize: 12, color: _bodyColor),
               ),
             ],
           ),
@@ -1320,7 +1571,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
       decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Color(0xFFE7EBF0))),
+        border: Border(top: BorderSide(color: Color(0xFFF0F3F7))),
       ),
       child: Row(
         children: [
@@ -1330,7 +1581,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               children: [
                 CircleAvatar(
                   radius: 19,
-                  backgroundColor: const Color(0xFF326DE6),
+                  backgroundColor: _accentPrimary,
                   child: Text(
                     _initialsFor(log.studentName),
                     style: const TextStyle(
@@ -1345,7 +1596,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     log.studentName,
                     style: const TextStyle(
                       fontSize: 15,
-                      color: Color(0xFF102A56),
+                      fontWeight: FontWeight.w700,
+                      color: _headlineColor,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1357,14 +1609,14 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             flex: 20,
             child: Text(
               _formatDate(log.date),
-              style: const TextStyle(fontSize: 15, color: Color(0xFF23395D)),
+              style: const TextStyle(fontSize: 15, color: _bodyColor),
             ),
           ),
           Expanded(
             flex: 12,
             child: Text(
               '${log.hoursRendered}h',
-              style: const TextStyle(fontSize: 15, color: Color(0xFF23395D)),
+              style: const TextStyle(fontSize: 15, color: _bodyColor),
             ),
           ),
           Expanded(
@@ -1373,7 +1625,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               log.taskDescription,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 15, color: Color(0xFF23395D)),
+              style: const TextStyle(fontSize: 15, color: _bodyColor),
             ),
           ),
           Expanded(
@@ -1386,17 +1638,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: log.hasAttachments
-                      ? const Color(0xFFE8F1FF)
-                      : const Color(0xFFF2F4F7),
+                  color: log.hasAttachments ? _accentSoft : _panelSoft,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   log.hasAttachments ? 'Attached' : 'None',
                   style: TextStyle(
-                    color: log.hasAttachments
-                        ? const Color(0xFF326DE6)
-                        : const Color(0xFF667085),
+                    color: log.hasAttachments ? _accentPrimary : _bodyColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1444,6 +1692,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
   Widget _buildLogsPanel() {
     final isLoading = _isSectionLoading(_SupervisorDashboardSection.logs);
+    final visibleLogs = _pendingLogs.take(6).toList();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1451,65 +1700,99 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
         return Container(
           decoration: BoxDecoration(
-            color: isNarrow ? Colors.transparent : Colors.white,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: isNarrow
-                ? null
-                : const [
-                    BoxShadow(
-                      color: Color(0x120F172A),
-                      blurRadius: 20,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
+            color: _panelColor,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: _panelBorder),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0F0F172A),
+                blurRadius: 24,
+                offset: Offset(0, 10),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: EdgeInsets.fromLTRB(
-                  isNarrow ? 0 : 28,
-                  isNarrow ? 0 : 26,
-                  isNarrow ? 0 : 28,
-                  isNarrow ? 0 : 24,
-                ),
+                padding: EdgeInsets.fromLTRB(24, 24, 24, 18),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Expanded(
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Pending Reviews',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: _headlineColor,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            visibleLogs.isEmpty
+                                ? 'No student submissions are waiting right now.'
+                                : 'Showing the latest ${visibleLogs.length} log${visibleLogs.length == 1 ? '' : 's'} that need your attention.',
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              height: 1.45,
+                              color: _bodyColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _panelSoft,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       child: Text(
-                        'Student Logs',
-                        style: TextStyle(
-                          fontSize: 20,
+                        '${_pendingLogs.length} total',
+                        style: const TextStyle(
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF102A56),
+                          color: _accentPrimary,
                         ),
                       ),
                     ),
-                    if (!isNarrow)
-                      TextButton.icon(
-                        onPressed: _openPendingQueue,
-                        icon: const Icon(Icons.open_in_new),
-                        label: const Text('Open Queue'),
-                      ),
                   ],
                 ),
               ),
-              if (!isNarrow) const Divider(height: 1, color: Color(0xFFE7EBF0)),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _openPendingQueue,
+                        icon: const Icon(Icons.open_in_new_rounded),
+                        label: Text(
+                          isNarrow ? 'Open Queue' : 'Open Full Review Queue',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (!isNarrow) const Divider(height: 1, color: Color(0xFFF0F3F7)),
               if (!isNarrow) _buildTableHeader(),
               if (isLoading && _pendingLogs.isEmpty && _logsError == null)
                 Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isNarrow ? 0 : 28,
-                    vertical: 12,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   child: _buildLogsSkeleton(),
                 )
               else if (_logsError != null && _pendingLogs.isEmpty)
                 Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isNarrow ? 0 : 28,
-                    vertical: 12,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   child: DashboardInlineNotice(
                     message: _logsError!,
                     onRetry: () =>
@@ -1518,52 +1801,68 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 )
               else if (_pendingLogs.isEmpty)
                 Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isNarrow ? 0 : 28,
-                    vertical: 36,
-                  ),
-                  child: Text(
-                    _logsError == null
-                        ? 'No pending student logs to review right now.'
-                        : 'Unable to refresh pending logs. You can retry or open the queue.',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      color: Color(0xFF68768A),
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: _panelSoft,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: _panelBorder),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: _accentSoft,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: const Icon(
+                            Icons.task_alt_rounded,
+                            color: _accentPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          _logsError == null
+                              ? 'All caught up'
+                              : 'Pending logs could not be refreshed',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: _headlineColor,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _logsError == null
+                              ? 'There are no student logs waiting for review at the moment.'
+                              : 'You can retry loading the list or open the full queue for another attempt.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            height: 1.5,
+                            color: _bodyColor,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 )
               else if (isNarrow)
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 0,
-                    vertical: 8,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
                   child: Column(
-                    children: _pendingLogs
-                        .take(6)
-                        .map(_buildLogCardRow)
-                        .toList(),
+                    children: visibleLogs.map(_buildLogCardRow).toList(),
                   ),
                 )
               else
-                ..._pendingLogs.take(6).map(_buildLogRow),
-              if (isNarrow && _pendingLogs.isNotEmpty)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _openPendingQueue,
-                    icon: const Icon(Icons.open_in_new),
-                    label: const Text('Open Full Queue'),
-                  ),
-                ),
+                ...visibleLogs.map(_buildLogRow),
               if (_logsError != null && _pendingLogs.isNotEmpty)
                 Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    isNarrow ? 0 : 28,
-                    8,
-                    isNarrow ? 0 : 28,
-                    0,
-                  ),
+                  padding: EdgeInsets.fromLTRB(24, 8, 24, 16),
                   child: DashboardInlineNotice(
                     message: _logsError!,
                     onRetry: () =>
@@ -1572,12 +1871,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 )
               else if (isLoading)
                 Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    isNarrow ? 0 : 28,
-                    8,
-                    isNarrow ? 0 : 28,
-                    0,
-                  ),
+                  padding: EdgeInsets.fromLTRB(24, 8, 24, 16),
                   child: _buildSectionRefreshingHint(
                     'Refreshing pending logs...',
                   ),
@@ -1608,8 +1902,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           final horizontalPadding = constraints.maxWidth < 640
               ? 16.0
               : constraints.maxWidth >= 1440
-              ? 40.0
-              : 30.0;
+              ? 22.0
+              : 22.0;
           final contentWidth = (viewportWidth - (horizontalPadding * 2))
               .clamp(0.0, viewportWidth)
               .toDouble();
@@ -1632,6 +1926,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   isNarrow ? 20 : 30,
                 ),
                 children: [
+                  _buildHeroPanel(
+                    pendingCount: pendingCount,
+                    approvedToday: approvedToday,
+                    totalStudents: totalStudents,
+                    isNarrow: isNarrow,
+                  ),
+                  SizedBox(height: isNarrow ? 18 : 22),
                   if (isSummaryLoading && _dashboardSummary == null)
                     _buildStatsSkeleton()
                   else
@@ -1643,21 +1944,25 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           title: 'Pending Review',
                           value: '$pendingCount',
                           icon: Icons.access_time_rounded,
-                          accent: const Color(0xFF326DE6),
+                          accent: _accentPrimary,
+                          helper: 'Submissions waiting for your decision.',
                           width: statCardWidth,
                         ),
                         _buildStatCard(
                           title: 'Approved Today',
                           value: '$approvedToday',
                           icon: Icons.check_circle_outline_rounded,
-                          accent: const Color(0xFF06C167),
+                          accent: _accentSecondary,
+                          helper: 'Logs you cleared within today\'s cycle.',
                           width: statCardWidth,
                         ),
                         _buildStatCard(
                           title: 'Total Students',
                           value: '$totalStudents',
-                          icon: Icons.circle,
-                          accent: const Color(0xFF98A2B3),
+                          icon: Icons.groups_rounded,
+                          accent: _accentMuted,
+                          helper:
+                              'Interns currently assigned to your supervision.',
                           width: statCardWidth,
                         ),
                       ],
@@ -1693,7 +1998,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     final authProvider = context.watch<AuthProvider>();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F7),
+      backgroundColor: _canvasColor,
       body: SafeArea(
         child: Column(
           children: [

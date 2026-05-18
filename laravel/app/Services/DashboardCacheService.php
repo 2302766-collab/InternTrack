@@ -28,6 +28,15 @@ class DashboardCacheService
         );
     }
 
+    public function rememberManagedUsers(Closure $callback): array
+    {
+        return Cache::remember(
+            $this->managedUsersKey(),
+            self::TTL_SECONDS,
+            $callback,
+        );
+    }
+
     public function supervisorDashboardKey(int $supervisorId, ?string $date = null): string
     {
         return sprintf(
@@ -42,6 +51,11 @@ class DashboardCacheService
         return 'dashboard:admin';
     }
 
+    public function managedUsersKey(): string
+    {
+        return 'dashboard:admin:managed-users';
+    }
+
     public function forgetSupervisorDashboard(?int $supervisorId): void
     {
         if ($supervisorId === null) {
@@ -54,6 +68,11 @@ class DashboardCacheService
     public function forgetAdminDashboard(): void
     {
         Cache::forget($this->adminDashboardKey());
+    }
+
+    public function forgetManagedUsers(): void
+    {
+        Cache::forget($this->managedUsersKey());
     }
 
     public function forgetForInternshipProfileId(?int $profileId): void

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,8 @@ import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/internship_service.dart';
 import '../../../../core/services/logbook_service.dart';
 import '../../../../core/services/student_report_service.dart';
+import '../../../../core/theme/ocean_breeze_palette.dart';
+import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/internship_profile.dart';
 import '../../../../shared/models/log_entry.dart';
 import '../../../../shared/models/student_report.dart';
@@ -46,9 +49,18 @@ class StudentDashboardScreen extends StatefulWidget {
 }
 
 class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
+  static const Color _canvasColor = OceanBreezePalette.canvas;
+  static const Color _headlineColor = OceanBreezePalette.textPrimary;
+  static const Color _bodyColor = OceanBreezePalette.textSecondary;
+  static const Color _heroStart = OceanBreezePalette.midnight;
+  static const Color _heroEnd = OceanBreezePalette.deepSea;
+  static const Color _accentPrimary = OceanBreezePalette.deepSea;
+  static const Color _accentSecondary = OceanBreezePalette.tide;
+
   late final InternshipService _internshipService;
   late final LogbookService _logbookService;
   late final StudentReportService _reportService;
+  final GlobalKey _profileMenuAnchorKey = GlobalKey();
 
   InternshipProfile? _profile;
   StudentReportData? _report;
@@ -468,12 +480,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   (Color, Color) get _attentionChipColors {
     if (!_profileComplete) {
-      return (const Color(0xFFFEECEE), const Color(0xFFB42318));
+      return (OceanBreezePalette.surfaceMuted, _heroStart);
     }
     if (!_hasTodayLog || _pendingLogsCount > 0 || ((_paceDelta ?? 0) < 0)) {
-      return (const Color(0xFFFFF4E5), const Color(0xFFB54708));
+      return (OceanBreezePalette.surfaceSoft, _accentPrimary);
     }
-    return (const Color(0xFFE8F7EE), const Color(0xFF027A48));
+    return (OceanBreezePalette.mist, _accentSecondary);
   }
 
   List<LogEntryItem> get _recentLogs => _logs.take(4).toList();
@@ -618,6 +630,520 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     Navigator.pushNamed(context, route);
   }
 
+  Future<void> _logout() async {
+    await context.read<AuthProvider>().logout();
+    if (!mounted) return;
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.login,
+      (route) => false,
+    );
+  }
+
+  String _greetingForHour() {
+    final hour = _now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  String _initialsFor(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return 'ST';
+    if (parts.length == 1) {
+      return parts.first
+          .substring(0, math.min(2, parts.first.length))
+          .toUpperCase();
+    }
+
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
+        .toUpperCase();
+  }
+
+  Widget _buildAvatar({
+    required AppUser? user,
+    required double radius,
+    required double fontSize,
+  }) {
+    final displayName = user?.name.isNotEmpty == true
+        ? user!.name
+        : widget.userName;
+    ImageProvider<Object>? backgroundImage;
+
+    final avatarBase64 = user?.avatarBase64 ?? '';
+    if (avatarBase64.isNotEmpty) {
+      try {
+        backgroundImage = MemoryImage(base64Decode(avatarBase64));
+      } catch (_) {
+        backgroundImage = null;
+      }
+    }
+
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: const Color(0xFFE6EEF8),
+      backgroundImage: backgroundImage,
+      child: backgroundImage == null
+          ? Text(
+              _initialsFor(displayName),
+              style: TextStyle(
+                color: const Color(0xFF102A56),
+                fontSize: fontSize,
+                fontWeight: FontWeight.w800,
+              ),
+            )
+          : null,
+    );
+  }
+
+  Widget _buildMiniTag({required String label}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE0ECFF),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: Color(0xFF154084),
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileActionTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: const Color(0xFFF5F9FF),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: const Color(0xFF154084)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF102A56),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xFF4A6480),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileInfoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, size: 18, color: const Color(0xFF154084)),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF4A6480),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF102A56),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfileInfoCard(AppUser? user) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFDCE6F2)),
+      ),
+      child: Column(
+        children: [
+          _buildProfileInfoRow(
+            icon: Icons.school_outlined,
+            label: 'Student',
+            value: user?.name.isNotEmpty == true ? user!.name : widget.userName,
+          ),
+          const SizedBox(height: 10),
+          _buildProfileInfoRow(
+            icon: Icons.alternate_email_rounded,
+            label: 'Email',
+            value: user?.email.isNotEmpty == true
+                ? user!.email
+                : 'Not available',
+          ),
+          const SizedBox(height: 10),
+          _buildProfileInfoRow(
+            icon: Icons.wc_rounded,
+            label: 'Gender',
+            value: (user?.gender ?? '').isNotEmpty ? user!.gender! : 'Not set',
+          ),
+          const SizedBox(height: 10),
+          _buildProfileInfoRow(
+            icon: Icons.fingerprint_rounded,
+            label: 'Account ID',
+            value: user != null ? '#${user.id}' : 'Unavailable',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showEditProfileDialog() async {
+    final authProvider = context.read<AuthProvider>();
+    final user = authProvider.user;
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController(
+      text: user?.name ?? widget.userName,
+    );
+    var selectedGender = (user?.gender == 'Female') ? 'Female' : 'Male';
+    var isSubmitting = false;
+    String? errorText;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future<void> submit() async {
+              if (isSubmitting) return;
+              if (!(formKey.currentState?.validate() ?? false)) return;
+
+              setDialogState(() {
+                isSubmitting = true;
+                errorText = null;
+              });
+
+              try {
+                await authProvider.updateProfile(
+                  name: nameController.text.trim(),
+                  gender: selectedGender,
+                );
+
+                if (!dialogContext.mounted) return;
+                Navigator.of(dialogContext).pop();
+                if (!mounted) return;
+
+                setState(() {
+                  _lastUpdated = _now();
+                });
+
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Profile updated successfully.'),
+                  ),
+                );
+              } catch (error) {
+                setDialogState(() {
+                  isSubmitting = false;
+                  errorText = _userFacingErrorMessage(error);
+                });
+              }
+            }
+
+            return AlertDialog(
+              title: const Text('Edit Profile'),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      controller: nameController,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Full name',
+                        hintText: 'Enter your full name',
+                      ),
+                      validator: (value) {
+                        if ((value ?? '').trim().isEmpty) {
+                          return 'Name is required.';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedGender,
+                      decoration: const InputDecoration(labelText: 'Gender'),
+                      items: const [
+                        DropdownMenuItem(value: 'Male', child: Text('Male')),
+                        DropdownMenuItem(
+                          value: 'Female',
+                          child: Text('Female'),
+                        ),
+                      ],
+                      onChanged: isSubmitting
+                          ? null
+                          : (value) {
+                              if (value == null) return;
+                              setDialogState(() {
+                                selectedGender = value;
+                              });
+                            },
+                    ),
+                    if (errorText != null) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        errorText!,
+                        style: const TextStyle(
+                          color: Color(0xFFB42318),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: isSubmitting ? null : submit,
+                  child: Text(isSubmitting ? 'Saving...' : 'Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    nameController.dispose();
+  }
+
+  Future<void> _openProfilePanel() async {
+    await showGeneralDialog<void>(
+      context: context,
+      barrierLabel: 'Student profile',
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.32),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        final authProvider = dialogContext.watch<AuthProvider>();
+        final user = authProvider.user;
+
+        return Material(
+          color: const Color(0xFFF4F8FC),
+          child: SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(Icons.close_rounded),
+                        tooltip: 'Close profile',
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Student Profile',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF102A56),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 720),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF0F4C81),
+                                    Color(0xFF2267A5),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(28),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildAvatar(
+                                    user: user,
+                                    radius: 34,
+                                    fontSize: 22,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          user?.name.isNotEmpty == true
+                                              ? user!.name
+                                              : widget.userName,
+                                          style: const TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          user?.email.isNotEmpty == true
+                                              ? user!.email
+                                              : 'No email available',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.white.withValues(
+                                              alpha: 0.82,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        _buildMiniTag(label: 'STUDENT'),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            _buildProfileActionTile(
+                              icon: Icons.edit_outlined,
+                              title: 'Edit profile',
+                              subtitle: 'Update your display name and gender.',
+                              onTap: () async {
+                                Navigator.of(dialogContext).pop();
+                                await _showEditProfileDialog();
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            _buildProfileInfoCard(user),
+                            const SizedBox(height: 18),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  Navigator.of(dialogContext).pop();
+                                  await _logout();
+                                },
+                                icon: const Icon(Icons.logout_rounded),
+                                label: const Text('Log out'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFFB42318),
+                                  side: const BorderSide(
+                                    color: Color(0xFFF0C4C0),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _handlePrimaryAction() {
     if (_profile == null) {
       _openRoute(AppRoutes.internshipProfile);
@@ -694,64 +1220,200 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   Color get _nextActionColor {
     if (_profile == null) {
-      return const Color(0xFFB42318);
+      return _heroStart;
     }
     if (!_hasTodayLog) {
-      return const Color(0xFFB54708);
+      return _accentPrimary;
     }
     if (_pendingLogsCount > 0 || _isBehindPace) {
-      return const Color(0xFFB54708);
+      return _accentPrimary;
     }
-    return const Color(0xFF027A48);
+    return _accentSecondary;
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(AuthProvider authProvider) {
     final theme = Theme.of(context);
+    final user = authProvider.user;
+    final token = authProvider.token ?? '';
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 640;
+        final isNarrow = constraints.maxWidth < 980;
 
         return Container(
           width: double.infinity,
           padding: EdgeInsets.all(isCompact ? 20 : 24),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8FBFF),
-            border: Border.all(color: const Color(0xFFDCE6F2)),
-            borderRadius: BorderRadius.circular(18),
+            gradient: const LinearGradient(
+              colors: [_heroStart, _heroEnd],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x26124073),
+                blurRadius: 28,
+                offset: Offset(0, 18),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Welcome, ${widget.userName}',
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  color: const Color(0xFF102A56),
-                  fontWeight: FontWeight.w800,
-                  fontSize: isCompact ? 28 : 30,
+              if (isNarrow)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeaderText(theme, user, isCompact),
+                    const SizedBox(height: 16),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: _buildHeaderControls(user, token),
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 560),
+                        child: _buildHeaderText(theme, user, isCompact),
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: _buildHeaderControls(user, token),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _profile == null
-                    ? 'Set up your internship details, submit logs, and keep your approved hours moving.'
-                    : 'Track what needs attention today, monitor pace, and jump back into the internship workflow.',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: const Color(0xFF4A6480),
-                  height: 1.45,
-                ),
-              ),
-              const SizedBox(height: 10),
-              DashboardRefreshStatus(
-                lastUpdated: _lastUpdated,
-                isRefreshing: _isRefreshing,
-                pullToRefreshLabel: 'Pull down to refresh dashboard data',
-                refreshingLabel: 'Refreshing student dashboard...',
-              ),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildHeaderText(ThemeData theme, AppUser? user, bool isCompact) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${_greetingForHour()}, ${user?.name.split(' ').first ?? 'Student'}',
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _profile == null
+              ? 'Set up your internship.'
+              : 'Stay on top of your internship.',
+          style: theme.textTheme.headlineMedium?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: isCompact ? 28 : 30,
+            height: 1.12,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          _profile == null
+              ? 'Complete your profile and start logging your work.'
+              : 'Check progress, review logs, and keep your profile updated.',
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: Colors.white.withValues(alpha: 0.82),
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 14),
+        DefaultTextStyle(
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.84)),
+          child: DashboardRefreshStatus(
+            lastUpdated: _lastUpdated,
+            isRefreshing: _isRefreshing,
+            pullToRefreshLabel: 'Pull down to refresh dashboard data',
+            refreshingLabel: 'Refreshing student dashboard...',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeaderControls(AppUser? user, String token) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      alignment: WrapAlignment.end,
+      children: [
+        SettingsShortcutButton(iconColor: Colors.white),
+        NotificationBellButton(token: token, iconColor: Colors.white),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            key: _profileMenuAnchorKey,
+            onTap: _openProfilePanel,
+            borderRadius: BorderRadius.circular(22),
+            child: Ink(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildAvatar(user: user, radius: 22, fontSize: 14),
+                  const SizedBox(width: 10),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 180),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user?.name.isNotEmpty == true
+                              ? user!.name
+                              : widget.userName,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          (user?.gender ?? 'Student'),
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: Colors.white,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -785,7 +1447,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 Text(
                   _nextActionTitle,
                   style: const TextStyle(
-                    color: Color(0xFF102A56),
+                    color: _headlineColor,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
@@ -799,7 +1461,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       child: Text(
                         _nextActionTitle,
                         style: const TextStyle(
-                          color: Color(0xFF102A56),
+                          color: _headlineColor,
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                         ),
@@ -812,7 +1474,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               const SizedBox(height: 6),
               Text(
                 _nextActionDescription,
-                style: const TextStyle(color: Color(0xFF4A6480), height: 1.4),
+                style: const TextStyle(color: _bodyColor, height: 1.4),
               ),
               const SizedBox(height: 14),
               SizedBox(
@@ -1471,7 +2133,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 child: Text(
                   'Unable to load student dashboard',
                   style: TextStyle(
-                    color: Color(0xFF102A56),
+                    color: _headlineColor,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1498,72 +2160,58 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final token = context.watch<AuthProvider>().token ?? '';
+    final authProvider = context.watch<AuthProvider>();
 
     return StudentScaffold(
       currentRoute: AppRoutes.studentDashboard,
-      appBar: AppBar(
-        title: const Text('InternTrack'),
-        actions: [
-          const SettingsShortcutButton(),
-          NotificationBellButton(token: token),
-          IconButton(
-            tooltip: 'Logout',
-            onPressed: () async {
-              await context.read<AuthProvider>().logout();
-              if (!context.mounted) return;
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                AppRoutes.login,
-                (route) => false,
-              );
-            },
-            icon: const Icon(Icons.logout),
-          ),
-        ],
-      ),
+      backgroundColor: _canvasColor,
       body: RefreshIndicator(
         onRefresh: _loadDashboard,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final horizontalPadding = constraints.maxWidth < 640 ? 12.0 : 16.0;
+            final horizontalPadding = constraints.maxWidth < 640
+                ? 14.0
+                : constraints.maxWidth < 1024
+                ? 20.0
+                : 28.0;
+            final verticalPadding = constraints.maxWidth < 900 ? 16.0 : 24.0;
 
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.all(horizontalPadding),
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                verticalPadding,
+                horizontalPadding,
+                verticalPadding,
+              ),
               children: [
-                Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1220),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildHeader(context),
-                        const SizedBox(height: 20),
-                        if (_isInitialLoading && !_hasCompletedFirstLoad)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 32),
-                            child: Center(child: CircularProgressIndicator()),
-                          )
-                        else if (_dashboardError != null &&
-                            _profile == null &&
-                            _report == null &&
-                            _logs.isEmpty)
-                          _buildDashboardErrorState()
-                        else ...[
-                          _buildNextActionSection(),
-                          const SizedBox(height: 16),
-                          _buildSummaryAndMetricsSection(),
-                          const SizedBox(height: 16),
-                          _buildProgressAndPaceSection(),
-                          const SizedBox(height: 16),
-                          _buildRecentLogsSection(),
-                          const SizedBox(height: 16),
-                          _buildQuickActionsSection(),
-                        ],
-                      ],
-                    ),
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(authProvider),
+                    const SizedBox(height: 20),
+                    if (_isInitialLoading && !_hasCompletedFirstLoad)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 32),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (_dashboardError != null &&
+                        _profile == null &&
+                        _report == null &&
+                        _logs.isEmpty)
+                      _buildDashboardErrorState()
+                    else ...[
+                      _buildNextActionSection(),
+                      const SizedBox(height: 16),
+                      _buildSummaryAndMetricsSection(),
+                      const SizedBox(height: 16),
+                      _buildProgressAndPaceSection(),
+                      const SizedBox(height: 16),
+                      _buildRecentLogsSection(),
+                      const SizedBox(height: 16),
+                      _buildQuickActionsSection(),
+                    ],
+                  ],
                 ),
               ],
             );
@@ -1587,14 +2235,14 @@ class _SummaryRow extends StatelessWidget {
       child: RichText(
         text: TextSpan(
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: const Color(0xFF4A6480),
+            color: OceanBreezePalette.textSecondary,
             height: 1.4,
           ),
           children: [
             TextSpan(
               text: '$label: ',
               style: const TextStyle(
-                color: Color(0xFF102A56),
+                color: OceanBreezePalette.textPrimary,
                 fontWeight: FontWeight.w700,
               ),
             ),

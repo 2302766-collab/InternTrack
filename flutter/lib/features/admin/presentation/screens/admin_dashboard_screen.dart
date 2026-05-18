@@ -316,6 +316,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final passwordController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     var selectedRole = 'Student';
+    var selectedGender = 'Male';
     var obscurePassword = true;
 
     final draft = await showDialog<_ManagedUserDraft>(
@@ -391,6 +392,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         },
                       ),
                       const SizedBox(height: 14),
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedGender,
+                        decoration: const InputDecoration(labelText: 'Gender'),
+                        items: const [
+                          DropdownMenuItem(value: 'Male', child: Text('Male')),
+                          DropdownMenuItem(
+                            value: 'Female',
+                            child: Text('Female'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setDialogState(() {
+                            selectedGender = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 14),
                       TextFormField(
                         controller: passwordController,
                         obscureText: obscurePassword,
@@ -439,6 +458,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       _ManagedUserDraft(
                         name: nameController.text.trim(),
                         email: emailController.text.trim(),
+                        gender: selectedGender,
                         password: passwordController.text,
                         role: selectedRole,
                       ),
@@ -478,6 +498,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final createdUser = await _userManagementService.createManagedUser(
         name: draft.name,
         email: draft.email,
+        gender: draft.gender,
         password: draft.password,
         role: draft.role,
       );
@@ -2844,12 +2865,14 @@ class _StudentFilter {
 class _ManagedUserDraft {
   final String name;
   final String email;
+  final String gender;
   final String password;
   final String role;
 
   const _ManagedUserDraft({
     required this.name,
     required this.email,
+    required this.gender,
     required this.password,
     required this.role,
   });

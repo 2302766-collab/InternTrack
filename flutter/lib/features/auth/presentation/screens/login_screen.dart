@@ -18,6 +18,12 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  static const _fieldFill = Color(0xFF223652);
+  static const _fieldBorder = Color(0x334EC9FF);
+  static const _mutedText = Color(0xFFA9B7C8);
+  static const _brightText = Color(0xFFF2F7FF);
+  static const _hintText = Color(0xFFD2DEEC);
+
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -134,23 +140,65 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   InputDecoration _inputDecoration(String label) {
+    final isPassword = label == 'Password';
+
     return InputDecoration(
       labelText: label,
-      floatingLabelBehavior: FloatingLabelBehavior.never,
+      floatingLabelBehavior: FloatingLabelBehavior.always,
+      hintText: label == 'Email' ? 'Enter your email' : 'Enter your password',
+      filled: true,
+      fillColor: _fieldFill.withAlpha(235),
+      labelStyle: const TextStyle(
+        color: Color(0xFF89CFF2),
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+      ),
+      floatingLabelStyle: const TextStyle(
+        color: Color(0xFF89CFF2),
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+      ),
+      hintStyle: const TextStyle(color: _hintText, fontWeight: FontWeight.w600),
       prefixIcon: label == 'Email'
-          ? const Icon(Icons.mail_outline)
-          : const Icon(Icons.lock_outline),
-      suffixIcon: label == 'Password'
+          ? const Icon(Icons.alternate_email_rounded, color: _mutedText)
+          : const Icon(Icons.lock_outline_rounded, color: _mutedText),
+      suffixIcon: isPassword
           ? IconButton(
               tooltip: _obscurePassword ? 'Show password' : 'Hide password',
               icon: Icon(
                 _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                color: _mutedText,
               ),
               onPressed: () => setState(() {
                 _obscurePassword = !_obscurePassword;
               }),
             )
           : null,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(22),
+        borderSide: const BorderSide(color: _fieldBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(22),
+        borderSide: const BorderSide(color: _fieldBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(22),
+        borderSide: const BorderSide(color: Color(0xFF6ED6FF), width: 1.4),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(22),
+        borderSide: const BorderSide(color: Color(0xFFFF8A9B)),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(22),
+        borderSide: const BorderSide(color: Color(0xFFFFAAB6), width: 1.4),
+      ),
+      disabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(22),
+        borderSide: const BorderSide(color: Color(0x223C7CA3)),
+      ),
     );
   }
 
@@ -167,7 +215,7 @@ class _LoginScreenState extends State<LoginScreen> {
         children: [
           const Text(
             "Don't have an account?",
-            style: TextStyle(color: Color(0xFF365A63)),
+            style: TextStyle(color: _mutedText),
           ),
           TextButton(
             onPressed: _isLoading
@@ -175,6 +223,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 : () {
                     Navigator.pushNamed(context, AppRoutes.register);
                   },
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF75D8FF),
+            ),
             child: const Text('Create one'),
           ),
         ],
@@ -193,6 +244,11 @@ class _LoginScreenState extends State<LoginScreen> {
               enabled: !_isLoading,
               decoration: _inputDecoration('Email'),
               keyboardType: TextInputType.emailAddress,
+              cursorColor: const Color(0xFF75D8FF),
+              style: const TextStyle(
+                color: _brightText,
+                fontWeight: FontWeight.w600,
+              ),
               textInputAction: TextInputAction.next,
               validator: (value) {
                 final text = value?.trim() ?? '';
@@ -209,12 +265,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 return null;
               },
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 18),
             TextFormField(
               controller: _passwordController,
               enabled: !_isLoading,
               decoration: _inputDecoration('Password'),
               obscureText: _obscurePassword,
+              cursorColor: const Color(0xFF75D8FF),
+              style: const TextStyle(
+                color: _brightText,
+                fontWeight: FontWeight.w600,
+              ),
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) {
                 if (_isFormValid && !_isLoading) {
@@ -241,19 +302,60 @@ class _LoginScreenState extends State<LoginScreen> {
             ],
             const SizedBox(height: 24),
             SizedBox(
-              height: 54,
-              child: ElevatedButton(
-                onPressed: (!_isFormValid || _isLoading) ? null : _login,
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+              height: 60,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6DE2FF), Color(0xFF42B9FF)],
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x553CB9FF),
+                      blurRadius: 20,
+                      offset: Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    disabledBackgroundColor: Colors.transparent,
+                    disabledForegroundColor: Colors.white54,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                  ),
+                  onPressed: (!_isFormValid || _isLoading) ? null : _login,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF0E2036),
+                          ),
+                        )
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Login',
+                              style: TextStyle(
+                                color: Color(0xFF0D1A2D),
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              color: Color(0xFF0D1A2D),
+                            ),
+                          ],
                         ),
-                      )
-                    : const Text('Login'),
+                ),
               ),
             ),
           ],

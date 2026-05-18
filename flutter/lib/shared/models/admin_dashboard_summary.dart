@@ -6,6 +6,9 @@ class AdminDashboardSummary {
   final int studentsWithoutSupervisor;
   final int studentsWithoutAdviser;
   final int studentsRequiringAttention;
+  final int maleStudents;
+  final int femaleStudents;
+  final int unspecifiedStudents;
   final double averageCompletionPercentage;
 
   const AdminDashboardSummary({
@@ -16,6 +19,9 @@ class AdminDashboardSummary {
     required this.studentsWithoutSupervisor,
     required this.studentsWithoutAdviser,
     required this.studentsRequiringAttention,
+    required this.maleStudents,
+    required this.femaleStudents,
+    required this.unspecifiedStudents,
     required this.averageCompletionPercentage,
   });
 
@@ -27,7 +33,12 @@ class AdminDashboardSummary {
       studentsWithoutProfile: _parseInt(json['students_without_profile']),
       studentsWithoutSupervisor: _parseInt(json['students_without_supervisor']),
       studentsWithoutAdviser: _parseInt(json['students_without_adviser']),
-      studentsRequiringAttention: _parseInt(json['students_requiring_attention']),
+      studentsRequiringAttention: _parseInt(
+        json['students_requiring_attention'],
+      ),
+      maleStudents: _parseInt(json['male_students']),
+      femaleStudents: _parseInt(json['female_students']),
+      unspecifiedStudents: _parseInt(json['unspecified_students']),
       averageCompletionPercentage: _parseDouble(
         json['average_completion_percentage'],
       ),

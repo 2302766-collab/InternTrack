@@ -4,6 +4,7 @@ class AppUser {
     required this.name,
     required this.email,
     required this.role,
+    this.gender,
     this.avatarBase64,
   });
 
@@ -11,6 +12,7 @@ class AppUser {
   final String name;
   final String email;
   final String role;
+  final String? gender;
   final String? avatarBase64;
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
@@ -19,6 +21,7 @@ class AppUser {
       name: (json['name'] ?? '').toString(),
       email: (json['email'] ?? '').toString(),
       role: (json['role'] ?? '').toString(),
+      gender: json['gender']?.toString(),
       avatarBase64: (json['avatar_base64'] ?? json['avatarBase64'])?.toString(),
     );
   }
@@ -28,6 +31,7 @@ class AppUser {
     String? name,
     String? email,
     String? role,
+    String? gender,
     String? avatarBase64,
     bool clearAvatar = false,
   }) {
@@ -36,6 +40,7 @@ class AppUser {
       name: name ?? this.name,
       email: email ?? this.email,
       role: role ?? this.role,
+      gender: gender ?? this.gender,
       avatarBase64: clearAvatar ? null : (avatarBase64 ?? this.avatarBase64),
     );
   }
@@ -46,6 +51,7 @@ class AppUser {
       'name': name,
       'email': email,
       'role': role,
+      'gender': gender,
       'avatar_base64': avatarBase64,
     };
   }

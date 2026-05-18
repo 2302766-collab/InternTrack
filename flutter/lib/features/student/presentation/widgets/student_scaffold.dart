@@ -24,14 +24,25 @@ class StudentScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: appBar,
-      body: body,
-      backgroundColor: backgroundColor,
-      resizeToAvoidBottomInset: resizeToAvoidBottomInset,
-      floatingActionButton: floatingActionButton,
-      floatingActionButtonLocation: floatingActionButtonLocation,
-      bottomNavigationBar: StudentBottomNavBar(currentRoute: currentRoute),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showBottomNavigation = constraints.maxWidth < 960;
+
+        return Scaffold(
+          appBar: appBar,
+          body: SafeArea(
+            bottom: !showBottomNavigation,
+            child: body,
+          ),
+          backgroundColor: backgroundColor,
+          resizeToAvoidBottomInset: resizeToAvoidBottomInset,
+          floatingActionButton: floatingActionButton,
+          floatingActionButtonLocation: floatingActionButtonLocation,
+          bottomNavigationBar: showBottomNavigation
+              ? StudentBottomNavBar(currentRoute: currentRoute)
+              : null,
+        );
+      },
     );
   }
 }

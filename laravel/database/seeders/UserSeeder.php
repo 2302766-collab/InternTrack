@@ -18,6 +18,7 @@ class UserSeeder extends Seeder
                 ['email' => 'admin@example.com'],
                 [
                     'name' => 'Sample Admin',
+                    'gender' => 'Male',
                     'password' => Hash::make('password'),
                     'role_id' => $roles['Admin'],
                 ],
@@ -29,6 +30,7 @@ class UserSeeder extends Seeder
                 ['email' => 'student@example.com'],
                 [
                     'name' => 'Sample Student',
+                    'gender' => 'Female',
                     'password' => Hash::make('password'),
                     'role_id' => $roles['Student'],
                 ],
@@ -40,6 +42,7 @@ class UserSeeder extends Seeder
                 ['email' => 'supervisor@example.com'],
                 [
                     'name' => 'Sample Supervisor',
+                    'gender' => 'Male',
                     'password' => Hash::make('password'),
                     'role_id' => $roles['Supervisor'],
                 ],
@@ -51,6 +54,7 @@ class UserSeeder extends Seeder
                 ['email' => 'adviser@example.com'],
                 [
                     'name' => 'Sample Adviser',
+                    'gender' => 'Female',
                     'password' => Hash::make('password'),
                     'role_id' => $roles['Adviser'],
                 ],

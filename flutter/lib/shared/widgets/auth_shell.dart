@@ -1,7 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
-/// A reusable shell for auth screens that applies a gradient background,
-/// centered card, and consistent spacing.
+/// Shared auth layout inspired by a dark glassmorphism card.
 class AuthShell extends StatelessWidget {
   const AuthShell({
     super.key,
@@ -25,146 +26,201 @@ class AuthShell extends StatelessWidget {
     return Scaffold(
       body: DecoratedBox(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: <Color>[
-              Color(0xFF0B4554),
-              Color(0xFF146A7E),
-              Color(0xFF1F90A7),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          gradient: RadialGradient(
+            center: Alignment(0, -0.9),
+            radius: 1.35,
+            colors: [Color(0xFF1D446B), Color(0xFF11253D), Color(0xFF091525)],
           ),
         ),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              Positioned(
-                top: -90,
-                right: -40,
-                child: _GlowOrb(
-                  size: 240,
-                  color: Colors.white.withAlpha(28),
+        child: Stack(
+          children: [
+            const Positioned.fill(child: _BackdropTexture()),
+            Positioned(
+              top: -100,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  width: 260,
+                  height: 180,
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      colors: [
+                        const Color(0xFF8FD8FF).withAlpha(140),
+                        const Color(0xFF8FD8FF).withAlpha(0),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              Positioned(
-                bottom: -120,
-                left: -30,
-                child: _GlowOrb(
-                  size: 280,
-                  color: Colors.black.withAlpha(24),
+            ),
+            Positioned(
+              top: 120,
+              right: 110,
+              child: IgnorePointer(
+                child: Container(
+                  width: 120,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withAlpha(0),
+                        const Color(0xFF99E6FF).withAlpha(220),
+                        Colors.white.withAlpha(0),
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF8ADFFF).withAlpha(120),
+                        blurRadius: 24,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              LayoutBuilder(
+            ),
+            SafeArea(
+              child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final isNarrow = constraints.maxWidth < 480;
+                  final isNarrow = constraints.maxWidth < 520;
 
                   return Center(
                     child: SingleChildScrollView(
                       padding: EdgeInsets.symmetric(
-                        horizontal: isNarrow ? 16 : 20,
+                        horizontal: isNarrow ? 18 : 24,
                         vertical: 24,
                       ),
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 540),
+                        constraints: const BoxConstraints(maxWidth: 580),
                         child: Container(
-                          clipBehavior: Clip.antiAlias,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF8FBFC),
-                            borderRadius: BorderRadius.circular(28),
+                            borderRadius: BorderRadius.circular(36),
                             border: Border.all(
-                              color: Colors.white.withAlpha(145),
+                              color: const Color(0xFF76D8FF).withAlpha(90),
                             ),
-                            boxShadow: const [
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                const Color(0xFF27496D).withAlpha(165),
+                                const Color(0xFF172A43).withAlpha(210),
+                                const Color(0xFF121F35).withAlpha(230),
+                              ],
+                            ),
+                            boxShadow: [
                               BoxShadow(
-                                color: Color(0x3305232B),
-                                blurRadius: 30,
-                                offset: Offset(0, 18),
+                                color: Colors.black.withAlpha(75),
+                                blurRadius: 40,
+                                offset: const Offset(0, 30),
                               ),
                             ],
                           ),
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: isNarrow ? 22 : 28,
-                              vertical: isNarrow ? 24 : 30,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(36),
+                            child: Stack(
                               children: [
-                                if (onBack != null) ...[
-                                  IconButton(
-                                    icon: const Icon(Icons.arrow_back),
-                                    onPressed: onBack,
-                                    tooltip: 'Back',
-                                    style: IconButton.styleFrom(
-                                      backgroundColor: const Color(0xFFE7F1F4),
+                                Positioned.fill(
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Colors.white.withAlpha(20),
+                                          Colors.white.withAlpha(5),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(height: 12),
-                                ],
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
+                                ),
+                                Positioned.fill(
+                                  child: CustomPaint(
+                                    painter: _NoisePainter(
+                                      color: Colors.white.withAlpha(16),
+                                    ),
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFDCEEF3),
-                                    borderRadius: BorderRadius.circular(999),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.fromLTRB(
+                                    isNarrow ? 22 : 38,
+                                    isNarrow ? 28 : 34,
+                                    isNarrow ? 22 : 38,
+                                    isNarrow ? 24 : 30,
                                   ),
-                                  child: Row(
+                                  child: Column(
                                     mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     children: [
-                                      Container(
-                                        width: 10,
-                                        height: 10,
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFF0F4C5C),
-                                          shape: BoxShape.circle,
+                                      if (onBack != null)
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 18,
+                                            ),
+                                            child: IconButton(
+                                              onPressed: onBack,
+                                              tooltip: 'Back',
+                                              style: IconButton.styleFrom(
+                                                backgroundColor: Colors.white
+                                                    .withAlpha(18),
+                                                foregroundColor: Colors.white
+                                                    .withAlpha(220),
+                                                side: BorderSide(
+                                                  color: Colors.white.withAlpha(
+                                                    28,
+                                                  ),
+                                                ),
+                                              ),
+                                              icon: const Icon(
+                                                Icons.arrow_back_rounded,
+                                              ),
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 8),
+                                      const _AuthOrbLogo(),
+                                      const SizedBox(height: 26),
                                       Text(
-                                        'InternTrack',
-                                        style: theme.textTheme.labelLarge
+                                        title,
+                                        textAlign: TextAlign.center,
+                                        style: theme.textTheme.headlineMedium
                                             ?.copyWith(
-                                              color: const Color(0xFF0F4C5C),
-                                              fontWeight: FontWeight.w800,
+                                              color: const Color(0xFFEAF4FF),
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing: -0.8,
                                             ),
                                       ),
+                                      if (subtitle != null) ...[
+                                        const SizedBox(height: 10),
+                                        ConstrainedBox(
+                                          constraints: const BoxConstraints(
+                                            maxWidth: 360,
+                                          ),
+                                          child: Text(
+                                            subtitle!,
+                                            textAlign: TextAlign.center,
+                                            style: theme.textTheme.bodyLarge
+                                                ?.copyWith(
+                                                  color: const Color(
+                                                    0xFFA8B8CC,
+                                                  ),
+                                                  height: 1.45,
+                                                ),
+                                          ),
+                                        ),
+                                      ],
+                                      const SizedBox(height: 30),
+                                      child,
+                                      if (footer != null) ...[
+                                        const SizedBox(height: 22),
+                                        footer!,
+                                      ],
                                     ],
                                   ),
                                 ),
-                                const SizedBox(height: 20),
-                                Text(
-                                  title,
-                                  style: theme.textTheme.headlineMedium
-                                      ?.copyWith(
-                                        color: const Color(0xFF0F4C5C),
-                                        fontWeight: FontWeight.w800,
-                                        height: 1.08,
-                                      ),
-                                ),
-                                if (subtitle != null) ...[
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    subtitle!,
-                                    style: theme.textTheme.bodyLarge?.copyWith(
-                                      color: const Color(0xFF57707A),
-                                      height: 1.45,
-                                    ),
-                                  ),
-                                ],
-                                const SizedBox(height: 24),
-                                child,
-                                if (footer != null) ...[
-                                  const SizedBox(height: 18),
-                                  const Divider(color: Color(0xFFD8E5E9)),
-                                  const SizedBox(height: 8),
-                                  Align(
-                                    alignment: Alignment.center,
-                                    child: footer!,
-                                  ),
-                                ],
                               ],
                             ),
                           ),
@@ -174,32 +230,129 @@ class AuthShell extends StatelessWidget {
                   );
                 },
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _GlowOrb extends StatelessWidget {
-  final double size;
-  final Color color;
-
-  const _GlowOrb({
-    required this.size,
-    required this.color,
-  });
+class _AuthOrbLogo extends StatelessWidget {
+  const _AuthOrbLogo();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: size,
-      height: size,
+      width: 54,
+      height: 54,
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.white.withAlpha(32), Colors.white.withAlpha(10)],
+        ),
+        border: Border.all(color: Colors.white.withAlpha(30)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF8FDAFF).withAlpha(65),
+            blurRadius: 22,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Center(
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(
+              Icons.business_center_rounded,
+              size: 24,
+              color: Colors.white.withAlpha(228),
+            ),
+            Positioned(
+              right: 9,
+              bottom: 9,
+              child: Container(
+                width: 13,
+                height: 13,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF89E0FF),
+                  border: Border.all(
+                    color: const Color(0xFF1C3452),
+                    width: 1.2,
+                  ),
+                ),
+                child: Center(
+                  child: Container(
+                    width: 5,
+                    height: 5,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color(0xFF1C3452),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+}
+
+class _BackdropTexture extends StatelessWidget {
+  const _BackdropTexture();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(painter: _GridPainter());
+  }
+}
+
+class _GridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF9AC7E5).withAlpha(10)
+      ..strokeWidth = 1;
+
+    const gap = 28.0;
+    for (double x = 0; x < size.width; x += gap) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+
+    for (double y = 0; y < size.height; y += gap) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _NoisePainter extends CustomPainter {
+  const _NoisePainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final random = math.Random(24);
+
+    for (int i = 0; i < 900; i++) {
+      final dx = random.nextDouble() * size.width;
+      final dy = random.nextDouble() * size.height;
+      canvas.drawCircle(Offset(dx, dy), 0.55, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _NoisePainter oldDelegate) {
+    return oldDelegate.color != color;
   }
 }

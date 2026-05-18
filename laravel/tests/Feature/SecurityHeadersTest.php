@@ -44,6 +44,7 @@ class SecurityHeadersTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'name' => 'Test User',
             'email' => 'test@example.com',
+            'gender' => 'Male',
             'password' => 'password',
             'password_confirmation' => 'password',
         ]);

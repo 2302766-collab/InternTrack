@@ -20,6 +20,7 @@ class AuthFlowTest extends TestCase
             ->post('/api/v1/auth/register', [
                 'name' => 'Juan Dela Cruz',
                 'email' => 'juan@example.com',
+                'gender' => 'Male',
                 'password' => 'Password123',
                 'password_confirmation' => 'Password123',
             ])
@@ -28,11 +29,13 @@ class AuthFlowTest extends TestCase
             ->assertJsonPath('message', 'Registered successfully')
             ->assertJsonPath('data.user.name', 'Juan Dela Cruz')
             ->assertJsonPath('data.user.email', 'juan@example.com')
+            ->assertJsonPath('data.user.gender', 'Male')
             ->assertJsonPath('data.user.role', 'Student');
 
         $user = User::query()->where('email', 'juan@example.com')->firstOrFail();
 
         $this->assertSame($studentRole->id, $user->role_id);
+        $this->assertSame('Male', $user->gender);
         $this->assertTrue(Hash::check('Password123', $user->password));
         $this->assertCount(1, $user->tokens);
     }
@@ -47,6 +50,7 @@ class AuthFlowTest extends TestCase
             ->post('/api/v1/auth/register', [
                 'name' => 'Juan Dela Cruz',
                 'email' => 'juan@example.com',
+                'gender' => 'Male',
                 'password' => 'Password123',
                 'password_confirmation' => 'Password123',
             ])
@@ -74,6 +78,7 @@ class AuthFlowTest extends TestCase
                 ->assertJsonPath('message', 'Login successful')
                 ->assertJsonPath('data.user.id', $user->id)
                 ->assertJsonPath('data.user.email', $user->email)
+                ->assertJsonPath('data.user.gender', $user->gender)
                 ->assertJsonPath('data.user.role', $roleName);
         }
     }
@@ -108,7 +113,34 @@ class AuthFlowTest extends TestCase
             ->assertJsonPath('message', 'Authenticated user')
             ->assertJsonPath('data.user.id', $user->id)
             ->assertJsonPath('data.user.email', $user->email)
+            ->assertJsonPath('data.user.gender', $user->gender)
             ->assertJsonPath('data.user.role', 'Supervisor');
+    }
+
+    public function test_authenticated_user_can_update_name_and_gender_on_their_profile(): void
+    {
+        $user = $this->createUserWithRole('Student', [
+            'name' => 'Juan Dela Cruz',
+            'gender' => 'Male',
+        ]);
+        $token = $user->createToken('api-token')->plainTextToken;
+
+        $this->withHeader('Accept', 'application/json')
+            ->withToken($token)
+            ->patch('/api/v1/auth/profile', [
+                'name' => 'Maria Santos',
+                'gender' => 'Female',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Profile updated successfully.')
+            ->assertJsonPath('data.user.id', $user->id)
+            ->assertJsonPath('data.user.name', 'Maria Santos')
+            ->assertJsonPath('data.user.gender', 'Female')
+            ->assertJsonPath('data.user.role', 'Student');
+
+        $this->assertSame('Maria Santos', $user->fresh()->name);
+        $this->assertSame('Female', $user->fresh()->gender);
     }
 
     public function test_login_access_token_can_be_reused_for_authenticated_requests_until_logout(): void

@@ -178,6 +178,23 @@ class AuthProvider extends ChangeNotifier {
     await updateAvatarBase64(base64Encode(bytes));
   }
 
+  Future<AppUser> updateProfile({
+    required String name,
+    required String gender,
+  }) async {
+    final updatedUser = await _authService.updateProfile(
+      name: name,
+      gender: gender,
+    );
+
+    _user = updatedUser.copyWith(avatarBase64: _user?.avatarBase64);
+    await _tokenService.saveUser(_user!);
+    _lastError = null;
+    notifyListeners();
+
+    return _user!;
+  }
+
   Future<bool> _syncUserFromServer({required bool silentOnError}) async {
     final currentToken = _token;
     if (currentToken == null || currentToken.isEmpty) {

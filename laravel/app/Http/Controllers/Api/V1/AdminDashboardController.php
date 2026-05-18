@@ -27,6 +27,9 @@ class AdminDashboardController extends Controller
             $studentsWithoutSupervisor = 0;
             $studentsWithoutAdviser = 0;
             $studentsRequiringAttention = 0;
+            $maleStudents = 0;
+            $femaleStudents = 0;
+            $unspecifiedStudents = 0;
 
             if ($studentRoleId !== null) {
                 $approvedHoursPerProfile = LogEntry::query()
@@ -48,6 +51,18 @@ class AdminDashboardController extends Controller
                 $studentsWithoutSupervisor = (int) ($studentSetupSummary?->students_without_supervisor ?? 0);
                 $studentsWithoutAdviser = (int) ($studentSetupSummary?->students_without_adviser ?? 0);
                 $studentsRequiringAttention = (int) ($studentSetupSummary?->students_requiring_attention ?? 0);
+                $maleStudents = (int) User::query()
+                    ->where('role_id', $studentRoleId)
+                    ->where('gender', 'Male')
+                    ->count();
+                $femaleStudents = (int) User::query()
+                    ->where('role_id', $studentRoleId)
+                    ->where('gender', 'Female')
+                    ->count();
+                $unspecifiedStudents = max(
+                    0,
+                    $totalStudents - $maleStudents - $femaleStudents
+                );
 
                 $averageCompletionPercentage = round((float) (
                     User::query()
@@ -83,6 +98,9 @@ class AdminDashboardController extends Controller
                 'students_without_supervisor' => $studentsWithoutSupervisor,
                 'students_without_adviser' => $studentsWithoutAdviser,
                 'students_requiring_attention' => $studentsRequiringAttention,
+                'male_students' => $maleStudents,
+                'female_students' => $femaleStudents,
+                'unspecified_students' => $unspecifiedStudents,
                 'average_completion_percentage' => $averageCompletionPercentage,
             ];
         });
