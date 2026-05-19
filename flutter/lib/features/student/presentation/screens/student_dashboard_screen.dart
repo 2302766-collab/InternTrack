@@ -13,8 +13,12 @@ import '../../../../core/services/dtr_service.dart';
 import '../../../../core/services/internship_service.dart';
 import '../../../../core/services/logbook_service.dart';
 import '../../../../core/services/student_report_service.dart';
+import '../../../../core/utils/file_picker_helper_stub.dart'
+    if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
+    as file_picker;
 import '../../../../core/theme/ocean_breeze_palette.dart';
 import '../../../../core/theme/theme_controller.dart';
+import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/daily_time_record.dart';
 import '../../../../shared/models/internship_profile.dart';
 import '../../../../shared/models/log_entry.dart';
@@ -1018,6 +1022,41 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
+  Future<void> _pickProfilePhoto() async {
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final file = await file_picker.pickSingleFile(
+        allowedExtensions: const <String>['jpg', 'jpeg', 'png'],
+      );
+      if (file == null) {
+        return;
+      }
+
+      await authProvider.updateAvatarBytes(file.bytes);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to update profile photo right now.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _removeProfilePhoto() async {
+    await context.read<AuthProvider>().updateAvatarBase64(null);
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Profile photo removed.')));
+  }
+
   Future<void> _openProfilePanel() async {
     final anchorContext = _profileMenuAnchorKey.currentContext;
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
@@ -1077,21 +1116,49 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            CircleAvatar(
-                              radius: 28,
-                              backgroundColor: const Color(0xFFE3EEF7),
-                              backgroundImage: avatar,
-                              child: avatar == null
-                                  ? Text(
-                                      _initialsFor(displayName),
-                                      style: const TextStyle(
-                                        color: _headlineColor,
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 18,
+                            Stack(
+                              children: [
+                                CircleAvatar(
+                                  radius: 28,
+                                  backgroundColor: const Color(0xFFE3EEF7),
+                                  backgroundImage: avatar,
+                                  child: avatar == null
+                                      ? Text(
+                                          _initialsFor(displayName),
+                                          style: const TextStyle(
+                                            color: _headlineColor,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 18,
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                                Positioned(
+                                  right: -2,
+                                  bottom: -2,
+                                  child: Material(
+                                    color: _accentPrimary,
+                                    shape: const CircleBorder(),
+                                    child: InkWell(
+                                      customBorder: const CircleBorder(),
+                                      onTap: () async {
+                                        Navigator.of(dialogContext).pop();
+                                        await _pickProfilePhoto();
+                                      },
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(6),
+                                        child: Icon(
+                                          Icons.camera_alt_rounded,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
                                       ),
-                                    )
-                                  : null,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -1117,27 +1184,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFE6F4F1),
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                    child: Text(
-                                      (user?.role.isNotEmpty == true
-                                              ? user!.role
-                                              : 'Student')
-                                          .toUpperCase(),
-                                      style: const TextStyle(
-                                        color: _accentPrimary,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 0.3,
-                                      ),
-                                    ),
+                                  _buildMiniTag(
+                                    label:
+                                        (user?.role.isNotEmpty == true
+                                                ? user!.role
+                                                : 'Student')
+                                            .toUpperCase(),
                                   ),
                                 ],
                               ),
@@ -1145,60 +1197,31 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF6FAFD),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: _topHeaderBorder),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Quick access',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: _bodyColor,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              InkWell(
-                                onTap: () {
-                                  Navigator.of(dialogContext).pop();
-                                  Navigator.pushNamed(
-                                    context,
-                                    AppRoutes.internshipProfile,
-                                  );
-                                },
-                                borderRadius: BorderRadius.circular(14),
-                                child: const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 6),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.person_outline_rounded,
-                                        color: _headlineColor,
-                                        size: 18,
-                                      ),
-                                      SizedBox(width: 10),
-                                      Text(
-                                        'Open internship profile',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: _headlineColor,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                        _buildProfileActionTile(
+                          icon: Icons.edit_outlined,
+                          title: 'Change profile photo',
+                          subtitle:
+                              'Upload a JPG or PNG image for this student.',
+                          onTap: () async {
+                            Navigator.of(dialogContext).pop();
+                            await _pickProfilePhoto();
+                          },
                         ),
+                        if ((user?.avatarBase64 ?? '').isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          _buildProfileActionTile(
+                            icon: Icons.hide_image_outlined,
+                            title: 'Remove profile photo',
+                            subtitle:
+                                'Switch back to the generated initials avatar.',
+                            onTap: () async {
+                              Navigator.of(dialogContext).pop();
+                              await _removeProfilePhoto();
+                            },
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        _buildProfileInfoCard(user),
                         const SizedBox(height: 16),
                         SizedBox(
                           width: double.infinity,
@@ -1228,6 +1251,165 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildMiniTag({required String label}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF2FF),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: _accentPrimary,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileActionTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: const Color(0xFFF7F9FC),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: _accentPrimary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: _headlineColor,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(fontSize: 12.5, color: _bodyColor),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileInfoCard(AppUser? user) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _topHeaderBorder),
+      ),
+      child: Column(
+        children: [
+          _buildInfoRow(
+            icon: Icons.badge_outlined,
+            label: 'Student',
+            value: user?.name.isNotEmpty == true ? user!.name : widget.userName,
+          ),
+          const SizedBox(height: 10),
+          _buildInfoRow(
+            icon: Icons.alternate_email_rounded,
+            label: 'Email',
+            value: user?.email.isNotEmpty == true
+                ? user!.email
+                : 'Not available',
+          ),
+          const SizedBox(height: 10),
+          _buildInfoRow(
+            icon: Icons.verified_user_outlined,
+            label: 'Role',
+            value: user?.role.isNotEmpty == true ? user!.role : 'Student',
+          ),
+          const SizedBox(height: 10),
+          _buildInfoRow(
+            icon: Icons.fingerprint_rounded,
+            label: 'Account ID',
+            value: user != null ? '#${user.id}' : 'Unavailable',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(icon, color: _accentPrimary),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: _bodyColor,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: _headlineColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
