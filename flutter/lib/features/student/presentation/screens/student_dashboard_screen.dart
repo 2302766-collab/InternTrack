@@ -878,13 +878,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     return CircleAvatar(
       radius: radius,
-      backgroundColor: const Color(0xFFE6EEF8),
+      backgroundColor: OceanBreezePalette.surfaceSoft,
       backgroundImage: backgroundImage,
       child: backgroundImage == null
           ? Text(
               _initialsFor(displayName),
               style: TextStyle(
-                color: const Color(0xFF102A56),
+                color: _headlineColor,
                 fontSize: fontSize,
                 fontWeight: FontWeight.w800,
               ),
@@ -895,17 +895,18 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   Widget _buildMiniTag({required String label}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFFE0ECFF),
+        color: Colors.white.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
-          color: Color(0xFF154084),
+          color: Colors.white.withValues(alpha: 0.96),
           letterSpacing: 0.5,
         ),
       ),
@@ -919,49 +920,74 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: const Color(0xFFF5F9FF),
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: const Color(0xFF154084)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF102A56),
-                      ),
+      color: OceanBreezePalette.surface,
+      borderRadius: BorderRadius.circular(24),
+      child: Ink(
+        decoration: BoxDecoration(
+          color: OceanBreezePalette.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: OceanBreezePalette.border),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x110F3550),
+              blurRadius: 18,
+              offset: Offset(0, 10),
+            ),
+          ],
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [_heroStart, _heroEnd],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        color: Color(0xFF4A6480),
-                      ),
-                    ),
-                  ],
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(icon, color: Colors.white),
                 ),
-              ),
-            ],
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: _headlineColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: _bodyColor,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 16,
+                  color: _accentPrimary,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -979,10 +1005,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
+            color: OceanBreezePalette.surfaceSoft,
+            borderRadius: BorderRadius.circular(14),
           ),
-          child: Icon(icon, size: 18, color: const Color(0xFF154084)),
+          child: Icon(icon, size: 18, color: _accentPrimary),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -994,7 +1020,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF4A6480),
+                  color: _bodyColor,
                 ),
               ),
               const SizedBox(height: 2),
@@ -1003,7 +1029,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF102A56),
+                  color: _headlineColor,
                 ),
               ),
             ],
@@ -1016,11 +1042,18 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   Widget _buildProfileInfoCard(AppUser? user) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFDCE6F2)),
+        color: OceanBreezePalette.surface,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: OceanBreezePalette.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x110F3550),
+            blurRadius: 22,
+            offset: Offset(0, 12),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -1229,10 +1262,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       context: context,
       barrierLabel: 'Student profile',
       barrierDismissible: true,
-      barrierColor: Colors.black.withValues(alpha: 0.32),
+      barrierColor: Colors.black.withValues(alpha: 0.26),
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
         return Material(
-          color: const Color(0xFFF4F8FC),
+          color: _canvasColor,
           child: SafeArea(
             child: Column(
               children: [
@@ -1269,17 +1302,30 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(24),
+                              padding: const EdgeInsets.fromLTRB(
+                                22,
+                                22,
+                                22,
+                                24,
+                              ),
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   colors: [
-                                    Color(0xFF0F4C81),
-                                    Color(0xFF2267A5),
+                                    _heroStart,
+                                    _heroEnd,
+                                    _accentPrimary,
                                   ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
-                                borderRadius: BorderRadius.circular(28),
+                                borderRadius: BorderRadius.circular(32),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x3317146F),
+                                    blurRadius: 28,
+                                    offset: Offset(0, 16),
+                                  ),
+                                ],
                               ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1300,7 +1346,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                               ? user!.name
                                               : widget.userName,
                                           style: const TextStyle(
-                                            fontSize: 24,
+                                            fontSize: 26,
                                             fontWeight: FontWeight.w800,
                                             color: Colors.white,
                                           ),
@@ -1313,7 +1359,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                           style: TextStyle(
                                             fontSize: 14,
                                             color: Colors.white.withValues(
-                                              alpha: 0.82,
+                                              alpha: 0.78,
                                             ),
                                           ),
                                         ),
@@ -1365,6 +1411,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                 await _showEditProfileDialog();
                               },
                             ),
+                            const SizedBox(height: 18),
                             _buildProfileInfoCard(user),
                             const SizedBox(height: 18),
                             SizedBox(
@@ -1383,6 +1430,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                   side: const BorderSide(
                                     color: Color(0xFFF0C4C0),
                                   ),
+                                  backgroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 16,
                                   ),
