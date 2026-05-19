@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -13,12 +14,14 @@ import '../../../../core/services/internship_service.dart';
 import '../../../../core/services/logbook_service.dart';
 import '../../../../core/services/student_report_service.dart';
 import '../../../../core/theme/ocean_breeze_palette.dart';
+import '../../../../core/theme/theme_controller.dart';
 import '../../../../shared/models/daily_time_record.dart';
 import '../../../../shared/models/internship_profile.dart';
 import '../../../../shared/models/log_entry.dart';
 import '../../../../shared/models/student_report.dart';
 import '../../../../shared/widgets/dashboard_info_card.dart';
 import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
+import '../../../../shared/widgets/notification_bell_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../widgets/student_scaffold.dart';
 
@@ -58,6 +61,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   static const Color _heroEnd = OceanBreezePalette.deepSea;
   static const Color _accentPrimary = OceanBreezePalette.deepSea;
   static const Color _accentSecondary = OceanBreezePalette.tide;
+  static const Color _topHeaderBorder = Color(0xFFD8E4EC);
 
   late final InternshipService _internshipService;
   late final DtrService _dtrService;
@@ -990,6 +994,117 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       return _accentPrimary;
     }
     return _accentSecondary;
+  }
+
+  ImageProvider<Object>? _avatarImage(AuthProvider authProvider) {
+    final avatarBase64 = authProvider.user?.avatarBase64 ?? '';
+    if (avatarBase64.isEmpty) return null;
+
+    try {
+      return MemoryImage(base64Decode(avatarBase64));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _initialsFor(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return 'ST';
+    if (parts.length == 1) {
+      return parts.first
+          .substring(0, parts.first.length > 1 ? 2 : 1)
+          .toUpperCase();
+    }
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
+
+  Widget _buildTopHeader(AuthProvider authProvider) {
+    final themeController = context.watch<ThemeController>();
+    final user = authProvider.user;
+    final token = authProvider.token ?? '';
+    final avatar = _avatarImage(authProvider);
+    final displayName = user?.name.isNotEmpty == true ? user!.name : 'Student';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _topHeaderBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x120F172A),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          InkWell(
+            onTap: () =>
+                Navigator.pushNamed(context, AppRoutes.studentDashboard),
+            borderRadius: BorderRadius.circular(16),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              child: Text(
+                'Student Dashboard',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: _headlineColor,
+                ),
+              ),
+            ),
+          ),
+          const Spacer(),
+          IconButton(
+            tooltip: 'Profile',
+            onPressed: () {
+              Navigator.pushNamed(context, AppRoutes.internshipProfile);
+            },
+            icon: CircleAvatar(
+              radius: 18,
+              backgroundColor: const Color(0xFFE3EEF7),
+              backgroundImage: avatar,
+              child: avatar == null
+                  ? Text(
+                      _initialsFor(displayName),
+                      style: const TextStyle(
+                        color: _headlineColor,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                    )
+                  : null,
+            ),
+          ),
+          NotificationBellButton(token: token, iconColor: _headlineColor),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                themeController.isDarkMode
+                    ? Icons.dark_mode_rounded
+                    : Icons.light_mode_rounded,
+                color: _headlineColor,
+                size: 18,
+              ),
+              Switch(
+                value: themeController.isDarkMode,
+                onChanged: (value) {
+                  context.read<ThemeController>().setDarkMode(value);
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildHeader() {
@@ -2098,7 +2213,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    context.watch<AuthProvider>();
+    final authProvider = context.watch<AuthProvider>();
 
     return StudentScaffold(
       currentRoute: AppRoutes.studentDashboard,
@@ -2126,6 +2241,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildTopHeader(authProvider),
+                    const SizedBox(height: 20),
                     _buildHeader(),
                     const SizedBox(height: 20),
                     if (_isInitialLoading && !_hasCompletedFirstLoad)
