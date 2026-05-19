@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -7,13 +5,11 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/dtr_service.dart';
-import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/utils/file_download_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_download_web.dart'
     as file_download;
 import '../../../../shared/models/daily_time_record.dart';
 import '../../../../shared/models/monthly_dtr_summary.dart';
-import '../../../../shared/widgets/notification_bell_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../widgets/student_scaffold.dart';
 
@@ -256,117 +252,6 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     };
   }
 
-  ImageProvider<Object>? _avatarImage(AuthProvider authProvider) {
-    final avatarBase64 = authProvider.user?.avatarBase64 ?? '';
-    if (avatarBase64.isEmpty) return null;
-
-    try {
-      return MemoryImage(base64Decode(avatarBase64));
-    } catch (_) {
-      return null;
-    }
-  }
-
-  String _initialsFor(String name) {
-    final parts = name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .toList();
-    if (parts.isEmpty) return 'ST';
-    if (parts.length == 1) {
-      return parts.first
-          .substring(0, parts.first.length > 1 ? 2 : 1)
-          .toUpperCase();
-    }
-    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
-  }
-
-  Widget _buildTopHeader(AuthProvider authProvider) {
-    final themeController = context.watch<ThemeController>();
-    final user = authProvider.user;
-    final token = authProvider.token ?? '';
-    final avatar = _avatarImage(authProvider);
-    final displayName = user?.name.isNotEmpty == true ? user!.name : 'Student';
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _line),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x120F172A),
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          InkWell(
-            onTap: () =>
-                Navigator.pushNamed(context, AppRoutes.studentDashboard),
-            borderRadius: BorderRadius.circular(16),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-              child: Text(
-                'Student Dashboard',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: _ink,
-                ),
-              ),
-            ),
-          ),
-          const Spacer(),
-          IconButton(
-            tooltip: 'Profile',
-            onPressed: () {
-              Navigator.pushNamed(context, AppRoutes.internshipProfile);
-            },
-            icon: CircleAvatar(
-              radius: 18,
-              backgroundColor: const Color(0xFFE3EEF7),
-              backgroundImage: avatar,
-              child: avatar == null
-                  ? Text(
-                      _initialsFor(displayName),
-                      style: const TextStyle(
-                        color: _ink,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                      ),
-                    )
-                  : null,
-            ),
-          ),
-          NotificationBellButton(token: token, iconColor: _ink),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                themeController.isDarkMode
-                    ? Icons.dark_mode_rounded
-                    : Icons.light_mode_rounded,
-                color: _ink,
-                size: 18,
-              ),
-              Switch(
-                value: themeController.isDarkMode,
-                onChanged: (value) {
-                  context.read<ThemeController>().setDarkMode(value);
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildTableToolbar(MonthlyDtrSummary? summary) {
     return Wrap(
       spacing: 12,
@@ -419,6 +304,13 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
           onPressed: _isExportingExcel
               ? null
               : () => _exportSelectedMonth(pdf: false),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+            side: const BorderSide(color: _line),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
           icon: _isExportingExcel
               ? const SizedBox(
                   width: 16,
@@ -432,6 +324,14 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
           onPressed: _isExportingPdf
               ? null
               : () => _exportSelectedMonth(pdf: true),
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF134B63),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
           icon: _isExportingPdf
               ? const SizedBox(
                   width: 16,
@@ -516,20 +416,56 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     );
   }
 
+  String _weekdayLabel(MonthlyDtrSummary summary, MonthlyDtrRow row) {
+    final date = DateTime(summary.year, summary.month, row.day);
+    return DateFormat('EEE, MMM d').format(date);
+  }
+
+  String _timeText(String value) => value.trim().isEmpty ? '--' : value.trim();
+
+  String _undertimeText(MonthlyDtrRow row) {
+    final hours = int.tryParse(row.undertimeHours) ?? 0;
+    final minutes = int.tryParse(row.undertimeMinutes) ?? 0;
+    if (hours == 0 && minutes == 0) {
+      return '--';
+    }
+
+    final parts = <String>[];
+    if (hours > 0) {
+      parts.add('${hours}h');
+    }
+    if (minutes > 0) {
+      parts.add('${minutes}m');
+    }
+    return parts.join(' ');
+  }
+
   Widget _buildTable(MonthlyDtrSummary summary) {
-    Widget headerCell(String label, double width) {
+    const dayWidth = 78.0;
+    const dateWidth = 136.0;
+    const timeWidth = 112.0;
+    const undertimeWidth = 112.0;
+    const statusWidth = 156.0;
+
+    Widget headerCell(String label, double width, {Alignment? alignment}) {
       return Container(
         width: width,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        alignment: alignment ?? Alignment.centerLeft,
         decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: _line)),
+          color: Color(0xFFF2F6FA),
+          border: Border(
+            bottom: BorderSide(color: _line),
+            right: BorderSide(color: _line),
+          ),
         ),
         child: Text(
           label,
           style: const TextStyle(
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: FontWeight.w800,
-            color: _ink,
+            color: _muted,
+            letterSpacing: 0.4,
           ),
         ),
       );
@@ -539,80 +475,134 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
       required Widget child,
       required double width,
       bool shaded = false,
+      Alignment? alignment,
+      bool showRightBorder = true,
     }) {
       return Container(
         width: width,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        alignment: alignment ?? Alignment.centerLeft,
         decoration: BoxDecoration(
-          color: shaded ? const Color(0xFFF8FBFD) : Colors.white,
-          border: const Border(bottom: BorderSide(color: _line)),
+          color: shaded ? const Color(0xFFFAFCFE) : Colors.white,
+          border: Border(
+            bottom: const BorderSide(color: _line),
+            right: showRightBorder
+                ? const BorderSide(color: _line)
+                : BorderSide.none,
+          ),
         ),
         child: child,
       );
     }
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Column(
-          children: [
-            Row(
-              children: [
-                headerCell('Day', 72),
-                headerCell('AM In', 124),
-                headerCell('AM Out', 124),
-                headerCell('PM In', 124),
-                headerCell('PM Out', 124),
-                headerCell('Indicator', 160),
-              ],
-            ),
-            for (final row in summary.rows)
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _line),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x080F172A),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Column(
+            children: [
               Row(
                 children: [
-                  bodyCell(
-                    width: 72,
-                    shaded: row.day.isEven,
-                    child: Text(
-                      row.day.toString(),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: _ink,
-                      ),
-                    ),
+                  headerCell('DAY', dayWidth),
+                  headerCell('DATE', dateWidth),
+                  headerCell('AM IN', timeWidth, alignment: Alignment.center),
+                  headerCell('AM OUT', timeWidth, alignment: Alignment.center),
+                  headerCell('PM IN', timeWidth, alignment: Alignment.center),
+                  headerCell('PM OUT', timeWidth, alignment: Alignment.center),
+                  headerCell(
+                    'UNDERTIME',
+                    undertimeWidth,
+                    alignment: Alignment.center,
                   ),
-                  bodyCell(
-                    width: 124,
-                    shaded: row.day.isEven,
-                    child: Text(row.amArrival.isEmpty ? '--' : row.amArrival),
-                  ),
-                  bodyCell(
-                    width: 124,
-                    shaded: row.day.isEven,
-                    child: Text(
-                      row.amDeparture.isEmpty ? '--' : row.amDeparture,
-                    ),
-                  ),
-                  bodyCell(
-                    width: 124,
-                    shaded: row.day.isEven,
-                    child: Text(row.pmArrival.isEmpty ? '--' : row.pmArrival),
-                  ),
-                  bodyCell(
-                    width: 124,
-                    shaded: row.day.isEven,
-                    child: Text(
-                      row.pmDeparture.isEmpty ? '--' : row.pmDeparture,
-                    ),
-                  ),
-                  bodyCell(
-                    width: 160,
-                    shaded: row.day.isEven,
-                    child: _buildIndicatorChip(row),
+                  headerCell(
+                    'STATUS',
+                    statusWidth,
+                    alignment: Alignment.center,
                   ),
                 ],
               ),
-          ],
+              for (final row in summary.rows)
+                Row(
+                  children: [
+                    bodyCell(
+                      width: dayWidth,
+                      shaded: row.day.isEven,
+                      alignment: Alignment.center,
+                      child: Text(
+                        row.day.toString(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: _ink,
+                        ),
+                      ),
+                    ),
+                    bodyCell(
+                      width: dateWidth,
+                      shaded: row.day.isEven,
+                      child: Text(
+                        _weekdayLabel(summary, row),
+                        style: const TextStyle(
+                          color: _ink,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    bodyCell(
+                      width: timeWidth,
+                      shaded: row.day.isEven,
+                      alignment: Alignment.center,
+                      child: Text(_timeText(row.amArrival)),
+                    ),
+                    bodyCell(
+                      width: timeWidth,
+                      shaded: row.day.isEven,
+                      alignment: Alignment.center,
+                      child: Text(_timeText(row.amDeparture)),
+                    ),
+                    bodyCell(
+                      width: timeWidth,
+                      shaded: row.day.isEven,
+                      alignment: Alignment.center,
+                      child: Text(_timeText(row.pmArrival)),
+                    ),
+                    bodyCell(
+                      width: timeWidth,
+                      shaded: row.day.isEven,
+                      alignment: Alignment.center,
+                      child: Text(_timeText(row.pmDeparture)),
+                    ),
+                    bodyCell(
+                      width: undertimeWidth,
+                      shaded: row.day.isEven,
+                      alignment: Alignment.center,
+                      child: Text(
+                        _undertimeText(row),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    bodyCell(
+                      width: statusWidth,
+                      shaded: row.day.isEven,
+                      alignment: Alignment.center,
+                      showRightBorder: false,
+                      child: Center(child: _buildIndicatorChip(row)),
+                    ),
+                  ],
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -705,8 +695,6 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = context.watch<AuthProvider>();
-
     return StudentScaffold(
       currentRoute: AppRoutes.studentDtr,
       backgroundColor: _canvas,
@@ -744,8 +732,6 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildTopHeader(authProvider),
-                          const SizedBox(height: 18),
                           if (_errorMessage != null) ...[
                             const SizedBox(height: 4),
                             Text(
