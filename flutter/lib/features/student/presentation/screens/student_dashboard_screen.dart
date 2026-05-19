@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -14,18 +13,12 @@ import '../../../../core/services/internship_service.dart';
 import '../../../../core/services/logbook_service.dart';
 import '../../../../core/services/student_report_service.dart';
 import '../../../../core/theme/ocean_breeze_palette.dart';
-import '../../../../core/utils/file_picker_helper_stub.dart'
-    if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
-    as file_picker;
-import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/daily_time_record.dart';
 import '../../../../shared/models/internship_profile.dart';
 import '../../../../shared/models/log_entry.dart';
 import '../../../../shared/models/student_report.dart';
 import '../../../../shared/widgets/dashboard_info_card.dart';
 import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
-import '../../../../shared/widgets/notification_bell_button.dart';
-import '../../../../shared/widgets/settings_shortcut_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../widgets/student_scaffold.dart';
 
@@ -70,7 +63,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   late final DtrService _dtrService;
   late final LogbookService _logbookService;
   late final StudentReportService _reportService;
-  final GlobalKey _profileMenuAnchorKey = GlobalKey();
   Timer? _liveTimer;
 
   InternshipProfile? _profile;
@@ -913,631 +905,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     Navigator.pushNamed(context, route);
   }
 
-  Future<void> _logout() async {
-    await context.read<AuthProvider>().logout();
-    if (!mounted) return;
-
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      AppRoutes.login,
-      (route) => false,
-    );
-  }
-
-  String _initialsFor(String name) {
-    final parts = name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .toList();
-    if (parts.isEmpty) return 'ST';
-    if (parts.length == 1) {
-      return parts.first
-          .substring(0, math.min(2, parts.first.length))
-          .toUpperCase();
-    }
-
-    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
-        .toUpperCase();
-  }
-
-  Widget _buildAvatar({
-    required AppUser? user,
-    required double radius,
-    required double fontSize,
-  }) {
-    final displayName = user?.name.isNotEmpty == true
-        ? user!.name
-        : widget.userName;
-    ImageProvider<Object>? backgroundImage;
-
-    final avatarBase64 = user?.avatarBase64 ?? '';
-    if (avatarBase64.isNotEmpty) {
-      try {
-        backgroundImage = MemoryImage(base64Decode(avatarBase64));
-      } catch (_) {
-        backgroundImage = null;
-      }
-    }
-
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: OceanBreezePalette.surfaceSoft,
-      backgroundImage: backgroundImage,
-      child: backgroundImage == null
-          ? Text(
-              _initialsFor(displayName),
-              style: TextStyle(
-                color: _headlineColor,
-                fontSize: fontSize,
-                fontWeight: FontWeight.w800,
-              ),
-            )
-          : null,
-    );
-  }
-
-  Widget _buildMiniTag({required String label}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          color: Colors.white.withValues(alpha: 0.96),
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileActionTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: OceanBreezePalette.surface,
-      borderRadius: BorderRadius.circular(24),
-      child: Ink(
-        decoration: BoxDecoration(
-          color: OceanBreezePalette.surface,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: OceanBreezePalette.border),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x110F3550),
-              blurRadius: 18,
-              offset: Offset(0, 10),
-            ),
-          ],
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(24),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [_heroStart, _heroEnd],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(icon, color: Colors.white),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: _headlineColor,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          color: _bodyColor,
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 16,
-                  color: _accentPrimary,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileInfoRow({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Row(
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: OceanBreezePalette.surfaceSoft,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(icon, size: 18, color: _accentPrimary),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: _bodyColor,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: _headlineColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildProfileInfoCard(AppUser? user) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: OceanBreezePalette.surface,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: OceanBreezePalette.border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x110F3550),
-            blurRadius: 22,
-            offset: Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _buildProfileInfoRow(
-            icon: Icons.school_outlined,
-            label: 'Student',
-            value: user?.name.isNotEmpty == true ? user!.name : widget.userName,
-          ),
-          const SizedBox(height: 10),
-          _buildProfileInfoRow(
-            icon: Icons.alternate_email_rounded,
-            label: 'Email',
-            value: user?.email.isNotEmpty == true
-                ? user!.email
-                : 'Not available',
-          ),
-          const SizedBox(height: 10),
-          _buildProfileInfoRow(
-            icon: Icons.wc_rounded,
-            label: 'Gender',
-            value: (user?.gender ?? '').isNotEmpty ? user!.gender! : 'Not set',
-          ),
-          const SizedBox(height: 10),
-          _buildProfileInfoRow(
-            icon: Icons.fingerprint_rounded,
-            label: 'Account ID',
-            value: user != null ? '#${user.id}' : 'Unavailable',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _pickProfilePhoto() async {
-    try {
-      final authProvider = context.read<AuthProvider>();
-      final file = await file_picker.pickSingleFile(
-        allowedExtensions: const <String>['jpg', 'jpeg', 'png'],
-      );
-      if (file == null) {
-        return;
-      }
-
-      await authProvider.updateAvatarBytes(file.bytes);
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(_userFacingErrorMessage(error))));
-    }
-  }
-
-  Future<void> _removeProfilePhoto() async {
-    try {
-      await context.read<AuthProvider>().updateAvatarBase64(null);
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Profile photo removed.')));
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(_userFacingErrorMessage(error))));
-    }
-  }
-
-  Future<void> _showEditProfileDialog() async {
-    final authProvider = context.read<AuthProvider>();
-    final user = authProvider.user;
-    final formKey = GlobalKey<FormState>();
-    final nameController = TextEditingController(
-      text: user?.name ?? widget.userName,
-    );
-    var selectedGender = (user?.gender == 'Female') ? 'Female' : 'Male';
-    var isSubmitting = false;
-    String? errorText;
-
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            Future<void> submit() async {
-              if (isSubmitting) return;
-              if (!(formKey.currentState?.validate() ?? false)) return;
-
-              setDialogState(() {
-                isSubmitting = true;
-                errorText = null;
-              });
-
-              try {
-                await authProvider.updateProfile(
-                  name: nameController.text.trim(),
-                  gender: selectedGender,
-                );
-
-                if (!dialogContext.mounted) return;
-                Navigator.of(dialogContext).pop();
-                if (!mounted) return;
-
-                setState(() {
-                  _lastUpdated = _now();
-                });
-
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Profile updated successfully.'),
-                  ),
-                );
-              } catch (error) {
-                setDialogState(() {
-                  isSubmitting = false;
-                  errorText = _userFacingErrorMessage(error);
-                });
-              }
-            }
-
-            return AlertDialog(
-              title: const Text('Edit Profile'),
-              content: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextFormField(
-                      controller: nameController,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Full name',
-                        hintText: 'Enter your full name',
-                      ),
-                      validator: (value) {
-                        if ((value ?? '').trim().isEmpty) {
-                          return 'Name is required.';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedGender,
-                      decoration: const InputDecoration(labelText: 'Gender'),
-                      items: const [
-                        DropdownMenuItem(value: 'Male', child: Text('Male')),
-                        DropdownMenuItem(
-                          value: 'Female',
-                          child: Text('Female'),
-                        ),
-                      ],
-                      onChanged: isSubmitting
-                          ? null
-                          : (value) {
-                              if (value == null) return;
-                              setDialogState(() {
-                                selectedGender = value;
-                              });
-                            },
-                    ),
-                    if (errorText != null) ...[
-                      const SizedBox(height: 16),
-                      Text(
-                        errorText!,
-                        style: const TextStyle(
-                          color: Color(0xFFB42318),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSubmitting
-                      ? null
-                      : () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: isSubmitting ? null : submit,
-                  child: Text(isSubmitting ? 'Saving...' : 'Save'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    nameController.dispose();
-  }
-
-  Future<void> _openProfilePanel() async {
-    final user = context.read<AuthProvider>().user;
-
-    await showGeneralDialog<void>(
-      context: context,
-      barrierLabel: 'Student profile',
-      barrierDismissible: true,
-      barrierColor: Colors.black.withValues(alpha: 0.26),
-      pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        return Material(
-          color: _canvasColor,
-          child: SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(),
-                        icon: const Icon(Icons.close_rounded),
-                        tooltip: 'Close profile',
-                      ),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text(
-                          'Student Profile',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF102A56),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 720),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.fromLTRB(
-                                22,
-                                22,
-                                22,
-                                24,
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    _heroStart,
-                                    _heroEnd,
-                                    _accentPrimary,
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(32),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0x3317146F),
-                                    blurRadius: 28,
-                                    offset: Offset(0, 16),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildAvatar(
-                                    user: user,
-                                    radius: 34,
-                                    fontSize: 22,
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          user?.name.isNotEmpty == true
-                                              ? user!.name
-                                              : widget.userName,
-                                          style: const TextStyle(
-                                            fontSize: 26,
-                                            fontWeight: FontWeight.w800,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          user?.email.isNotEmpty == true
-                                              ? user!.email
-                                              : 'No email available',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.white.withValues(
-                                              alpha: 0.78,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        _buildMiniTag(label: 'STUDENT'),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-                            _buildProfileActionTile(
-                              icon: Icons.camera_alt_outlined,
-                              title: 'Change profile photo',
-                              subtitle:
-                                  'Upload a JPG or PNG image for your account.',
-                              onTap: () async {
-                                Navigator.of(dialogContext).pop();
-                                await Future<void>.delayed(Duration.zero);
-                                if (!mounted) return;
-                                await _pickProfilePhoto();
-                              },
-                            ),
-                            if ((user?.avatarBase64 ?? '').isNotEmpty) ...[
-                              const SizedBox(height: 12),
-                              _buildProfileActionTile(
-                                icon: Icons.hide_image_outlined,
-                                title: 'Remove profile photo',
-                                subtitle:
-                                    'Switch back to the generated initials avatar.',
-                                onTap: () async {
-                                  Navigator.of(dialogContext).pop();
-                                  await Future<void>.delayed(Duration.zero);
-                                  if (!mounted) return;
-                                  await _removeProfilePhoto();
-                                },
-                              ),
-                            ],
-                            const SizedBox(height: 12),
-                            _buildProfileActionTile(
-                              icon: Icons.edit_outlined,
-                              title: 'Edit profile',
-                              subtitle: 'Update your display name and gender.',
-                              onTap: () async {
-                                Navigator.of(dialogContext).pop();
-                                await Future<void>.delayed(Duration.zero);
-                                if (!mounted) return;
-                                await _showEditProfileDialog();
-                              },
-                            ),
-                            const SizedBox(height: 18),
-                            _buildProfileInfoCard(user),
-                            const SizedBox(height: 18),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                onPressed: () async {
-                                  Navigator.of(dialogContext).pop();
-                                  await Future<void>.delayed(Duration.zero);
-                                  if (!mounted) return;
-                                  await _logout();
-                                },
-                                icon: const Icon(Icons.logout_rounded),
-                                label: const Text('Log out'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFFB42318),
-                                  side: const BorderSide(
-                                    color: Color(0xFFF0C4C0),
-                                  ),
-                                  backgroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   void _handlePrimaryAction() {
     if (_profile == null) {
       _openRoute(AppRoutes.internshipProfile);
@@ -1625,20 +992,17 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     return _accentSecondary;
   }
 
-  Widget _buildHeader(AuthProvider authProvider) {
+  Widget _buildHeader() {
     final theme = Theme.of(context);
-    final user = authProvider.user;
-    final token = authProvider.token ?? '';
     final record = _dtrRecord;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 640;
-        final isNarrow = constraints.maxWidth < 980;
 
         return Container(
           width: double.infinity,
-          padding: EdgeInsets.all(isCompact ? 20 : 24),
+          padding: EdgeInsets.all(isCompact ? 18 : 22),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [_heroStart, _heroEnd],
@@ -1657,27 +1021,16 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (isNarrow)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeaderControls(user, token, isCompact: true),
-                    const SizedBox(height: 18),
-                    _buildHeaderTimerContent(theme, record, isCompact),
-                  ],
-                )
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: _buildHeaderControls(user, token),
-                    ),
-                    const SizedBox(height: 20),
-                    _buildHeaderTimerContent(theme, record, isCompact),
-                  ],
+              Text(
+                'Student Dashboard',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: isCompact ? 18 : 20,
                 ),
+              ),
+              const SizedBox(height: 14),
+              _buildHeaderTimerContent(theme, record, isCompact),
             ],
           ),
         );
@@ -1694,8 +1047,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Wrap(
-          spacing: 12,
-          runSpacing: 12,
+          spacing: 10,
+          runSpacing: 10,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
@@ -1703,10 +1056,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               style: theme.textTheme.titleMedium?.copyWith(
                 color: const Color(0xFFD7EBF7),
                 fontWeight: FontWeight.w700,
+                fontSize: isCompact ? 14 : 15,
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(999),
@@ -1722,42 +1076,45 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         Text(
           _formatLiveDuration(_liveElapsed),
           style: theme.textTheme.displaySmall?.copyWith(
             color: Colors.white,
             fontWeight: FontWeight.w800,
-            fontSize: isCompact ? 40 : 48,
-            letterSpacing: 1.4,
+            fontSize: isCompact ? 30 : 36,
+            letterSpacing: 1.0,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Text(
           _formatHeaderDate(),
           style: theme.textTheme.bodyLarge?.copyWith(
             color: const Color(0xFFD7EBF7),
+            fontSize: isCompact ? 13 : 14,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         Text(
           _timerHint(record),
           style: theme.textTheme.bodyLarge?.copyWith(
             color: const Color(0xFFD7EBF7),
             height: 1.4,
+            fontSize: isCompact ? 13 : 14,
           ),
         ),
         if (record != null) ...[
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           Text(
             'Total rendered time: ${_formatTotalMinutes(record.totalWorkMinutes)}',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.w700,
+              fontSize: isCompact ? 12 : 13,
             ),
           ),
         ],
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         DefaultTextStyle(
           style: TextStyle(color: Colors.white.withValues(alpha: 0.84)),
           child: DashboardRefreshStatus(
@@ -1767,107 +1124,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             refreshingLabel: 'Refreshing student dashboard...',
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildHeaderControls(
-    AppUser? user,
-    String token, {
-    bool isCompact = false,
-  }) {
-    final profileCard = Material(
-      color: Colors.transparent,
-      child: InkWell(
-        key: _profileMenuAnchorKey,
-        onTap: _openProfilePanel,
-        borderRadius: BorderRadius.circular(22),
-        child: Ink(
-          padding: EdgeInsets.symmetric(
-            horizontal: isCompact ? 10 : 12,
-            vertical: isCompact ? 8 : 10,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildAvatar(
-                user: user,
-                radius: isCompact ? 20 : 22,
-                fontSize: 14,
-              ),
-              const SizedBox(width: 10),
-              ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: isCompact ? 126 : 180),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      user?.name.isNotEmpty == true
-                          ? user!.name
-                          : widget.userName,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: isCompact ? 13 : 14,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      (user?.gender ?? 'Student'),
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.8),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 6),
-              const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: Colors.white,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    if (isCompact) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Wrap(
-            spacing: 8,
-            children: [
-              SettingsShortcutButton(iconColor: Colors.white),
-              NotificationBellButton(token: token, iconColor: Colors.white),
-            ],
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Align(alignment: Alignment.centerRight, child: profileCard),
-          ),
-        ],
-      );
-    }
-
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      alignment: WrapAlignment.end,
-      children: [
-        SettingsShortcutButton(iconColor: Colors.white),
-        NotificationBellButton(token: token, iconColor: Colors.white),
-        profileCard,
       ],
     );
   }
@@ -2842,7 +2098,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = context.watch<AuthProvider>();
+    context.watch<AuthProvider>();
 
     return StudentScaffold(
       currentRoute: AppRoutes.studentDashboard,
@@ -2870,7 +2126,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildHeader(authProvider),
+                    _buildHeader(),
                     const SizedBox(height: 20),
                     if (_isInitialLoading && !_hasCompletedFirstLoad)
                       const Padding(
