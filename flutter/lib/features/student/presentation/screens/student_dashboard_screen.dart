@@ -7,11 +7,14 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/exceptions/api_exception.dart';
+import '../../../../core/services/api_client.dart';
+import '../../../../core/services/dtr_service.dart';
 import '../../../../core/services/internship_service.dart';
 import '../../../../core/services/logbook_service.dart';
 import '../../../../core/services/student_report_service.dart';
 import '../../../../core/theme/ocean_breeze_palette.dart';
 import '../../../../shared/models/app_user.dart';
+import '../../../../shared/models/daily_time_record.dart';
 import '../../../../shared/models/internship_profile.dart';
 import '../../../../shared/models/log_entry.dart';
 import '../../../../shared/models/student_report.dart';
@@ -22,13 +25,14 @@ import '../../../../shared/widgets/settings_shortcut_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../widgets/student_scaffold.dart';
 
-enum _StudentDashboardSection { profile, report, logs }
+enum _StudentDashboardSection { profile, dtr, report, logs }
 
 class StudentDashboardScreen extends StatefulWidget {
   final String userName;
   final String? companyName;
   final int? requiredHours;
   final InternshipService? internshipService;
+  final DtrService? dtrService;
   final LogbookService? logbookService;
   final StudentReportService? reportService;
   final DateTime Function()? clock;
@@ -39,6 +43,7 @@ class StudentDashboardScreen extends StatefulWidget {
     this.companyName,
     this.requiredHours,
     this.internshipService,
+    this.dtrService,
     this.logbookService,
     this.reportService,
     this.clock,
@@ -58,11 +63,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   static const Color _accentSecondary = OceanBreezePalette.tide;
 
   late final InternshipService _internshipService;
+  late final DtrService _dtrService;
   late final LogbookService _logbookService;
   late final StudentReportService _reportService;
   final GlobalKey _profileMenuAnchorKey = GlobalKey();
 
   InternshipProfile? _profile;
+  DailyTimeRecord? _dtrRecord;
   StudentReportData? _report;
   List<LogEntryItem> _logs = <LogEntryItem>[];
 
@@ -70,12 +77,14 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   bool _isRefreshing = false;
   bool _didLoadDashboard = false;
   bool _hasCompletedFirstLoad = false;
+  bool _isDtrSubmitting = false;
   String? _dashboardError;
   DateTime? _lastUpdated;
 
   final Map<_StudentDashboardSection, bool> _sectionLoading =
       <_StudentDashboardSection, bool>{
         _StudentDashboardSection.profile: false,
+        _StudentDashboardSection.dtr: false,
         _StudentDashboardSection.report: false,
         _StudentDashboardSection.logs: false,
       };
@@ -83,11 +92,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   final Map<_StudentDashboardSection, String?> _sectionErrors =
       <_StudentDashboardSection, String?>{
         _StudentDashboardSection.profile: null,
+        _StudentDashboardSection.dtr: null,
         _StudentDashboardSection.report: null,
         _StudentDashboardSection.logs: null,
       };
 
   String? get _profileError => _sectionErrors[_StudentDashboardSection.profile];
+  String? get _dtrError => _sectionErrors[_StudentDashboardSection.dtr];
   String? get _reportError => _sectionErrors[_StudentDashboardSection.report];
   String? get _logsError => _sectionErrors[_StudentDashboardSection.logs];
 
@@ -103,6 +114,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     super.initState();
     _internshipService =
         widget.internshipService ?? context.read<InternshipService>();
+    _dtrService = widget.dtrService ?? DtrService(context.read<ApiClient>());
     _logbookService = widget.logbookService ?? context.read<LogbookService>();
     _reportService =
         widget.reportService ?? context.read<StudentReportService>();
@@ -127,9 +139,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         _hasCompletedFirstLoad = true;
         _dashboardError = 'Your session has expired. Please log in again.';
         _sectionErrors[_StudentDashboardSection.profile] = null;
+        _sectionErrors[_StudentDashboardSection.dtr] = null;
         _sectionErrors[_StudentDashboardSection.report] = null;
         _sectionErrors[_StudentDashboardSection.logs] = null;
         _sectionLoading[_StudentDashboardSection.profile] = false;
+        _sectionLoading[_StudentDashboardSection.dtr] = false;
         _sectionLoading[_StudentDashboardSection.report] = false;
         _sectionLoading[_StudentDashboardSection.logs] = false;
       });
@@ -143,9 +157,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       _isRefreshing = !showFullScreenLoader;
       _dashboardError = null;
       _sectionErrors[_StudentDashboardSection.profile] = null;
+      _sectionErrors[_StudentDashboardSection.dtr] = null;
       _sectionErrors[_StudentDashboardSection.report] = null;
       _sectionErrors[_StudentDashboardSection.logs] = null;
       _sectionLoading[_StudentDashboardSection.profile] = true;
+      _sectionLoading[_StudentDashboardSection.dtr] = true;
       _sectionLoading[_StudentDashboardSection.report] = true;
       _sectionLoading[_StudentDashboardSection.logs] = true;
     });
@@ -156,6 +172,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     if (!mounted) return;
 
     if (profileResult.succeeded) {
+      successfulSections += 1;
+    }
+
+    final dtrResult = await _refreshDtrSection(markLoading: false);
+    if (!mounted) return;
+
+    if (dtrResult.succeeded) {
       successfulSections += 1;
     }
 
@@ -238,6 +261,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           }
         }
         break;
+      case _StudentDashboardSection.dtr:
+        succeeded = (await _refreshDtrSection(markLoading: false)).succeeded;
+        break;
       case _StudentDashboardSection.report:
         succeeded = (await _refreshReportSection(markLoading: false)).succeeded;
         break;
@@ -254,6 +280,44 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         _dashboardError = null;
       }
     });
+  }
+
+  Future<_SectionRefreshResult<DailyTimeRecord>> _refreshDtrSection({
+    bool markLoading = true,
+  }) async {
+    if (markLoading && mounted) {
+      setState(() {
+        _sectionLoading[_StudentDashboardSection.dtr] = true;
+      });
+    }
+
+    try {
+      final record = await _dtrService.getTodayRecord();
+      if (!mounted) {
+        return _SectionRefreshResult<DailyTimeRecord>.failure();
+      }
+
+      setState(() {
+        _dtrRecord = record;
+        _sectionErrors[_StudentDashboardSection.dtr] = null;
+        _sectionLoading[_StudentDashboardSection.dtr] = false;
+      });
+
+      return _SectionRefreshResult<DailyTimeRecord>.success(record);
+    } catch (e) {
+      if (!mounted) {
+        return _SectionRefreshResult<DailyTimeRecord>.failure();
+      }
+
+      setState(() {
+        _sectionErrors[_StudentDashboardSection.dtr] = _userFacingErrorMessage(
+          e,
+        );
+        _sectionLoading[_StudentDashboardSection.dtr] = false;
+      });
+
+      return _SectionRefreshResult<DailyTimeRecord>.failure();
+    }
   }
 
   Future<_SectionRefreshResult<InternshipProfile?>> _refreshProfileSection({
@@ -469,6 +533,131 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   }
 
   bool get _profileComplete => _profile != null;
+
+  String _formatPunchTime(DateTime? value) {
+    if (value == null) return '--:--';
+    return DateFormat('hh:mm a').format(value);
+  }
+
+  String _dtrActionLabel(String? nextAction) {
+    return switch (nextAction) {
+      'TIME_IN' => 'Time In',
+      'LUNCH_OUT' => 'Time Out',
+      'LUNCH_IN' => 'Time In',
+      'TIME_OUT' => 'Time Out',
+      _ => 'Completed',
+    };
+  }
+
+  String _dtrStatusHeadline(DailyTimeRecord? record) {
+    if (record == null) {
+      return 'Attendance not loaded yet';
+    }
+
+    return switch (record.status) {
+      'WORKING' => 'You are timed in',
+      'ON_BREAK' => 'You are timed out',
+      'COMPLETED' => 'Today is complete',
+      _ => 'Ready to time in',
+    };
+  }
+
+  String _dtrStatusDescription(DailyTimeRecord? record) {
+    if (record == null) {
+      return 'Open your DTR to start tracking attendance for today.';
+    }
+
+    return switch (record.status) {
+      'WORKING' when record.lunchInAt == null =>
+        'Your morning session is active. Use Time Out when you start your break.',
+      'WORKING' =>
+        'Your afternoon session is active. Use Time Out when you finish your day.',
+      'ON_BREAK' => 'You are currently timed out. Use Time In when you return.',
+      'COMPLETED' =>
+        'Your punches for today are complete. You can still open the full DTR for details.',
+      _ => 'Time in from the dashboard so attendance starts right away.',
+    };
+  }
+
+  Future<void> _handleDtrAction() async {
+    final token = context.read<AuthProvider>().token ?? '';
+    final record = _dtrRecord;
+    if (token.isEmpty ||
+        record == null ||
+        record.nextAction == null ||
+        _isDtrSubmitting) {
+      return;
+    }
+
+    setState(() {
+      _isDtrSubmitting = true;
+      _sectionErrors[_StudentDashboardSection.dtr] = null;
+      _dashboardError = null;
+    });
+
+    try {
+      late final DailyTimeRecord updatedRecord;
+      switch (record.nextAction) {
+        case 'TIME_IN':
+          updatedRecord = await _dtrService.timeIn();
+          break;
+        case 'LUNCH_OUT':
+          updatedRecord = await _dtrService.lunchOut();
+          break;
+        case 'LUNCH_IN':
+          updatedRecord = await _dtrService.lunchIn();
+          break;
+        case 'TIME_OUT':
+          updatedRecord = await _dtrService.timeOut();
+          break;
+        default:
+          throw ApiException(
+            message: 'No valid attendance action is available.',
+            errorType: ApiErrorType.clientError,
+          );
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _dtrRecord = updatedRecord;
+        _sectionErrors[_StudentDashboardSection.dtr] = null;
+        _lastUpdated = _now();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${_dtrActionLabel(record.nextAction)} recorded at ${_formatPunchTime(_lastRecordedPunch(updatedRecord))}.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      final message = _userFacingErrorMessage(e);
+      setState(() {
+        _sectionErrors[_StudentDashboardSection.dtr] = message;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDtrSubmitting = false;
+        });
+      }
+    }
+  }
+
+  DateTime? _lastRecordedPunch(DailyTimeRecord record) {
+    return record.timeOutAt ??
+        record.lunchInAt ??
+        record.lunchOutAt ??
+        record.timeInAt;
+  }
 
   String get _attentionChipLabel {
     if (!_profileComplete) return 'Profile Incomplete';
@@ -1543,6 +1732,234 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
+  Widget _buildAttendanceSection() {
+    final isLoading = _isSectionLoading(_StudentDashboardSection.dtr);
+    final record = _dtrRecord;
+    final canSubmit = record?.nextAction != null && !_isDtrSubmitting;
+
+    Widget punchTile({
+      required String label,
+      required DateTime? value,
+      required IconData icon,
+      required Color iconColor,
+      required Color backgroundColor,
+    }) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: _bodyColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatPunchTime(value),
+                    style: const TextStyle(
+                      color: _headlineColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return DashboardInfoCard(
+      title: 'Attendance',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF4FAFB),
+              border: Border.all(color: const Color(0xFFD6ECEF)),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _dtrStatusHeadline(record),
+                  style: const TextStyle(
+                    color: _headlineColor,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _dtrStatusDescription(record),
+                  style: const TextStyle(color: _bodyColor, height: 1.4),
+                ),
+                const SizedBox(height: 16),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isCompact = constraints.maxWidth < 640;
+                    return isCompact
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              FilledButton.icon(
+                                onPressed: canSubmit ? _handleDtrAction : null,
+                                icon: _isDtrSubmitting
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Icon(Icons.fingerprint_rounded),
+                                label: Text(
+                                  _isDtrSubmitting
+                                      ? 'Saving...'
+                                      : _dtrActionLabel(record?.nextAction),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              OutlinedButton.icon(
+                                onPressed: () =>
+                                    _openRoute(AppRoutes.studentDtr),
+                                icon: const Icon(Icons.punch_clock_rounded),
+                                label: const Text('Open Full DTR'),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              FilledButton.icon(
+                                onPressed: canSubmit ? _handleDtrAction : null,
+                                icon: _isDtrSubmitting
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Icon(Icons.fingerprint_rounded),
+                                label: Text(
+                                  _isDtrSubmitting
+                                      ? 'Saving...'
+                                      : _dtrActionLabel(record?.nextAction),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              OutlinedButton.icon(
+                                onPressed: () =>
+                                    _openRoute(AppRoutes.studentDtr),
+                                icon: const Icon(Icons.punch_clock_rounded),
+                                label: const Text('Open Full DTR'),
+                              ),
+                            ],
+                          );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxWidth < 640;
+              final tileWidth = isCompact
+                  ? constraints.maxWidth
+                  : constraints.maxWidth >= 920
+                  ? (constraints.maxWidth - 36) / 4
+                  : (constraints.maxWidth - 12) / 2;
+
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  SizedBox(
+                    width: tileWidth,
+                    child: punchTile(
+                      label: 'First Time In',
+                      value: record?.timeInAt,
+                      icon: Icons.login_rounded,
+                      iconColor: const Color(0xFF027A48),
+                      backgroundColor: const Color(0xFFF3FBF7),
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: punchTile(
+                      label: 'First Time Out',
+                      value: record?.lunchOutAt,
+                      icon: Icons.logout_rounded,
+                      iconColor: const Color(0xFFB54708),
+                      backgroundColor: const Color(0xFFFFF8ED),
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: punchTile(
+                      label: 'Second Time In',
+                      value: record?.lunchInAt,
+                      icon: Icons.login_rounded,
+                      iconColor: const Color(0xFF027A48),
+                      backgroundColor: const Color(0xFFF3FBF7),
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: punchTile(
+                      label: 'Final Time Out',
+                      value: record?.timeOutAt,
+                      icon: Icons.logout_rounded,
+                      iconColor: const Color(0xFFB54708),
+                      backgroundColor: const Color(0xFFFFF8ED),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          if (_dtrError != null) ...[
+            const SizedBox(height: 14),
+            DashboardInlineNotice(
+              message: _dtrError!,
+              onRetry: () => _refreshSection(_StudentDashboardSection.dtr),
+            ),
+          ] else if (isLoading)
+            _buildSectionRefreshingHint('Refreshing today\'s attendance...'),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSummaryAndMetricsSection() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -2087,7 +2504,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 child: FilledButton.icon(
                   onPressed: () => _openRoute(AppRoutes.studentDtr),
                   icon: const Icon(Icons.punch_clock_rounded),
-                  label: const Text('Continue DTR'),
+                  label: const Text('Open Full DTR'),
                 ),
               ),
               SizedBox(
@@ -2201,6 +2618,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         _logs.isEmpty)
                       _buildDashboardErrorState()
                     else ...[
+                      _buildAttendanceSection(),
+                      const SizedBox(height: 16),
                       _buildNextActionSection(),
                       const SizedBox(height: 16),
                       _buildSummaryAndMetricsSection(),
