@@ -511,97 +511,107 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
         borderRadius: BorderRadius.circular(22),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  headerCell('DAY', dayWidth),
-                  headerCell('DATE', dateWidth),
-                  headerCell('AM IN', timeWidth, alignment: Alignment.center),
-                  headerCell('AM OUT', timeWidth, alignment: Alignment.center),
-                  headerCell('PM IN', timeWidth, alignment: Alignment.center),
-                  headerCell('PM OUT', timeWidth, alignment: Alignment.center),
-                  headerCell(
-                    'UNDERTIME',
-                    undertimeWidth,
-                    alignment: Alignment.center,
-                  ),
-                  headerCell(
-                    'STATUS',
-                    statusWidth,
-                    alignment: Alignment.center,
-                  ),
-                ],
-              ),
-              for (final row in summary.rows)
+          child: Center(
+            child: Column(
+              children: [
                 Row(
                   children: [
-                    bodyCell(
-                      width: dayWidth,
-                      shaded: row.day.isEven,
+                    headerCell('DAY', dayWidth),
+                    headerCell('DATE', dateWidth),
+                    headerCell('AM IN', timeWidth, alignment: Alignment.center),
+                    headerCell(
+                      'AM OUT',
+                      timeWidth,
                       alignment: Alignment.center,
-                      child: Text(
-                        row.day.toString(),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: _ink,
-                        ),
-                      ),
                     ),
-                    bodyCell(
-                      width: dateWidth,
-                      shaded: row.day.isEven,
-                      child: Text(
-                        _weekdayLabel(summary, row),
-                        style: const TextStyle(
-                          color: _ink,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    bodyCell(
-                      width: timeWidth,
-                      shaded: row.day.isEven,
+                    headerCell('PM IN', timeWidth, alignment: Alignment.center),
+                    headerCell(
+                      'PM OUT',
+                      timeWidth,
                       alignment: Alignment.center,
-                      child: Text(_timeText(row.amArrival)),
                     ),
-                    bodyCell(
-                      width: timeWidth,
-                      shaded: row.day.isEven,
+                    headerCell(
+                      'UNDERTIME',
+                      undertimeWidth,
                       alignment: Alignment.center,
-                      child: Text(_timeText(row.amDeparture)),
                     ),
-                    bodyCell(
-                      width: timeWidth,
-                      shaded: row.day.isEven,
+                    headerCell(
+                      'STATUS',
+                      statusWidth,
                       alignment: Alignment.center,
-                      child: Text(_timeText(row.pmArrival)),
-                    ),
-                    bodyCell(
-                      width: timeWidth,
-                      shaded: row.day.isEven,
-                      alignment: Alignment.center,
-                      child: Text(_timeText(row.pmDeparture)),
-                    ),
-                    bodyCell(
-                      width: undertimeWidth,
-                      shaded: row.day.isEven,
-                      alignment: Alignment.center,
-                      child: Text(
-                        _undertimeText(row),
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    bodyCell(
-                      width: statusWidth,
-                      shaded: row.day.isEven,
-                      alignment: Alignment.center,
-                      showRightBorder: false,
-                      child: Center(child: _buildIndicatorChip(row)),
                     ),
                   ],
                 ),
-            ],
+                for (final row in summary.rows)
+                  Row(
+                    children: [
+                      bodyCell(
+                        width: dayWidth,
+                        shaded: row.day.isEven,
+                        alignment: Alignment.center,
+                        child: Text(
+                          row.day.toString(),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: _ink,
+                          ),
+                        ),
+                      ),
+                      bodyCell(
+                        width: dateWidth,
+                        shaded: row.day.isEven,
+                        child: Text(
+                          _weekdayLabel(summary, row),
+                          style: const TextStyle(
+                            color: _ink,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      bodyCell(
+                        width: timeWidth,
+                        shaded: row.day.isEven,
+                        alignment: Alignment.center,
+                        child: Text(_timeText(row.amArrival)),
+                      ),
+                      bodyCell(
+                        width: timeWidth,
+                        shaded: row.day.isEven,
+                        alignment: Alignment.center,
+                        child: Text(_timeText(row.amDeparture)),
+                      ),
+                      bodyCell(
+                        width: timeWidth,
+                        shaded: row.day.isEven,
+                        alignment: Alignment.center,
+                        child: Text(_timeText(row.pmArrival)),
+                      ),
+                      bodyCell(
+                        width: timeWidth,
+                        shaded: row.day.isEven,
+                        alignment: Alignment.center,
+                        child: Text(_timeText(row.pmDeparture)),
+                      ),
+                      bodyCell(
+                        width: undertimeWidth,
+                        shaded: row.day.isEven,
+                        alignment: Alignment.center,
+                        child: Text(
+                          _undertimeText(row),
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      bodyCell(
+                        width: statusWidth,
+                        shaded: row.day.isEven,
+                        alignment: Alignment.center,
+                        showRightBorder: false,
+                        child: Center(child: _buildIndicatorChip(row)),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -629,6 +639,27 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () {
+                Navigator.pushReplacementNamed(
+                  context,
+                  AppRoutes.studentDashboard,
+                );
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: _ink,
+                padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+              ),
+              icon: const Icon(Icons.arrow_back_rounded, size: 18),
+              label: const Text(
+                'Back to Dashboard',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
           const Text(
             'Daily Time Record Table',
             style: TextStyle(
@@ -686,7 +717,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
               ),
             ],
             const SizedBox(height: 16),
-            _buildTable(summary),
+            Align(alignment: Alignment.center, child: _buildTable(summary)),
           ],
         ],
       ),
