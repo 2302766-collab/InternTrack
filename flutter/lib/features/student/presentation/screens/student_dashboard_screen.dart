@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -70,6 +71,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   late final LogbookService _logbookService;
   late final StudentReportService _reportService;
   final GlobalKey _profileMenuAnchorKey = GlobalKey();
+  Timer? _liveTimer;
 
   InternshipProfile? _profile;
   DailyTimeRecord? _dtrRecord;
@@ -83,6 +85,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   bool _isDtrSubmitting = false;
   String? _dashboardError;
   DateTime? _lastUpdated;
+  Duration _liveElapsed = Duration.zero;
 
   final Map<_StudentDashboardSection, bool> _sectionLoading =
       <_StudentDashboardSection, bool>{
@@ -121,6 +124,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     _logbookService = widget.logbookService ?? context.read<LogbookService>();
     _reportService =
         widget.reportService ?? context.read<StudentReportService>();
+  }
+
+  @override
+  void dispose() {
+    _liveTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -305,6 +314,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         _sectionErrors[_StudentDashboardSection.dtr] = null;
         _sectionLoading[_StudentDashboardSection.dtr] = false;
       });
+      _syncLiveTimer();
 
       return _SectionRefreshResult<DailyTimeRecord>.success(record);
     } catch (e) {
@@ -627,6 +637,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         _sectionErrors[_StudentDashboardSection.dtr] = null;
         _lastUpdated = _now();
       });
+      _syncLiveTimer();
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -660,6 +671,86 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         record.lunchInAt ??
         record.lunchOutAt ??
         record.timeInAt;
+  }
+
+  void _syncLiveTimer() {
+    _liveTimer?.cancel();
+
+    final start = _activeSegmentStart(_dtrRecord);
+    if (start == null) {
+      if (!mounted) return;
+      setState(() {
+        _liveElapsed = Duration.zero;
+      });
+      return;
+    }
+
+    void tick() {
+      if (!mounted) return;
+      setState(() {
+        _liveElapsed = _now().difference(start);
+      });
+    }
+
+    tick();
+    _liveTimer = Timer.periodic(const Duration(seconds: 1), (_) => tick());
+  }
+
+  DateTime? _activeSegmentStart(DailyTimeRecord? record) {
+    if (record == null || record.status != 'WORKING') return null;
+    if (record.lunchInAt != null && record.timeOutAt == null) {
+      return record.lunchInAt;
+    }
+    if (record.timeInAt != null && record.lunchOutAt == null) {
+      return record.timeInAt;
+    }
+    return null;
+  }
+
+  String _dtrStatusChipLabel(String? status) {
+    return switch (status) {
+      'WORKING' => 'Timed In',
+      'ON_BREAK' => 'Break',
+      'COMPLETED' => 'Complete',
+      _ => 'No Record',
+    };
+  }
+
+  String _formatLiveDuration(Duration duration) {
+    final totalSeconds = duration.inSeconds < 0 ? 0 : duration.inSeconds;
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+
+    String twoDigits(int value) => value.toString().padLeft(2, '0');
+
+    return '${twoDigits(hours)}:${twoDigits(minutes)}:${twoDigits(seconds)}';
+  }
+
+  String _formatHeaderDate() {
+    final parsed = DateTime.tryParse(_dtrRecord?.date ?? '');
+    final value = parsed ?? _today;
+    return DateFormat('EEEE, MMMM d').format(value);
+  }
+
+  String _formatTotalMinutes(int minutes) {
+    final safeMinutes = minutes < 0 ? 0 : minutes;
+    final hours = safeMinutes ~/ 60;
+    final remainder = safeMinutes % 60;
+    return '$hours h ${remainder.toString().padLeft(2, '0')} m';
+  }
+
+  String _timerHint(DailyTimeRecord? record) {
+    if (record == null) return 'Time in to start tracking your attendance.';
+
+    return switch (record.status) {
+      'WORKING' when record.lunchInAt == null =>
+        'Morning session is running now.',
+      'WORKING' => 'Afternoon session is running now.',
+      'ON_BREAK' => 'Timer is paused while you are on break.',
+      'COMPLETED' => 'Your attendance for today is already complete.',
+      _ => 'Use the attendance section below to start your record.',
+    };
   }
 
   String get _attentionChipLabel {
@@ -831,13 +922,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       AppRoutes.login,
       (route) => false,
     );
-  }
-
-  String _greetingForHour() {
-    final hour = _now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
   }
 
   String _initialsFor(String name) {
@@ -1545,6 +1629,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     final theme = Theme.of(context);
     final user = authProvider.user;
     final token = authProvider.token ?? '';
+    final record = _dtrRecord;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1576,29 +1661,21 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildHeaderText(theme, user, isCompact),
-                    const SizedBox(height: 14),
                     _buildHeaderControls(user, token, isCompact: true),
+                    const SizedBox(height: 18),
+                    _buildHeaderTimerContent(theme, record, isCompact),
                   ],
                 )
               else
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 560),
-                        child: _buildHeaderText(theme, user, isCompact),
-                      ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: _buildHeaderControls(user, token),
                     ),
-                    const SizedBox(width: 24),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 420),
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: _buildHeaderControls(user, token),
-                      ),
-                    ),
+                    const SizedBox(height: 20),
+                    _buildHeaderTimerContent(theme, record, isCompact),
                   ],
                 ),
             ],
@@ -1608,39 +1685,78 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
-  Widget _buildHeaderText(ThemeData theme, AppUser? user, bool isCompact) {
+  Widget _buildHeaderTimerContent(
+    ThemeData theme,
+    DailyTimeRecord? record,
+    bool isCompact,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '${_greetingForHour()}, ${user?.name.split(' ').first ?? 'Student'}',
-          style: theme.textTheme.titleMedium?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-          ),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              'Live Timer',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: const Color(0xFFD7EBF7),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                _dtrStatusChipLabel(record?.status),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 14),
         Text(
-          _profile == null
-              ? 'Set up your internship.'
-              : 'Stay on top of your internship.',
-          style: theme.textTheme.headlineMedium?.copyWith(
+          _formatLiveDuration(_liveElapsed),
+          style: theme.textTheme.displaySmall?.copyWith(
             color: Colors.white,
             fontWeight: FontWeight.w800,
-            fontSize: isCompact ? 28 : 30,
-            height: 1.12,
+            fontSize: isCompact ? 40 : 48,
+            letterSpacing: 1.4,
           ),
         ),
         const SizedBox(height: 10),
         Text(
-          _profile == null
-              ? 'Complete your profile and start logging.'
-              : 'Track progress and keep logs updated.',
+          _formatHeaderDate(),
           style: theme.textTheme.bodyLarge?.copyWith(
-            color: Colors.white.withValues(alpha: 0.82),
-            height: 1.45,
+            color: const Color(0xFFD7EBF7),
           ),
         ),
+        const SizedBox(height: 6),
+        Text(
+          _timerHint(record),
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: const Color(0xFFD7EBF7),
+            height: 1.4,
+          ),
+        ),
+        if (record != null) ...[
+          const SizedBox(height: 14),
+          Text(
+            'Total rendered time: ${_formatTotalMinutes(record.totalWorkMinutes)}',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
         const SizedBox(height: 14),
         DefaultTextStyle(
           style: TextStyle(color: Colors.white.withValues(alpha: 0.84)),
