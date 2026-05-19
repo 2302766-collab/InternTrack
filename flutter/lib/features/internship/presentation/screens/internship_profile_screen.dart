@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/internship_service.dart';
+import '../../../../core/theme/ocean_breeze_palette.dart';
 import '../../../../shared/models/internship_profile.dart';
 import '../../../../shared/models/supervisor_option.dart';
 import '../../../student/presentation/widgets/student_scaffold.dart';
@@ -21,6 +22,12 @@ class InternshipProfileScreen extends StatefulWidget {
 class _InternshipProfileScreenState extends State<InternshipProfileScreen> {
   static final DateTime _firstPickableDate = DateTime(2000);
   static final DateTime _lastPickableDate = DateTime(2100, 12, 31);
+  static const Color _canvasColor = OceanBreezePalette.canvas;
+  static const Color _headlineColor = OceanBreezePalette.textPrimary;
+  static const Color _bodyColor = OceanBreezePalette.textSecondary;
+  static const Color _heroStart = OceanBreezePalette.midnight;
+  static const Color _heroEnd = OceanBreezePalette.deepSea;
+  static const Color _accentColor = OceanBreezePalette.tide;
 
   late final InternshipService _service;
 
@@ -399,9 +406,7 @@ class _InternshipProfileScreenState extends State<InternshipProfileScreen> {
         if (includeSupervisorDropdown) ...[
           DropdownButtonFormField<int>(
             initialValue: _selectedSupervisorId,
-            decoration: const InputDecoration(
-              labelText: 'Assigned Supervisor',
-            ),
+            decoration: const InputDecoration(labelText: 'Assigned Supervisor'),
             items: _supervisors
                 .map(
                   (supervisor) => DropdownMenuItem<int>(
@@ -484,48 +489,312 @@ class _InternshipProfileScreenState extends State<InternshipProfileScreen> {
 
   Widget _buildSummaryView() {
     final profile = _profile!;
+    final supervisorLabel = profile.supervisorName?.trim().isNotEmpty == true
+        ? profile.supervisorName!
+        : profile.supervisorId?.toString() ?? 'Not assigned';
+    final adviserLabel = profile.adviserId?.toString() ?? 'Not assigned';
 
-    return Card(
-      child: Padding(
+    Widget infoTile({
+      required IconData icon,
+      required String label,
+      required String value,
+      required Color tint,
+      required Color background,
+    }) {
+      return Container(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: tint.withValues(alpha: 0.16)),
+        ),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Internship Profile',
-              style: Theme.of(context).textTheme.titleLarge,
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: tint.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: tint, size: 22),
             ),
-            const SizedBox(height: 16),
-            Text('Company: ${profile.companyName}'),
-            Text('Address: ${profile.companyAddress}'),
-            Text('Required Hours: ${profile.requiredHours}'),
-            Text(
-              'Start Date: ${_readableDateHelper(profile.startDate) ?? profile.startDate}',
-            ),
-            Text(
-              'End Date: ${_readableDateHelper(profile.endDate) ?? profile.endDate}',
-            ),
-            Text(
-              'Supervisor: ${profile.supervisorName?.trim().isNotEmpty == true ? profile.supervisorName : profile.supervisorId?.toString() ?? "Not assigned"}',
-            ),
-            if ((profile.supervisorEmail ?? '').isNotEmpty)
-              Text('Supervisor Email: ${profile.supervisorEmail}'),
-            Text(
-              'Adviser ID: ${profile.adviserId?.toString() ?? "Not assigned"}',
-            ),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.icon(
-                key: const ValueKey<String>('internship_profile_edit_button'),
-                onPressed: _isSubmitting ? null : _beginEditing,
-                icon: const Icon(Icons.edit_outlined),
-                label: const Text('Edit'),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: _bodyColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      color: _headlineColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: OceanBreezePalette.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x140F3554),
+            blurRadius: 24,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [_heroStart, _heroEnd],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(28),
+                topRight: Radius.circular(28),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: const Text(
+                        'PROFILE ACTIVE',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+                    if ((profile.supervisorEmail ?? '').isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Text(
+                          'SUPERVISOR CONNECTED',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Internship Profile',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 29,
+                    fontWeight: FontWeight.w800,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Keep your placement details, schedule, and contact assignments organized in one place.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.84),
+                    fontSize: 14,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _ProfileHighlightChip(
+                      icon: Icons.business_center_outlined,
+                      label: profile.companyName,
+                    ),
+                    _ProfileHighlightChip(
+                      icon: Icons.schedule_outlined,
+                      label: '${profile.requiredHours} required hours',
+                    ),
+                    _ProfileHighlightChip(
+                      icon: Icons.person_pin_circle_outlined,
+                      label: supervisorLabel,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isCompact = constraints.maxWidth < 680;
+                    final tileWidth = isCompact
+                        ? constraints.maxWidth
+                        : (constraints.maxWidth - 16) / 2;
+
+                    return Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      children: [
+                        SizedBox(
+                          width: tileWidth,
+                          child: infoTile(
+                            icon: Icons.apartment_rounded,
+                            label: 'Company',
+                            value: profile.companyName,
+                            tint: _heroStart,
+                            background: const Color(0xFFF2F7FF),
+                          ),
+                        ),
+                        SizedBox(
+                          width: tileWidth,
+                          child: infoTile(
+                            icon: Icons.location_on_outlined,
+                            label: 'Address',
+                            value: profile.companyAddress,
+                            tint: _accentColor,
+                            background: const Color(0xFFEFFBFD),
+                          ),
+                        ),
+                        SizedBox(
+                          width: tileWidth,
+                          child: infoTile(
+                            icon: Icons.timer_outlined,
+                            label: 'Required Hours',
+                            value: '${profile.requiredHours} hours',
+                            tint: const Color(0xFF1B7FB2),
+                            background: const Color(0xFFEAF5FC),
+                          ),
+                        ),
+                        SizedBox(
+                          width: tileWidth,
+                          child: infoTile(
+                            icon: Icons.calendar_month_outlined,
+                            label: 'Internship Period',
+                            value:
+                                '${_readableDateHelper(profile.startDate) ?? profile.startDate} to ${_readableDateHelper(profile.endDate) ?? profile.endDate}',
+                            tint: const Color(0xFF168AAD),
+                            background: const Color(0xFFEDF9FB),
+                          ),
+                        ),
+                        SizedBox(
+                          width: tileWidth,
+                          child: infoTile(
+                            icon: Icons.support_agent_outlined,
+                            label: 'Supervisor',
+                            value: supervisorLabel,
+                            tint: _heroEnd,
+                            background: const Color(0xFFF0F7FE),
+                          ),
+                        ),
+                        SizedBox(
+                          width: tileWidth,
+                          child: infoTile(
+                            icon: Icons.mail_outline_rounded,
+                            label: 'Supervisor Email',
+                            value: (profile.supervisorEmail ?? '').isNotEmpty
+                                ? profile.supervisorEmail!
+                                : 'Not available',
+                            tint: _accentColor,
+                            background: const Color(0xFFEFFBFD),
+                          ),
+                        ),
+                        SizedBox(
+                          width: tileWidth,
+                          child: infoTile(
+                            icon: Icons.school_outlined,
+                            label: 'Adviser',
+                            value: adviserLabel,
+                            tint: _heroStart,
+                            background: const Color(0xFFF2F7FF),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    key: const ValueKey<String>(
+                      'internship_profile_edit_button',
+                    ),
+                    onPressed: _isSubmitting ? null : _beginEditing,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _heroStart,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Edit Profile'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -646,6 +915,7 @@ class _InternshipProfileScreenState extends State<InternshipProfileScreen> {
     return StudentScaffold(
       currentRoute: AppRoutes.internshipProfile,
       appBar: AppBar(title: const Text('Internship Profile')),
+      backgroundColor: _canvasColor,
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: _isLoading
@@ -663,6 +933,40 @@ class _InternshipProfileScreenState extends State<InternshipProfileScreen> {
                   ],
                 ),
               ),
+      ),
+    );
+  }
+}
+
+class _ProfileHighlightChip extends StatelessWidget {
+  const _ProfileHighlightChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Colors.white),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
