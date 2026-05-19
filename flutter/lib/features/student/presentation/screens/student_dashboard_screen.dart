@@ -1468,6 +1468,27 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             ),
           ),
           const Spacer(),
+          NotificationBellButton(token: token, iconColor: _headlineColor),
+          const SizedBox(width: 6),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                themeController.isDarkMode
+                    ? Icons.dark_mode_rounded
+                    : Icons.light_mode_rounded,
+                color: _headlineColor,
+                size: 18,
+              ),
+              Switch(
+                value: themeController.isDarkMode,
+                onChanged: (value) {
+                  context.read<ThemeController>().setDarkMode(value);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
           Material(
             color: Colors.transparent,
             child: InkWell(
@@ -1537,25 +1558,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 ),
               ),
             ),
-          ),
-          NotificationBellButton(token: token, iconColor: _headlineColor),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                themeController.isDarkMode
-                    ? Icons.dark_mode_rounded
-                    : Icons.light_mode_rounded,
-                color: _headlineColor,
-                size: 18,
-              ),
-              Switch(
-                value: themeController.isDarkMode,
-                onChanged: (value) {
-                  context.read<ThemeController>().setDarkMode(value);
-                },
-              ),
-            ],
           ),
         ],
       ),
