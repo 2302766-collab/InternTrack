@@ -1392,19 +1392,19 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   String get _nextActionDescription {
     if (_profile == null) {
-      return 'Add your company, schedule, and supervisor details so progress tracking and reporting can work.';
+      return 'Add your profile details to unlock tracking and reports.';
     }
     if (!_hasTodayLog) {
-      return 'You haven\'t added today\'s log yet. Submit it now so your internship record stays current.';
+      return 'Today\'s log is still missing.';
     }
     if (_pendingLogsCount > 0) {
-      return 'Your recent submissions are waiting for supervisor review. You can still open the logbook to inspect them.';
+      return 'Recent submissions are waiting for supervisor review.';
     }
     final paceDelta = _paceDeltaAfterPending;
     if (paceDelta != null && paceDelta < 0) {
-      return 'You are ${paceDelta.abs()} hours behind expected pace. Add or update logs so your approved hours can catch up.';
+      return 'You are ${paceDelta.abs()} hours behind target pace.';
     }
-    return 'No immediate action is blocking you. Keep your DTR and daily logs current.';
+    return 'Everything is on track for now.';
   }
 
   Color get _nextActionColor {
@@ -1456,11 +1456,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildHeaderText(theme, user, isCompact),
-                    const SizedBox(height: 16),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: _buildHeaderControls(user, token),
-                    ),
+                    const SizedBox(height: 14),
+                    _buildHeaderControls(user, token, isCompact: true),
                   ],
                 )
               else
@@ -1516,8 +1513,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         const SizedBox(height: 10),
         Text(
           _profile == null
-              ? 'Complete your profile and start logging your work.'
-              : 'Check progress, review logs, and keep your profile updated.',
+              ? 'Complete your profile and start logging.'
+              : 'Track progress and keep logs updated.',
           style: theme.textTheme.bodyLarge?.copyWith(
             color: Colors.white.withValues(alpha: 0.82),
             height: 1.45,
@@ -1529,7 +1526,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           child: DashboardRefreshStatus(
             lastUpdated: _lastUpdated,
             isRefreshing: _isRefreshing,
-            pullToRefreshLabel: 'Pull down to refresh dashboard data',
+            pullToRefreshLabel: '',
             refreshingLabel: 'Refreshing student dashboard...',
           ),
         ),
@@ -1537,7 +1534,94 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
-  Widget _buildHeaderControls(AppUser? user, String token) {
+  Widget _buildHeaderControls(
+    AppUser? user,
+    String token, {
+    bool isCompact = false,
+  }) {
+    final profileCard = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: _profileMenuAnchorKey,
+        onTap: _openProfilePanel,
+        borderRadius: BorderRadius.circular(22),
+        child: Ink(
+          padding: EdgeInsets.symmetric(
+            horizontal: isCompact ? 10 : 12,
+            vertical: isCompact ? 8 : 10,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildAvatar(
+                user: user,
+                radius: isCompact ? 20 : 22,
+                fontSize: 14,
+              ),
+              const SizedBox(width: 10),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: isCompact ? 126 : 180),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user?.name.isNotEmpty == true
+                          ? user!.name
+                          : widget.userName,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: isCompact ? 13 : 14,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      (user?.gender ?? 'Student'),
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Colors.white,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (isCompact) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Wrap(
+            spacing: 8,
+            children: [
+              SettingsShortcutButton(iconColor: Colors.white),
+              NotificationBellButton(token: token, iconColor: Colors.white),
+            ],
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Align(alignment: Alignment.centerRight, child: profileCard),
+          ),
+        ],
+      );
+    }
+
     return Wrap(
       spacing: 10,
       runSpacing: 10,
@@ -1546,69 +1630,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       children: [
         SettingsShortcutButton(iconColor: Colors.white),
         NotificationBellButton(token: token, iconColor: Colors.white),
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            key: _profileMenuAnchorKey,
-            onTap: _openProfilePanel,
-            borderRadius: BorderRadius.circular(22),
-            child: Ink(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildAvatar(user: user, radius: 22, fontSize: 14),
-                  const SizedBox(width: 10),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 180),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          user?.name.isNotEmpty == true
-                              ? user!.name
-                              : widget.userName,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          (user?.gender ?? 'Student'),
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.8),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    color: Colors.white,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+        profileCard,
       ],
     );
   }
 
   Widget _buildNextActionSection() {
     return DashboardInfoCard(
-      title: 'Next Action',
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isCompact = constraints.maxWidth < 640;
