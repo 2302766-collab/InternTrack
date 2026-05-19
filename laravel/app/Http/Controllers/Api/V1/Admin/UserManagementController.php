@@ -33,6 +33,7 @@ class UserManagementController extends Controller
                     'users.name',
                     'users.email',
                     'users.gender',
+                    'users.avatar_base64',
                     'roles.name as role',
                 ])
                 ->orderByRaw(
@@ -50,6 +51,7 @@ class UserManagementController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                     'gender' => $user->gender,
+                    'avatar_base64' => $user->avatar_base64,
                     'role' => $user->role,
                 ])
                 ->all();
@@ -143,6 +145,7 @@ class UserManagementController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'gender' => $user->gender,
+            'avatar_base64' => $user->avatar_base64,
             'role' => $roleName,
         ];
     }

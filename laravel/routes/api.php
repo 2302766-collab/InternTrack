@@ -33,6 +33,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/logout', [AuthController::class, 'logout']);
             Route::get('/me', [AuthController::class, 'me']);
             Route::patch('/profile', [AuthController::class, 'updateProfile']);
+            Route::patch('/avatar', [AuthController::class, 'updateAvatar']);
         });
     });
 

@@ -187,6 +187,40 @@ class AuthService extends BaseService {
     }
   }
 
+  Future<AppUser> updateAvatarBase64(String? avatarBase64) async {
+    try {
+      return await _apiClient.patch<AppUser>(
+        path: '/auth/avatar',
+        data: {'avatar_base64': avatarBase64},
+        converter: (data) {
+          if (data is! Map<String, dynamic>) {
+            throw ApiException(
+              message: 'Invalid avatar update response format',
+              errorType: ApiErrorType.unknown,
+            );
+          }
+
+          final payload = data['data'];
+          final userData = payload is Map<String, dynamic>
+              ? payload['user']
+              : null;
+
+          if (userData is! Map<String, dynamic>) {
+            throw ApiException(
+              message: 'No user data in avatar update response',
+              errorType: ApiErrorType.unknown,
+            );
+          }
+
+          return AppUser.fromJson(userData);
+        },
+      );
+    } on ApiException catch (e) {
+      handleApiError(e);
+      rethrow;
+    }
+  }
+
   /// Revokes the current access token on the server.
   ///
   /// Throws [ApiException] if the request fails. Callers may still choose to

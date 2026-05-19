@@ -13,6 +13,9 @@ import '../../../../core/services/internship_service.dart';
 import '../../../../core/services/logbook_service.dart';
 import '../../../../core/services/student_report_service.dart';
 import '../../../../core/theme/ocean_breeze_palette.dart';
+import '../../../../core/utils/file_picker_helper_stub.dart'
+    if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
+    as file_picker;
 import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/daily_time_record.dart';
 import '../../../../shared/models/internship_profile.dart';
@@ -1051,6 +1054,46 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
+  Future<void> _pickProfilePhoto() async {
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final file = await file_picker.pickSingleFile(
+        allowedExtensions: const <String>['jpg', 'jpeg', 'png'],
+      );
+      if (file == null) {
+        return;
+      }
+
+      await authProvider.updateAvatarBytes(file.bytes);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_userFacingErrorMessage(error))));
+    }
+  }
+
+  Future<void> _removeProfilePhoto() async {
+    try {
+      await context.read<AuthProvider>().updateAvatarBase64(null);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo removed.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_userFacingErrorMessage(error))));
+    }
+  }
+
   Future<void> _showEditProfileDialog() async {
     final authProvider = context.read<AuthProvider>();
     final user = authProvider.user;
@@ -1284,6 +1327,34 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                             ),
                             const SizedBox(height: 18),
                             _buildProfileActionTile(
+                              icon: Icons.camera_alt_outlined,
+                              title: 'Change profile photo',
+                              subtitle:
+                                  'Upload a JPG or PNG image for your account.',
+                              onTap: () async {
+                                Navigator.of(dialogContext).pop();
+                                await Future<void>.delayed(Duration.zero);
+                                if (!mounted) return;
+                                await _pickProfilePhoto();
+                              },
+                            ),
+                            if ((user?.avatarBase64 ?? '').isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              _buildProfileActionTile(
+                                icon: Icons.hide_image_outlined,
+                                title: 'Remove profile photo',
+                                subtitle:
+                                    'Switch back to the generated initials avatar.',
+                                onTap: () async {
+                                  Navigator.of(dialogContext).pop();
+                                  await Future<void>.delayed(Duration.zero);
+                                  if (!mounted) return;
+                                  await _removeProfilePhoto();
+                                },
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            _buildProfileActionTile(
                               icon: Icons.edit_outlined,
                               title: 'Edit profile',
                               subtitle: 'Update your display name and gender.',
@@ -1294,7 +1365,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                 await _showEditProfileDialog();
                               },
                             ),
-                            const SizedBox(height: 12),
                             _buildProfileInfoCard(user),
                             const SizedBox(height: 18),
                             SizedBox(

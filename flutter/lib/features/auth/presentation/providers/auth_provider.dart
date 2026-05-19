@@ -161,11 +161,9 @@ class AuthProvider extends ChangeNotifier {
       return;
     }
 
-    _user = currentUser.copyWith(
-      avatarBase64: avatarBase64,
-      clearAvatar: avatarBase64 == null || avatarBase64.isEmpty,
-    );
+    _user = await _authService.updateAvatarBase64(avatarBase64);
     await _tokenService.saveUser(_user!);
+    _lastError = null;
     notifyListeners();
   }
 
@@ -187,7 +185,7 @@ class AuthProvider extends ChangeNotifier {
       gender: gender,
     );
 
-    _user = updatedUser.copyWith(avatarBase64: _user?.avatarBase64);
+    _user = updatedUser;
     await _tokenService.saveUser(_user!);
     _lastError = null;
     notifyListeners();

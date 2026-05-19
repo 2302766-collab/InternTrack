@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
@@ -47,7 +48,61 @@ class AuthController extends Controller
             'email' => $user->email,
             'gender' => $user->gender,
             'role' => $roleName,
+            'avatar_base64' => $user->avatar_base64,
         ];
+    }
+
+    private function normalizeAvatarBase64(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        if (str_contains($trimmed, ',')) {
+            $parts = explode(',', $trimmed, 2);
+            if (count($parts) === 2 && str_contains($parts[0], ';base64')) {
+                $trimmed = $parts[1];
+            }
+        }
+
+        return preg_replace('/\s+/', '', $trimmed) ?: null;
+    }
+
+    private function validatedAvatarBase64(?string $value): ?string
+    {
+        $normalized = $this->normalizeAvatarBase64($value);
+        if ($normalized === null) {
+            return null;
+        }
+
+        $decoded = base64_decode($normalized, true);
+        if ($decoded === false) {
+            throw ValidationException::withMessages([
+                'avatar_base64' => 'Profile photo must be a valid base64 image.',
+            ]);
+        }
+
+        if (strlen($decoded) > 2 * 1024 * 1024) {
+            throw ValidationException::withMessages([
+                'avatar_base64' => 'Profile photo must be 2MB or smaller.',
+            ]);
+        }
+
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $finfo->buffer($decoded) ?: '';
+
+        if (! in_array($mimeType, ['image/jpeg', 'image/png'], true)) {
+            throw ValidationException::withMessages([
+                'avatar_base64' => 'Profile photo must be a JPG or PNG image.',
+            ]);
+        }
+
+        return $normalized;
     }
 
     // POST /api/v1/auth/register
@@ -97,6 +152,7 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'gender' => $user->gender,
                 'role' => $roleName,
+                'avatar_base64' => $user->avatar_base64,
             ],
         ], 201);
     }
@@ -214,6 +270,29 @@ class AuthController extends Controller
         ]);
 
         return $this->success('Profile updated successfully.', [
+            'user' => $this->userPayload($user->fresh()->loadMissing('role')),
+        ]);
+    }
+
+    // PATCH /api/v1/auth/avatar (auth:sanctum)
+    public function updateAvatar(Request $request)
+    {
+        $user = $request->user()?->loadMissing('role');
+        if (! $user) {
+            return $this->fail('Unauthenticated.', null, 401);
+        }
+
+        $validated = $request->validate([
+            'avatar_base64' => ['nullable', 'string'],
+        ]);
+
+        $user->update([
+            'avatar_base64' => $this->validatedAvatarBase64(
+                $validated['avatar_base64'] ?? null
+            ),
+        ]);
+
+        return $this->success('Profile photo updated successfully.', [
             'user' => $this->userPayload($user->fresh()->loadMissing('role')),
         ]);
     }
