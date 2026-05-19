@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -8,11 +9,13 @@ import '../../../../core/constants/app_routes.dart';
 import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/dtr_service.dart';
+import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/utils/file_download_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_download_web.dart'
     as file_download;
 import '../../../../shared/models/daily_time_record.dart';
-import '../../../../shared/widgets/dtr_export_dialog.dart';
+import '../../../../shared/models/monthly_dtr_summary.dart';
+import '../../../../shared/widgets/notification_bell_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../widgets/student_scaffold.dart';
 
@@ -26,34 +29,44 @@ class StudentDtrScreen extends StatefulWidget {
 }
 
 class _StudentDtrScreenState extends State<StudentDtrScreen> {
+  static const Color _canvas = Color(0xFFF4F8FB);
+  static const Color _ink = Color(0xFF102A56);
+  static const Color _muted = Color(0xFF667085);
+  static const Color _line = Color(0xFFD8E4EC);
+  static const Color _heroStart = Color(0xFF0F2942);
+  static const Color _heroEnd = Color(0xFF1B5B7A);
+
   late final DtrService _dtrService;
 
   Timer? _timer;
   DailyTimeRecord? _record;
+  MonthlyDtrSummary? _monthlySummary;
   Duration _liveElapsed = Duration.zero;
-  late DateTime _exportStartDate;
-  late DateTime _exportEndDate;
+  late DateTime _selectedMonth;
+  bool _didLoad = false;
   bool _isLoading = true;
+  bool _isMonthlyLoading = true;
   bool _isSubmitting = false;
-  bool _isExporting = false;
+  bool _isExportingPdf = false;
+  bool _isExportingExcel = false;
   bool _isRequestingEdit = false;
   String? _errorMessage;
+  String? _monthlyErrorMessage;
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
-    _exportStartDate = DateTime(now.year, now.month, 1);
-    _exportEndDate = DateTime(now.year, now.month + 1, 0);
+    _selectedMonth = DateTime(now.year, now.month);
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_isLoading && _record == null && _errorMessage == null) {
-      _dtrService = widget.dtrService ?? DtrService(context.read<ApiClient>());
-      _loadRecord();
-    }
+    if (_didLoad) return;
+    _didLoad = true;
+    _dtrService = widget.dtrService ?? DtrService(context.read<ApiClient>());
+    _loadPageData();
   }
 
   @override
@@ -62,7 +75,11 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     super.dispose();
   }
 
-  Future<void> _loadRecord() async {
+  Future<void> _loadPageData() async {
+    await Future.wait(<Future<void>>[_loadTodayRecord(), _loadMonthlyRecord()]);
+  }
+
+  Future<void> _loadTodayRecord() async {
     final token = context.read<AuthProvider>().token ?? '';
     if (token.isEmpty) {
       setState(() {
@@ -80,14 +97,12 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     try {
       final record = await _dtrService.getTodayRecord();
       if (!mounted) return;
-
       setState(() {
         _record = record;
       });
       _syncTimer();
     } catch (e) {
       if (!mounted) return;
-
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
@@ -95,6 +110,45 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadMonthlyRecord() async {
+    final token = context.read<AuthProvider>().token ?? '';
+    if (token.isEmpty) {
+      setState(() {
+        _isMonthlyLoading = false;
+        _monthlyErrorMessage =
+            'Missing authentication token. Please log in again.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isMonthlyLoading = true;
+      _monthlyErrorMessage = null;
+    });
+
+    try {
+      final summary = await _dtrService.getMonthlyRecord(
+        month: _selectedMonth.month,
+        year: _selectedMonth.year,
+      );
+      if (!mounted) return;
+      setState(() {
+        _monthlySummary = summary;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _monthlyErrorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isMonthlyLoading = false;
         });
       }
     }
@@ -138,23 +192,22 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
       }
 
       if (!mounted) return;
-
       setState(() {
         _record = updatedRecord;
       });
       _syncTimer();
+      await _reloadSelectedMonthIfNeeded();
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_successMessageFor(updatedRecord))),
       );
     } catch (e) {
       if (!mounted) return;
-
       final message = e.toString().replaceFirst('Exception: ', '');
       setState(() {
         _errorMessage = message;
       });
-
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
@@ -167,34 +220,101 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     }
   }
 
-  Future<void> _openExportDialog() async {
-    if (_isExporting) {
-      return;
+  Future<void> _reloadSelectedMonthIfNeeded() async {
+    final now = DateTime.now();
+    if (_selectedMonth.year == now.year && _selectedMonth.month == now.month) {
+      await _loadMonthlyRecord();
     }
+  }
 
-    final selection = await showDtrExportDialog(
-      context,
-      initialStartDate: _exportStartDate,
-      initialEndDate: _exportEndDate,
-      title: 'Export Dialog',
-      description:
-          'Choose a date range within one month. The PDF and Excel-compatible CSV layout stays the same.',
+  Future<void> _pickMonth() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedMonth,
+      firstDate: DateTime(2020, 1, 1),
+      lastDate: DateTime(2100, 12, 31),
+      helpText: 'Select month',
+      initialDatePickerMode: DatePickerMode.year,
     );
 
-    if (selection == null || !mounted) {
+    if (picked == null) return;
+
+    setState(() {
+      _selectedMonth = DateTime(picked.year, picked.month);
+    });
+    await _loadMonthlyRecord();
+  }
+
+  Future<void> _shiftMonth(int delta) async {
+    setState(() {
+      _selectedMonth = DateTime(
+        _selectedMonth.year,
+        _selectedMonth.month + delta,
+      );
+    });
+    await _loadMonthlyRecord();
+  }
+
+  Future<void> _exportSelectedMonth({required bool pdf}) async {
+    final token = context.read<AuthProvider>().token ?? '';
+    if (token.isEmpty || _isExportingPdf || _isExportingExcel) {
       return;
     }
 
     setState(() {
-      _exportStartDate = selection.startDate;
-      _exportEndDate = selection.endDate;
+      if (pdf) {
+        _isExportingPdf = true;
+      } else {
+        _isExportingExcel = true;
+      }
     });
 
-    await _exportMonthly(
-      pdf: selection.pdf,
-      startDate: selection.startDate,
-      endDate: selection.endDate,
-    );
+    try {
+      final file = pdf
+          ? await _dtrService.exportPdf(
+              month: _selectedMonth.month,
+              year: _selectedMonth.year,
+            )
+          : await _dtrService.exportExcel(
+              month: _selectedMonth.month,
+              year: _selectedMonth.year,
+            );
+
+      if (!mounted) return;
+
+      final downloaded = await file_download.downloadBytes(
+        bytes: file.bytes,
+        filename: file.filename,
+        mimeType: file.mimeType,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            downloaded
+                ? '${pdf ? 'PDF' : 'Excel'} export downloaded successfully.'
+                : 'Export is ready, but direct download is only available on web in this build.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          if (pdf) {
+            _isExportingPdf = false;
+          } else {
+            _isExportingExcel = false;
+          }
+        });
+      }
+    }
   }
 
   Future<void> _openEditRequestDialog() async {
@@ -227,9 +347,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
             context: dialogContext,
             initialTime: TimeOfDay.fromDateTime(initialValue),
           );
-          if (picked == null) {
-            return null;
-          }
+          if (picked == null) return null;
 
           final baseDate = DateTime.parse(record.date);
           return DateTime(
@@ -268,7 +386,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                     ),
                     const SizedBox(height: 10),
                     _buildTimePickerTile(
-                      label: 'Lunch Out',
+                      label: 'Time Out AM',
                       value: display(lunchOut),
                       onTap: () async {
                         final picked = await pickTime(lunchOut, setDialogState);
@@ -278,7 +396,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                     ),
                     const SizedBox(height: 10),
                     _buildTimePickerTile(
-                      label: 'Lunch In',
+                      label: 'Time In PM',
                       value: display(lunchIn),
                       onTap: () async {
                         final picked = await pickTime(lunchIn, setDialogState);
@@ -288,7 +406,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                     ),
                     const SizedBox(height: 10),
                     _buildTimePickerTile(
-                      label: 'Time Out',
+                      label: 'Time Out PM',
                       value: display(timeOut),
                       onTap: () async {
                         final picked = await pickTime(timeOut, setDialogState);
@@ -359,10 +477,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
       },
     );
 
-    if (request == null) {
-      return;
-    }
-
+    if (request == null) return;
     await _submitEditRequest(request);
   }
 
@@ -411,60 +526,38 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     }
   }
 
-  Future<void> _exportMonthly({
-    required bool pdf,
-    required DateTime startDate,
-    required DateTime endDate,
-  }) async {
-    final token = context.read<AuthProvider>().token ?? '';
-    if (token.isEmpty || _isExporting) {
+  void _syncTimer() {
+    _timer?.cancel();
+
+    final start = _activeSegmentStart(_record);
+    if (start == null) {
+      if (!mounted) return;
+      setState(() {
+        _liveElapsed = Duration.zero;
+      });
       return;
     }
 
-    setState(() {
-      _isExporting = true;
-    });
-
-    try {
-      final file = pdf
-          ? await _dtrService.exportPdf(startDate: startDate, endDate: endDate)
-          : await _dtrService.exportExcel(
-              startDate: startDate,
-              endDate: endDate,
-            );
-
+    void tick() {
       if (!mounted) return;
-
-      final downloaded = await file_download.downloadBytes(
-        bytes: file.bytes,
-        filename: file.filename,
-        mimeType: file.mimeType,
-      );
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            downloaded
-                ? '${pdf ? 'PDF' : 'Excel'} export downloaded successfully.'
-                : 'Export is ready, but direct download is only available on web in this build.',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isExporting = false;
-        });
-      }
+      setState(() {
+        _liveElapsed = DateTime.now().difference(start);
+      });
     }
+
+    tick();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => tick());
+  }
+
+  DateTime? _activeSegmentStart(DailyTimeRecord? record) {
+    if (record == null || record.status != 'WORKING') return null;
+    if (record.lunchInAt != null && record.timeOutAt == null) {
+      return record.lunchInAt;
+    }
+    if (record.timeInAt != null && record.lunchOutAt == null) {
+      return record.timeInAt;
+    }
+    return null;
   }
 
   String _successMessageFor(DailyTimeRecord record) {
@@ -481,68 +574,18 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     };
   }
 
-  void _syncTimer() {
-    _timer?.cancel();
-
-    final start = _activeSegmentStart(_record);
-    if (start == null) {
-      if (mounted) {
-        setState(() {
-          _liveElapsed = Duration.zero;
-        });
-      }
-      return;
-    }
-
-    void tick() {
-      if (!mounted) return;
-      setState(() {
-        _liveElapsed = DateTime.now().difference(start);
-      });
-    }
-
-    tick();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => tick());
-  }
-
-  DateTime? _activeSegmentStart(DailyTimeRecord? record) {
-    if (record == null || record.status != 'WORKING') {
-      return null;
-    }
-
-    if (record.lunchInAt != null && record.timeOutAt == null) {
-      return record.lunchInAt;
-    }
-
-    if (record.timeInAt != null && record.lunchOutAt == null) {
-      return record.timeInAt;
-    }
-
-    return null;
-  }
-
-  String _formatDate(String rawDate) {
-    final parsed = DateTime.tryParse(rawDate);
-    if (parsed == null) {
-      return rawDate;
-    }
-
-    return DateFormat('MMMM d, yyyy').format(parsed);
-  }
-
   String _formatTime(DateTime? value) {
-    if (value == null) {
-      return 'Not recorded';
-    }
-
-    return DateFormat('h:mm:ss a').format(value);
+    if (value == null) return '--';
+    return DateFormat('h:mm a').format(value);
   }
 
-  String _formatMinutes(int minutes) {
-    final safeMinutes = minutes < 0 ? 0 : minutes;
-    final hours = safeMinutes ~/ 60;
-    final remainder = safeMinutes % 60;
-    return '$hours hour${hours == 1 ? '' : 's'} $remainder minute${remainder == 1 ? '' : 's'}';
+  String _formatHeaderDate() {
+    final record = _record;
+    final parsed = DateTime.tryParse(record?.date ?? '');
+    if (parsed == null) {
+      return DateFormat('EEEE, MMMM d').format(DateTime.now());
+    }
+    return DateFormat('EEEE, MMMM d').format(parsed);
   }
 
   String _formatDuration(Duration duration) {
@@ -556,53 +599,27 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     return '${twoDigits(hours)}:${twoDigits(minutes)}:${twoDigits(seconds)}';
   }
 
-  int _displayedFirstMinutes(DailyTimeRecord record) {
-    if (record.firstWorkMinutes > 0) {
-      return record.firstWorkMinutes;
-    }
-
-    if (record.status == 'WORKING' &&
-        record.timeInAt != null &&
-        record.lunchOutAt == null) {
-      return _liveElapsed.inMinutes;
-    }
-
-    return 0;
+  String _formatMinutes(int minutes) {
+    final safeMinutes = minutes < 0 ? 0 : minutes;
+    final hours = safeMinutes ~/ 60;
+    final remainder = safeMinutes % 60;
+    return '$hours h ${remainder.toString().padLeft(2, '0')} m';
   }
 
-  int _displayedSecondMinutes(DailyTimeRecord record) {
-    if (record.secondWorkMinutes > 0) {
-      return record.secondWorkMinutes;
-    }
+  String _timerHint(DailyTimeRecord? record) {
+    if (record == null) return 'Time in to start tracking your attendance.';
 
-    if (record.status == 'WORKING' &&
-        record.lunchInAt != null &&
-        record.timeOutAt == null) {
-      return _liveElapsed.inMinutes;
-    }
-
-    return 0;
+    return switch (record.status) {
+      'WORKING' when record.lunchInAt == null =>
+        'Morning session is running now.',
+      'WORKING' => 'Afternoon session is running now.',
+      'ON_BREAK' => 'Timer is paused while you are on break.',
+      'COMPLETED' => 'Your attendance for today is already complete.',
+      _ => 'Use the buttons below to start your attendance.',
+    };
   }
 
-  int _displayedTotalMinutes(DailyTimeRecord record) {
-    final savedTotal = record.totalWorkMinutes;
-
-    if (record.status != 'WORKING') {
-      return savedTotal;
-    }
-
-    if (record.lunchInAt != null && record.timeOutAt == null) {
-      return record.firstWorkMinutes + _liveElapsed.inMinutes;
-    }
-
-    if (record.timeInAt != null && record.lunchOutAt == null) {
-      return _liveElapsed.inMinutes;
-    }
-
-    return savedTotal;
-  }
-
-  Color _statusColor(String status) {
+  Color _statusColor(String? status) {
     return switch (status) {
       'WORKING' => const Color(0xFF0F766E),
       'ON_BREAK' => const Color(0xFFB54708),
@@ -611,7 +628,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     };
   }
 
-  Color _statusBackground(String status) {
+  Color _statusBackground(String? status) {
     return switch (status) {
       'WORKING' => const Color(0xFFDFF7F3),
       'ON_BREAK' => const Color(0xFFFFF3DB),
@@ -620,257 +637,291 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     };
   }
 
-  String _statusDisplayLabel(String status) {
+  String _statusLabel(String? status) {
     return switch (status) {
       'WORKING' => 'Timed In',
-      'ON_BREAK' => 'Timed Out',
-      'COMPLETED' => 'Completed',
-      _ => 'Not Started',
+      'ON_BREAK' => 'Break',
+      'COMPLETED' => 'Complete',
+      _ => 'No Record',
     };
   }
 
-  String _statusHeadline(DailyTimeRecord record) {
-    return switch (record.status) {
-      'WORKING' => 'Timed In',
-      'ON_BREAK' => 'Timed Out',
-      'COMPLETED' => 'Completed',
-      _ => 'Not Started',
-    };
+  ImageProvider<Object>? _avatarImage(AuthProvider authProvider) {
+    final avatarBase64 = authProvider.user?.avatarBase64 ?? '';
+    if (avatarBase64.isEmpty) return null;
+
+    try {
+      return MemoryImage(base64Decode(avatarBase64));
+    } catch (_) {
+      return null;
+    }
   }
 
-  String _statusDescription(DailyTimeRecord record) {
-    return switch (record.status) {
-      'WORKING' when record.lunchInAt == null =>
-        'You are currently timed in. Press Time Out when you start your break.',
-      'WORKING' =>
-        'You are currently timed in. Press Time Out when you finish your day.',
-      'ON_BREAK' =>
-        'You are currently timed out. Press Time In when you return.',
-      'COMPLETED' => 'Your DTR for today is complete.',
-      _ => 'You have not timed in yet. Press Time In to start your day.',
-    };
+  String _initialsFor(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return 'ST';
+    if (parts.length == 1) {
+      return parts.first
+          .substring(0, parts.first.length > 1 ? 2 : 1)
+          .toUpperCase();
+    }
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
 
-  Widget _buildStatusCard(DailyTimeRecord record) {
+  Widget _buildTopHeader(AuthProvider authProvider) {
+    final themeController = context.watch<ThemeController>();
+    final user = authProvider.user;
+    final token = authProvider.token ?? '';
+    final avatar = _avatarImage(authProvider);
+    final displayName = user?.name.isNotEmpty == true ? user!.name : 'Student';
+
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _line),
         boxShadow: const [
           BoxShadow(
             color: Color(0x120F172A),
-            blurRadius: 18,
+            blurRadius: 16,
             offset: Offset(0, 6),
           ),
         ],
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Attendance Status',
-                  style: TextStyle(fontSize: 15, color: Color(0xFF667085)),
+          InkWell(
+            onTap: () =>
+                Navigator.pushNamed(context, AppRoutes.studentDashboard),
+            borderRadius: BorderRadius.circular(16),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              child: Text(
+                'Student Dashboard',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: _ink,
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  _statusHeadline(record),
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF102A56),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _statusDescription(record),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    height: 1.45,
-                    color: Color(0xFF667085),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _statusBackground(record.status),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    _statusDisplayLabel(record.status),
-                    style: TextStyle(
-                      color: _statusColor(record.status),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-          Container(
-            width: 66,
-            height: 66,
-            decoration: BoxDecoration(
-              color: _statusBackground(record.status),
-              borderRadius: BorderRadius.circular(20),
+          const Spacer(),
+          IconButton(
+            tooltip: 'Profile',
+            onPressed: () {
+              Navigator.pushNamed(context, AppRoutes.internshipProfile);
+            },
+            icon: CircleAvatar(
+              radius: 18,
+              backgroundColor: const Color(0xFFE3EEF7),
+              backgroundImage: avatar,
+              child: avatar == null
+                  ? Text(
+                      _initialsFor(displayName),
+                      style: const TextStyle(
+                        color: _ink,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                    )
+                  : null,
             ),
-            child: Icon(
-              switch (record.status) {
-                'WORKING' => Icons.play_circle_fill_rounded,
-                'ON_BREAK' => Icons.coffee_rounded,
-                'COMPLETED' => Icons.task_alt_rounded,
-                _ => Icons.schedule_rounded,
-              },
-              color: _statusColor(record.status),
-              size: 34,
-            ),
+          ),
+          NotificationBellButton(token: token, iconColor: _ink),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                themeController.isDarkMode
+                    ? Icons.dark_mode_rounded
+                    : Icons.light_mode_rounded,
+                color: _ink,
+                size: 18,
+              ),
+              Switch(
+                value: themeController.isDarkMode,
+                onChanged: (value) {
+                  context.read<ThemeController>().setDarkMode(value);
+                },
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLiveTimerCard(DailyTimeRecord record) {
-    final isRunning = record.status == 'WORKING';
-
+  Widget _buildTimerCard(DailyTimeRecord? record) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: <Color>[Color(0xFF102A56), Color(0xFF1D4E89)],
+          colors: <Color>[_heroStart, _heroEnd],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Live Timer',
-            style: TextStyle(fontSize: 15, color: Color(0xFFD8E7FF)),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Text(
+                'Live Timer',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFD7EBF7),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  _statusLabel(record?.status),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             _formatDuration(_liveElapsed),
             style: const TextStyle(
-              fontSize: 32,
+              fontSize: 36,
               fontWeight: FontWeight.w800,
               color: Colors.white,
-              letterSpacing: 1.2,
+              letterSpacing: 1.4,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            isRunning
-                ? 'Timer is running while you are actively working.'
-                : record.status == 'ON_BREAK'
-                ? 'Timer paused while you are timed out.'
-                : record.status == 'COMPLETED'
-                ? 'Daily time record has been completed.'
-                : 'Time in to start tracking your rendered hours.',
-            style: const TextStyle(fontSize: 14, color: Color(0xFFD8E7FF)),
+            _formatHeaderDate(),
+            style: const TextStyle(fontSize: 14, color: Color(0xFFD7EBF7)),
           ),
+          const SizedBox(height: 6),
+          Text(
+            _timerHint(record),
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.4,
+              color: Color(0xFFD7EBF7),
+            ),
+          ),
+          if (record != null) ...[
+            const SizedBox(height: 14),
+            Text(
+              'Total rendered time: ${_formatMinutes(record.totalWorkMinutes)}',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildPunchRow({
-    required String label,
+  Widget _buildActionTile({
+    required String title,
+    required String subtitle,
     required DateTime? timestamp,
     required bool isNext,
-    String? actionLabel,
-    VoidCallback? onAction,
-    bool isSubmitting = false,
+    required bool isLocked,
   }) {
     final isDone = timestamp != null;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDone || isNext ? Colors.white : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: isNext ? const Color(0xFF0F4C5C) : const Color(0xFFE4E7EC),
-          width: isNext ? 1.4 : 1,
+          color: isNext ? const Color(0xFF1B5B7A) : _line,
+          width: isNext ? 1.6 : 1,
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: isDone
-                  ? const Color(0xFFE7F8EC)
-                  : isNext
-                  ? const Color(0xFFD9F0F4)
-                  : const Color(0xFFF2F4F7),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              isDone
-                  ? Icons.check_rounded
-                  : isNext
-                  ? Icons.play_arrow_rounded
-                  : Icons.lock_outline_rounded,
-              color: isDone
-                  ? const Color(0xFF039855)
-                  : isNext
-                  ? const Color(0xFF0F4C5C)
-                  : const Color(0xFF98A2B3),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: isDone || isNext
-                        ? const Color(0xFF102A56)
-                        : const Color(0xFF98A2B3),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: _ink,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  _formatTime(timestamp),
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: isDone || isNext
-                        ? const Color(0xFF667085)
-                        : const Color(0xFF98A2B3),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (isDone)
-            const Text(
-              'Recorded',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF039855),
               ),
-            )
-          else if (isNext)
-            FilledButton.icon(
-              onPressed: isSubmitting ? null : onAction,
-              icon: isSubmitting
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: isDone
+                      ? const Color(0xFF039855)
+                      : isNext
+                      ? const Color(0xFF1B5B7A)
+                      : const Color(0xFFD0D5DD),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(subtitle, style: const TextStyle(fontSize: 12, color: _muted)),
+          const SizedBox(height: 16),
+          Text(
+            _formatTime(timestamp),
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: isDone || isNext ? _ink : const Color(0xFF98A2B3),
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: isNext && !_isSubmitting ? _submitPunch : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: isDone
+                    ? const Color(0xFFE7F8EC)
+                    : isNext
+                    ? const Color(0xFF1B5B7A)
+                    : const Color(0xFFEAEFF3),
+                foregroundColor: isDone
+                    ? const Color(0xFF027A48)
+                    : isNext
+                    ? Colors.white
+                    : const Color(0xFF98A2B3),
+              ),
+              child: _isSubmitting && isNext
                   ? const SizedBox(
                       width: 16,
                       height: 16,
@@ -879,152 +930,403 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : const Icon(Icons.fingerprint_rounded),
-              label: Text(isSubmitting ? 'Saving...' : (actionLabel ?? label)),
-            )
-          else
-            const Text(
-              'Locked',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF98A2B3),
-              ),
+                  : Text(
+                      isDone
+                          ? 'Recorded'
+                          : isLocked
+                          ? 'Locked'
+                          : 'Record',
+                    ),
             ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSummaryCard(DailyTimeRecord record) {
-    final first = _displayedFirstMinutes(record);
-    final second = _displayedSecondMinutes(record);
-    final total = _displayedTotalMinutes(record);
+  Widget _buildActionSection(DailyTimeRecord? record) {
+    final canRequestCorrection =
+        record != null &&
+        record.id != null &&
+        record.status == 'COMPLETED' &&
+        record.timeInAt != null &&
+        record.lunchOutAt != null &&
+        record.lunchInAt != null &&
+        record.timeOutAt != null;
 
-    Widget summaryItem(String label, String detail, int minutes) {
-      return Expanded(
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(18),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Attendance Actions',
+          style: TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+            color: _ink,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        const SizedBox(height: 10),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompact = constraints.maxWidth < 760;
+            final children = <Widget>[
+              _buildActionTile(
+                title: 'AM Time In',
+                subtitle: 'Morning arrival',
+                timestamp: record?.timeInAt,
+                isNext: record?.nextAction == 'TIME_IN',
+                isLocked:
+                    record?.nextAction != 'TIME_IN' && record?.timeInAt == null,
+              ),
+              _buildActionTile(
+                title: 'AM Time Out',
+                subtitle: 'Morning departure',
+                timestamp: record?.lunchOutAt,
+                isNext: record?.nextAction == 'LUNCH_OUT',
+                isLocked:
+                    record?.nextAction != 'LUNCH_OUT' &&
+                    record?.lunchOutAt == null,
+              ),
+              _buildActionTile(
+                title: 'PM Time In',
+                subtitle: 'Afternoon arrival',
+                timestamp: record?.lunchInAt,
+                isNext: record?.nextAction == 'LUNCH_IN',
+                isLocked:
+                    record?.nextAction != 'LUNCH_IN' &&
+                    record?.lunchInAt == null,
+              ),
+              _buildActionTile(
+                title: 'PM Time Out',
+                subtitle: 'Afternoon departure',
+                timestamp: record?.timeOutAt,
+                isNext: record?.nextAction == 'TIME_OUT',
+                isLocked:
+                    record?.nextAction != 'TIME_OUT' &&
+                    record?.timeOutAt == null,
+              ),
+            ];
+
+            if (isCompact) {
+              return Column(
+                children: [
+                  for (var i = 0; i < children.length; i++) ...[
+                    children[i],
+                    if (i != children.length - 1) const SizedBox(height: 12),
+                  ],
+                ],
+              );
+            }
+
+            return Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: children[0]),
+                    const SizedBox(width: 12),
+                    Expanded(child: children[1]),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: children[2]),
+                    const SizedBox(width: 12),
+                    Expanded(child: children[3]),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+        if (canRequestCorrection) ...[
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: _isRequestingEdit ? null : _openEditRequestDialog,
+              icon: _isRequestingEdit
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.edit_calendar_rounded),
+              label: Text(
+                _isRequestingEdit ? 'Sending...' : 'Request DTR Correction',
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildTableToolbar(MonthlyDtrSummary? summary) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FBFD),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _line),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                label,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF667085)),
+              IconButton(
+                onPressed: _isMonthlyLoading ? null : () => _shiftMonth(-1),
+                icon: const Icon(Icons.chevron_left_rounded),
+                visualDensity: VisualDensity.compact,
               ),
-              const SizedBox(height: 8),
-              Text(
-                detail,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF98A2B3)),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _formatMinutes(minutes),
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF102A56),
+              InkWell(
+                onTap: _isMonthlyLoading ? null : _pickMonth,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  child: Text(
+                    summary?.monthYear ??
+                        DateFormat('MMMM yyyy').format(_selectedMonth),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: _ink,
+                    ),
+                  ),
                 ),
               ),
+              IconButton(
+                onPressed: _isMonthlyLoading ? null : () => _shiftMonth(1),
+                icon: const Icon(Icons.chevron_right_rounded),
+                visualDensity: VisualDensity.compact,
+              ),
             ],
+          ),
+        ),
+        OutlinedButton.icon(
+          onPressed: _isExportingExcel
+              ? null
+              : () => _exportSelectedMonth(pdf: false),
+          icon: _isExportingExcel
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.table_chart_rounded),
+          label: Text(_isExportingExcel ? 'Exporting...' : 'Export Excel'),
+        ),
+        FilledButton.icon(
+          onPressed: _isExportingPdf
+              ? null
+              : () => _exportSelectedMonth(pdf: true),
+          icon: _isExportingPdf
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.picture_as_pdf_rounded),
+          label: Text(_isExportingPdf ? 'Exporting...' : 'Export PDF'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScheduleMeta(MonthlyDtrSummary summary) {
+    final items = <String>[
+      if ((summary.companyName ?? '').trim().isNotEmpty)
+        'Company: ${summary.companyName}',
+      if (summary.regularDays.trim().isNotEmpty)
+        'Regular Days: ${summary.regularDays}',
+      if (summary.amSchedule.trim().isNotEmpty) 'AM: ${summary.amSchedule}',
+      if (summary.pmSchedule.trim().isNotEmpty) 'PM: ${summary.pmSchedule}',
+    ];
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: items
+          .map(
+            (item) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FBFD),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: _line),
+              ),
+              child: Text(
+                item,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _ink,
+                ),
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  Widget _buildIndicatorChip(MonthlyDtrRow row) {
+    final color = _statusColor(row.status);
+    final background = _statusBackground(row.status);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            _statusLabel(row.status),
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTable(MonthlyDtrSummary summary) {
+    Widget headerCell(String label, double width) {
+      return Container(
+        width: width,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: _line)),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: _ink,
           ),
         ),
       );
     }
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x120F172A),
-            blurRadius: 18,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Rendered Time Summary',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF102A56),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              summaryItem('First Segment', 'Time In -> Time Out', first),
-              const SizedBox(width: 12),
-              summaryItem('Second Segment', 'Time In -> Time Out', second),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEDF7F8),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    Widget bodyCell({
+      required Widget child,
+      required double width,
+      bool shaded = false,
+    }) {
+      return Container(
+        width: width,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        decoration: BoxDecoration(
+          color: shaded ? const Color(0xFFF8FBFD) : Colors.white,
+          border: const Border(bottom: BorderSide(color: _line)),
+        ),
+        child: child,
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Column(
+          children: [
+            Row(
               children: [
-                const Text(
-                  'Total Rendered Time',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF52737B)),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _formatMinutes(total),
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F4C5C),
-                  ),
-                ),
+                headerCell('Day', 72),
+                headerCell('AM In', 124),
+                headerCell('AM Out', 124),
+                headerCell('PM In', 124),
+                headerCell('PM Out', 124),
+                headerCell('Indicator', 160),
               ],
             ),
-          ),
-        ],
+            for (final row in summary.rows)
+              Row(
+                children: [
+                  bodyCell(
+                    width: 72,
+                    shaded: row.day.isEven,
+                    child: Text(
+                      row.day.toString(),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: _ink,
+                      ),
+                    ),
+                  ),
+                  bodyCell(
+                    width: 124,
+                    shaded: row.day.isEven,
+                    child: Text(row.amArrival.isEmpty ? '--' : row.amArrival),
+                  ),
+                  bodyCell(
+                    width: 124,
+                    shaded: row.day.isEven,
+                    child: Text(
+                      row.amDeparture.isEmpty ? '--' : row.amDeparture,
+                    ),
+                  ),
+                  bodyCell(
+                    width: 124,
+                    shaded: row.day.isEven,
+                    child: Text(row.pmArrival.isEmpty ? '--' : row.pmArrival),
+                  ),
+                  bodyCell(
+                    width: 124,
+                    shaded: row.day.isEven,
+                    child: Text(
+                      row.pmDeparture.isEmpty ? '--' : row.pmDeparture,
+                    ),
+                  ),
+                  bodyCell(
+                    width: 160,
+                    shaded: row.day.isEven,
+                    child: _buildIndicatorChip(row),
+                  ),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  String _actionLabel(String? nextAction) {
-    return switch (nextAction) {
-      'TIME_IN' => 'Time In',
-      'LUNCH_OUT' => 'Time Out',
-      'LUNCH_IN' => 'Time In',
-      'TIME_OUT' => 'Time Out',
-      _ => 'Completed',
-    };
-  }
-
-  Widget _buildExportCard() {
-    final rangeLabel =
-        '${DateFormat('MMM d, yyyy').format(_exportStartDate)} - '
-        '${DateFormat('MMM d, yyyy').format(_exportEndDate)}';
+  Widget _buildMonthlySection() {
+    final summary = _monthlySummary;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: _line),
         boxShadow: const [
           BoxShadow(
             color: Color(0x120F172A),
-            blurRadius: 18,
+            blurRadius: 16,
             offset: Offset(0, 6),
           ),
         ],
@@ -1033,73 +1335,64 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'DTR Export',
+            'Daily Time Record Table',
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF102A56),
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: _ink,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           const Text(
-            'Download your formal Daily Time Record sheet in PDF or Excel-compatible CSV format with an optional date filter.',
-            style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
+            'Monthly attendance view with AM and PM indicators.',
+            style: TextStyle(fontSize: 14, color: _muted),
           ),
           const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFD0D5DD)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Selected range',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF475467),
+          _buildTableToolbar(summary),
+          const SizedBox(height: 14),
+          if (_isMonthlyLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_monthlyErrorMessage != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _monthlyErrorMessage!,
+                    style: const TextStyle(color: Color(0xFFB42318)),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  rangeLabel,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF102A56),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: _loadMonthlyRecord,
+                    child: const Text('Retry'),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              FilledButton.icon(
-                onPressed: _isExporting ? null : _openExportDialog,
-                icon: _isExporting
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.file_download_outlined),
-                label: Text(
-                  _isExporting ? 'Exporting...' : 'Open Export Dialog',
-                ),
+                ],
+              ),
+            )
+          else if (summary == null)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'No monthly DTR data available yet.',
+                style: TextStyle(color: _muted),
+              ),
+            )
+          else ...[
+            _buildScheduleMeta(summary),
+            if (summary.notes.trim().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                summary.notes,
+                style: const TextStyle(fontSize: 13, color: _muted),
               ),
             ],
-          ),
+            const SizedBox(height: 16),
+            _buildTable(summary),
+          ],
         ],
       ),
     );
@@ -1127,10 +1420,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                 children: [
                   Text(
                     label,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF667085),
-                    ),
+                    style: const TextStyle(fontSize: 12, color: _muted),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -1138,7 +1428,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF102A56),
+                      color: _ink,
                     ),
                   ),
                 ],
@@ -1151,81 +1441,16 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     );
   }
 
-  Widget _buildCorrectionCard(DailyTimeRecord record) {
-    final canRequestCorrection =
-        record.id != null &&
-        record.status == 'COMPLETED' &&
-        record.timeInAt != null &&
-        record.lunchOutAt != null &&
-        record.lunchInAt != null &&
-        record.timeOutAt != null;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x120F172A),
-            blurRadius: 18,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Need a Correction?',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF102A56),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            canRequestCorrection
-                ? 'If you recorded the wrong punch time, send a correction request to admin for approval.'
-                : 'Admin correction requests become available after the day is completed and all four punch times are recorded.',
-            style: const TextStyle(fontSize: 14, color: Color(0xFF667085)),
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: canRequestCorrection && !_isRequestingEdit
-                ? _openEditRequestDialog
-                : null,
-            icon: _isRequestingEdit
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.edit_calendar_rounded),
-            label: Text(
-              _isRequestingEdit ? 'Sending...' : 'Request Admin Correction',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final record = _record;
+    final authProvider = context.watch<AuthProvider>();
 
     return StudentScaffold(
       currentRoute: AppRoutes.studentDtr,
-      appBar: AppBar(title: const Text('Daily Time Record')),
-      body: _isLoading
+      backgroundColor: _canvas,
+      body: _isLoading && _record == null
           ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null && record == null
+          : _errorMessage != null && _record == null
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -1235,123 +1460,42 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                     Text(
                       _errorMessage!,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Color(0xFF475467)),
+                      style: const TextStyle(color: _muted),
                     ),
                     const SizedBox(height: 12),
                     ElevatedButton(
-                      onPressed: _loadRecord,
+                      onPressed: _loadTodayRecord,
                       child: const Text('Retry'),
                     ),
                   ],
                 ),
               ),
             )
-          : record == null
-          ? const SizedBox.shrink()
           : RefreshIndicator(
-              onRefresh: _loadRecord,
+              onRefresh: _loadPageData,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 26),
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
                 children: [
                   Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1020),
+                      constraints: const BoxConstraints(maxWidth: 1120),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            _formatDate(record.date),
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF102A56),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Track your daily attendance by completing each punch in order.',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF667085),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          _buildStatusCard(record),
-                          const SizedBox(height: 16),
-                          _buildLiveTimerCard(record),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Punch Sequence',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF102A56),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Complete each step in order to calculate your rendered time.',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF667085),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          _buildPunchRow(
-                            label: 'Time In',
-                            timestamp: record.timeInAt,
-                            isNext: record.nextAction == 'TIME_IN',
-                            actionLabel: _actionLabel(record.nextAction),
-                            onAction: _submitPunch,
-                            isSubmitting:
-                                _isSubmitting && record.nextAction == 'TIME_IN',
-                          ),
-                          const SizedBox(height: 10),
-                          _buildPunchRow(
-                            label: 'Time Out',
-                            timestamp: record.lunchOutAt,
-                            isNext: record.nextAction == 'LUNCH_OUT',
-                            actionLabel: _actionLabel(record.nextAction),
-                            onAction: _submitPunch,
-                            isSubmitting:
-                                _isSubmitting &&
-                                record.nextAction == 'LUNCH_OUT',
-                          ),
-                          const SizedBox(height: 10),
-                          _buildPunchRow(
-                            label: 'Time In',
-                            timestamp: record.lunchInAt,
-                            isNext: record.nextAction == 'LUNCH_IN',
-                            actionLabel: _actionLabel(record.nextAction),
-                            onAction: _submitPunch,
-                            isSubmitting:
-                                _isSubmitting &&
-                                record.nextAction == 'LUNCH_IN',
-                          ),
-                          const SizedBox(height: 10),
-                          _buildPunchRow(
-                            label: 'Time Out',
-                            timestamp: record.timeOutAt,
-                            isNext: record.nextAction == 'TIME_OUT',
-                            actionLabel: _actionLabel(record.nextAction),
-                            onAction: _submitPunch,
-                            isSubmitting:
-                                _isSubmitting &&
-                                record.nextAction == 'TIME_OUT',
-                          ),
-                          const SizedBox(height: 16),
-                          _buildSummaryCard(record),
-                          const SizedBox(height: 16),
-                          _buildCorrectionCard(record),
-                          const SizedBox(height: 16),
-                          _buildExportCard(),
+                          _buildTopHeader(authProvider),
+                          const SizedBox(height: 18),
+                          _buildTimerCard(_record),
+                          const SizedBox(height: 18),
+                          _buildActionSection(_record),
                           if (_errorMessage != null) ...[
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                             Text(
                               _errorMessage!,
                               style: const TextStyle(color: Color(0xFFB42318)),
                             ),
                           ],
+                          const SizedBox(height: 18),
+                          _buildMonthlySection(),
                         ],
                       ),
                     ),
@@ -1364,12 +1508,6 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
 }
 
 class _DtrEditRequestDraft {
-  final DateTime timeInAt;
-  final DateTime lunchOutAt;
-  final DateTime lunchInAt;
-  final DateTime timeOutAt;
-  final String reason;
-
   const _DtrEditRequestDraft({
     required this.timeInAt,
     required this.lunchOutAt,
@@ -1377,4 +1515,10 @@ class _DtrEditRequestDraft {
     required this.timeOutAt,
     required this.reason,
   });
+
+  final DateTime timeInAt;
+  final DateTime lunchOutAt;
+  final DateTime lunchInAt;
+  final DateTime timeOutAt;
+  final String reason;
 }

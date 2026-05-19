@@ -66,6 +66,7 @@ Route::prefix('v1')->group(function () {
                 ->middleware('role:Student');
             Route::get('/report', [ReportController::class, 'student']);
             Route::get('/dtr/today', [DailyTimeRecordController::class, 'today']);
+            Route::get('/dtr/monthly', [DailyTimeRecordController::class, 'monthly']);
             Route::post('/dtr/time-in', [DailyTimeRecordController::class, 'timeIn']);
             Route::post('/dtr/lunch-out', [DailyTimeRecordController::class, 'lunchOut']);
             Route::post('/dtr/lunch-in', [DailyTimeRecordController::class, 'lunchIn']);

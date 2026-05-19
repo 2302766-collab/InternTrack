@@ -1,5 +1,6 @@
 import '../../shared/models/daily_time_record.dart';
 import '../../shared/models/edit_request.dart';
+import '../../shared/models/monthly_dtr_summary.dart';
 import '../exceptions/api_exception.dart';
 import '../services/api_client.dart';
 import '../services/base_service.dart';
@@ -34,6 +35,39 @@ class DtrService extends BaseService {
       return await _apiClient.get<DailyTimeRecord>(
         path: '/student/dtr/today',
         converter: (data) => _parseDtrResponse(data),
+      );
+    } on ApiException catch (e) {
+      handleApiError(e);
+      rethrow;
+    }
+  }
+
+  Future<MonthlyDtrSummary> getMonthlyRecord({
+    required int month,
+    required int year,
+  }) async {
+    try {
+      return await _apiClient.get<MonthlyDtrSummary>(
+        path: '/student/dtr/monthly',
+        queryParameters: <String, dynamic>{'month': month, 'year': year},
+        converter: (data) {
+          if (data is! Map<String, dynamic>) {
+            throw ApiException(
+              message: 'Invalid monthly DTR response format',
+              errorType: ApiErrorType.unknown,
+            );
+          }
+
+          final responseData = data['data'];
+          if (responseData is! Map<String, dynamic>) {
+            throw ApiException(
+              message: 'No monthly DTR data in response',
+              errorType: ApiErrorType.unknown,
+            );
+          }
+
+          return MonthlyDtrSummary.fromJson(responseData);
+        },
       );
     } on ApiException catch (e) {
       handleApiError(e);

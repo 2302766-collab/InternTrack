@@ -4,12 +4,18 @@ namespace App\Http\Controllers\Api\V1\Student;
 
 use App\Http\Controllers\Controller;
 use App\Models\DailyTimeRecord;
+use App\Services\MonthlyDtrExportService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class DailyTimeRecordController extends Controller
 {
+    public function __construct(
+        private readonly MonthlyDtrExportService $exportService
+    ) {
+    }
+
     public function today(Request $request): JsonResponse
     {
         $record = $this->todayRecord($request);
@@ -21,6 +27,39 @@ class DailyTimeRecordController extends Controller
                 ? $this->serializeRecord($record)
                 : $this->emptyRecordPayload(),
         ], 200);
+    }
+
+    public function monthly(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'month' => ['required', 'integer', 'between:1,12'],
+            'year' => ['required', 'integer', 'between:2000,2100'],
+        ]);
+
+        $data = $this->exportService->buildMonthlyExportData(
+            $request->user(),
+            (int) $validated['month'],
+            (int) $validated['year'],
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Monthly daily time record retrieved successfully.',
+            'data' => [
+                'month' => $data['month'],
+                'year' => $data['year'],
+                'month_year' => $data['month_year'],
+                'student_name' => $data['student_name'],
+                'company_name' => $data['company_name'],
+                'schedule' => [
+                    'regular_days' => $data['regular_days'],
+                    'am_schedule' => $data['am_schedule'],
+                    'pm_schedule' => $data['pm_schedule'],
+                    'notes' => $data['schedule_notes'],
+                ],
+                'rows' => $data['rows'],
+            ],
+        ]);
     }
 
     public function timeIn(Request $request): JsonResponse

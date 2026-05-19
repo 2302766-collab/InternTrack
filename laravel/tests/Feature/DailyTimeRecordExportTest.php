@@ -30,7 +30,8 @@ class DailyTimeRecordExportTest extends TestCase
         $response->assertHeader('Content-Disposition', 'attachment; filename="dtr_juan_dela_cruz_2026_04.csv"');
 
         $content = $response->getContent();
-        $this->assertStringContainsString('Civil Service Form No. 48', $content);
+        $this->assertStringContainsString('Internship Attendance Record', $content);
+        $this->assertStringContainsString('STUDENT DAILY TIME RECORD', $content);
         $this->assertStringContainsString('Juan Dela Cruz', $content);
         $this->assertStringContainsString('08:00 AM', $content);
         $this->assertStringContainsString('1,"08:00 AM","12:00 PM","01:00 PM","05:00 PM",0,0', $content);
@@ -113,6 +114,33 @@ class DailyTimeRecordExportTest extends TestCase
         $this->get("/api/v1/supervisor/students/{$unassignedStudent->id}/dtr/export/excel?month=4&year=2026")
             ->assertForbidden()
             ->assertJsonPath('message', 'You are not allowed to access this student\'s DTR export.');
+    }
+
+    public function test_student_can_view_monthly_dtr_rows_for_table_display(): void
+    {
+        $student = $this->createUserWithRole('Student', 'Table Student');
+        $this->createInternshipProfileFor($student);
+        $this->createDtr($student, '2026-04-02', '2026-04-02 08:10:00', '2026-04-02 12:02:00', '2026-04-02 13:05:00', '2026-04-02 17:01:00', 232, 236, 468);
+
+        Sanctum::actingAs($student);
+
+        $response = $this->withHeader('Accept', 'application/json')
+            ->get('/api/v1/student/dtr/monthly?month=4&year=2026');
+
+        $response->assertOk()
+            ->assertJsonPath('data.month', 4)
+            ->assertJsonPath('data.year', 2026)
+            ->assertJsonPath('data.student_name', 'Table Student')
+            ->assertJsonPath('data.company_name', 'ABC Corp')
+            ->assertJsonPath('data.rows.1.day', 2)
+            ->assertJsonPath('data.rows.1.am_arrival', '08:10 AM')
+            ->assertJsonPath('data.rows.1.am_departure', '12:02 PM')
+            ->assertJsonPath('data.rows.1.pm_arrival', '01:05 PM')
+            ->assertJsonPath('data.rows.1.pm_departure', '05:01 PM')
+            ->assertJsonPath('data.rows.1.status', 'COMPLETED');
+
+        $rows = $response->json('data.rows');
+        $this->assertCount(30, $rows);
     }
 
     private function createUserWithRole(string $roleName, string $name): User

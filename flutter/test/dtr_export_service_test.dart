@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -8,6 +9,52 @@ import 'package:intern_track_app/core/services/intern_reporting_service.dart';
 
 void main() {
   group('DtrService exports', () {
+    test('loads monthly DTR rows for the student table', () async {
+      final adapter = _JsonAdapter(<String, dynamic>{
+        'success': true,
+        'message': 'ok',
+        'data': <String, dynamic>{
+          'month': 4,
+          'year': 2026,
+          'month_year': 'April 2026',
+          'student_name': 'Juan Dela Cruz',
+          'company_name': 'ABC Corp',
+          'schedule': <String, dynamic>{
+            'regular_days': 'Monday - Friday',
+            'am_schedule': '08:00 - 12:00',
+            'pm_schedule': '13:00 - 17:00',
+            'notes': 'Lunch break is excluded.',
+          },
+          'rows': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'day': 1,
+              'am_arrival': '08:00 AM',
+              'am_departure': '12:00 PM',
+              'pm_arrival': '01:00 PM',
+              'pm_departure': '05:00 PM',
+              'undertime_hours': '0',
+              'undertime_minutes': '0',
+              'status': 'COMPLETED',
+            },
+          ],
+        },
+      });
+      final service = DtrService(
+        ApiClient(dio: Dio()..httpClientAdapter = adapter),
+      );
+
+      final summary = await service.getMonthlyRecord(month: 4, year: 2026);
+
+      expect(adapter.lastPath, '/student/dtr/monthly');
+      expect(adapter.lastQueryParameters, <String, dynamic>{
+        'month': 4,
+        'year': 2026,
+      });
+      expect(summary.monthYear, 'April 2026');
+      expect(summary.studentName, 'Juan Dela Cruz');
+      expect(summary.rows.single.pmDeparture, '05:00 PM');
+    });
+
     test('sends start and end date filters for student PDF exports', () async {
       final adapter = _DownloadAdapter();
       final service = DtrService(
@@ -137,6 +184,35 @@ class _DownloadAdapter implements HttpClientAdapter {
       headers: <String, List<String>>{
         'content-disposition': <String>[contentDisposition],
         Headers.contentTypeHeader: <String>[contentType],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+class _JsonAdapter implements HttpClientAdapter {
+  _JsonAdapter(this.payload);
+
+  final Map<String, dynamic> payload;
+  String? lastPath;
+  Map<String, dynamic>? lastQueryParameters;
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    lastPath = options.path;
+    lastQueryParameters = Map<String, dynamic>.from(options.queryParameters);
+
+    return ResponseBody.fromString(
+      jsonEncode(payload),
+      200,
+      headers: <String, List<String>>{
+        Headers.contentTypeHeader: <String>['application/json'],
       },
     );
   }

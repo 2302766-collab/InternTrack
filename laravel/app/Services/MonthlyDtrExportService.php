@@ -77,9 +77,10 @@ class MonthlyDtrExportService
     {
         $handle = fopen('php://temp', 'r+');
 
-        fputcsv($handle, ['Civil Service Form No. 48']);
-        fputcsv($handle, ['DAILY TIME RECORD']);
+        fputcsv($handle, ['Internship Attendance Record']);
+        fputcsv($handle, ['STUDENT DAILY TIME RECORD']);
         fputcsv($handle, ['Name', $data['student_name']]);
+        fputcsv($handle, ['Company', $data['company_name'] ?? 'Not assigned']);
         fputcsv($handle, ['Month / Year', $data['month_year']]);
         fputcsv($handle, ['Regular Days', $data['regular_days']]);
         fputcsv($handle, ['A.M. Schedule', $data['am_schedule']]);
@@ -124,8 +125,8 @@ class MonthlyDtrExportService
         $tableWidth = 523.0;
         $top = 782.0;
 
-        $pdf->text($pageWidth / 2, $top, 'Civil Service Form No. 48', 10, 'F1', 'center');
-        $pdf->text($pageWidth / 2, $top - 18, 'DAILY TIME RECORD', 16, 'F2', 'center');
+        $pdf->text($pageWidth / 2, $top, 'Internship Attendance Record', 10, 'F1', 'center');
+        $pdf->text($pageWidth / 2, $top - 18, 'STUDENT DAILY TIME RECORD', 16, 'F2', 'center');
 
         $pdf->text($left, $top - 55, 'Name:', 10, 'F2');
         $pdf->text($left + 42, $top - 55, $data['student_name'], 10);
@@ -135,12 +136,16 @@ class MonthlyDtrExportService
         $pdf->text($left + 360, $top - 55, $data['month_year'], 10);
         $pdf->line($left + 356, $top - 59, $left + 500, $top - 59);
 
-        $pdf->text($left, $top - 78, 'Regular Days: ' . $data['regular_days'], 9);
-        $pdf->text($left + 220, $top - 78, 'A.M. Schedule: ' . $data['am_schedule'], 9);
-        $pdf->text($left + 380, $top - 78, 'P.M. Schedule: ' . $data['pm_schedule'], 9);
-        $pdf->text($left, $top - 96, 'Notes: ' . $data['schedule_notes'], 8);
+        $pdf->text($left, $top - 78, 'Company:', 9, 'F2');
+        $pdf->text($left + 44, $top - 78, (string) ($data['company_name'] ?? 'Not assigned'), 9);
+        $pdf->line($left + 42, $top - 82, $left + 250, $top - 82);
 
-        $tableTop = $top - 120;
+        $pdf->text($left, $top - 100, 'Regular Days: ' . $data['regular_days'], 9);
+        $pdf->text($left + 220, $top - 100, 'A.M. Schedule: ' . $data['am_schedule'], 9);
+        $pdf->text($left + 380, $top - 100, 'P.M. Schedule: ' . $data['pm_schedule'], 9);
+        $pdf->text($left, $top - 118, 'Notes: ' . $data['schedule_notes'], 8);
+
+        $tableTop = $top - 142;
         $headerHeight = 22.0;
         $rowHeight = 16.0;
         $columnWidths = [32, 86, 86, 86, 86, 70, 77];
@@ -198,7 +203,7 @@ class MonthlyDtrExportService
         $pdf->text(
             $pageWidth / 2,
             72,
-            'I certify on my honor that the above is a true and correct report of the hours of work performed.',
+            'Prepared from the internship attendance records maintained in the system.',
             8,
             'F1',
             'center'
