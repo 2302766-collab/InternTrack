@@ -68,6 +68,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   late final LogbookService _logbookService;
   late final StudentReportService _reportService;
   Timer? _liveTimer;
+  final GlobalKey _profileMenuAnchorKey = GlobalKey();
 
   InternshipProfile? _profile;
   DailyTimeRecord? _dtrRecord;
@@ -1007,6 +1008,229 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     }
   }
 
+  Future<void> _logout() async {
+    await context.read<AuthProvider>().logout();
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.login,
+      (route) => false,
+    );
+  }
+
+  Future<void> _openProfilePanel() async {
+    final anchorContext = _profileMenuAnchorKey.currentContext;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final anchorBox = anchorContext?.findRenderObject() as RenderBox?;
+    final anchorOffset = anchorBox?.localToGlobal(
+      Offset.zero,
+      ancestor: overlay,
+    );
+    final anchorSize = anchorBox?.size ?? const Size(240, 56);
+
+    await showGeneralDialog<void>(
+      context: context,
+      barrierLabel: 'Student profile',
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.18),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        final authProvider = dialogContext.watch<AuthProvider>();
+        final user = authProvider.user;
+        final avatar = _avatarImage(authProvider);
+        final displayName = user?.name.isNotEmpty == true
+            ? user!.name
+            : widget.userName;
+
+        return SafeArea(
+          child: Stack(
+            children: [
+              Positioned(
+                top: (anchorOffset?.dy ?? 80) + anchorSize.height + 10,
+                left: (() {
+                  final desiredLeft =
+                      (anchorOffset?.dx ?? (overlay.size.width - 320)) -
+                      (320 - anchorSize.width);
+                  final maxLeft = overlay.size.width > 352
+                      ? overlay.size.width - 336.0
+                      : 16.0;
+                  return desiredLeft.clamp(16.0, maxLeft);
+                })(),
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    width: 320,
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: _topHeaderBorder),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x260F172A),
+                          blurRadius: 34,
+                          offset: Offset(0, 18),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 28,
+                              backgroundColor: const Color(0xFFE3EEF7),
+                              backgroundImage: avatar,
+                              child: avatar == null
+                                  ? Text(
+                                      _initialsFor(displayName),
+                                      style: const TextStyle(
+                                        color: _headlineColor,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 18,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    displayName,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800,
+                                      color: _headlineColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    user?.email.isNotEmpty == true
+                                        ? user!.email
+                                        : 'No email available',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: _bodyColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFE6F4F1),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      (user?.role.isNotEmpty == true
+                                              ? user!.role
+                                              : 'Student')
+                                          .toUpperCase(),
+                                      style: const TextStyle(
+                                        color: _accentPrimary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF6FAFD),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: _topHeaderBorder),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Quick access',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: _bodyColor,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              InkWell(
+                                onTap: () {
+                                  Navigator.of(dialogContext).pop();
+                                  Navigator.pushNamed(
+                                    context,
+                                    AppRoutes.internshipProfile,
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(14),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 6),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.person_outline_rounded,
+                                        color: _headlineColor,
+                                        size: 18,
+                                      ),
+                                      SizedBox(width: 10),
+                                      Text(
+                                        'Open internship profile',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: _headlineColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              Navigator.of(dialogContext).pop();
+                              await _logout();
+                            },
+                            icon: const Icon(Icons.logout_rounded),
+                            label: const Text('Log out'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFB42318),
+                              side: const BorderSide(color: Color(0xFFF0C4C0)),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   String _initialsFor(String name) {
     final parts = name
         .trim()
@@ -1062,25 +1286,74 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             ),
           ),
           const Spacer(),
-          IconButton(
-            tooltip: 'Profile',
-            onPressed: () {
-              Navigator.pushNamed(context, AppRoutes.internshipProfile);
-            },
-            icon: CircleAvatar(
-              radius: 18,
-              backgroundColor: const Color(0xFFE3EEF7),
-              backgroundImage: avatar,
-              child: avatar == null
-                  ? Text(
-                      _initialsFor(displayName),
-                      style: const TextStyle(
-                        color: _headlineColor,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              key: _profileMenuAnchorKey,
+              onTap: _openProfilePanel,
+              borderRadius: BorderRadius.circular(22),
+              child: Ink(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF6FAFD),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: _topHeaderBorder),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: const Color(0xFFE3EEF7),
+                      backgroundImage: avatar,
+                      child: avatar == null
+                          ? Text(
+                              _initialsFor(displayName),
+                              style: const TextStyle(
+                                color: _headlineColor,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
+                              ),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 10),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 150),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            displayName,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: _headlineColor,
+                            ),
+                          ),
+                          Text(
+                            'Profile',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _bodyColor.withValues(alpha: 0.85),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                    )
-                  : null,
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: _headlineColor,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
           NotificationBellButton(token: token, iconColor: _headlineColor),
