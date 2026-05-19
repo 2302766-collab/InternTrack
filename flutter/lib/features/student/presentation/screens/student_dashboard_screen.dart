@@ -1180,15 +1180,14 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   }
 
   Future<void> _openProfilePanel() async {
+    final user = context.read<AuthProvider>().user;
+
     await showGeneralDialog<void>(
       context: context,
       barrierLabel: 'Student profile',
       barrierDismissible: true,
       barrierColor: Colors.black.withValues(alpha: 0.32),
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        final authProvider = dialogContext.watch<AuthProvider>();
-        final user = authProvider.user;
-
         return Material(
           color: const Color(0xFFF4F8FC),
           child: SafeArea(
@@ -1290,6 +1289,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                               subtitle: 'Update your display name and gender.',
                               onTap: () async {
                                 Navigator.of(dialogContext).pop();
+                                await Future<void>.delayed(Duration.zero);
+                                if (!mounted) return;
                                 await _showEditProfileDialog();
                               },
                             ),
@@ -1301,6 +1302,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                               child: OutlinedButton.icon(
                                 onPressed: () async {
                                   Navigator.of(dialogContext).pop();
+                                  await Future<void>.delayed(Duration.zero);
+                                  if (!mounted) return;
                                   await _logout();
                                 },
                                 icon: const Icon(Icons.logout_rounded),
