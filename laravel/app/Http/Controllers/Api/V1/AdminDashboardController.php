@@ -18,20 +18,34 @@ class AdminDashboardController extends Controller
 
     public function index(Request $request)
     {
-        $latestLogDate = LogEntry::query()->max('date');
-        $latestChartMonth = $latestLogDate !== null
-            ? Carbon::parse($latestLogDate)->startOfMonth()
-            : now()->startOfMonth();
-
         $requestedYear = $request->integer('year');
         $requestedMonth = $request->integer('month');
         $hasRequestedPeriod = $requestedYear !== null && $requestedMonth !== null
             && $requestedMonth >= 1 && $requestedMonth <= 12;
 
-        $chartMonth = $hasRequestedPeriod
-            ? Carbon::create($requestedYear, $requestedMonth, 1, 0, 0, 0, config('app.timezone'))->startOfMonth()
-            : $latestChartMonth;
-        $periodKey = $chartMonth->format('Y-m');
+        if ($hasRequestedPeriod) {
+            $chartMonth = Carbon::create(
+                $requestedYear,
+                $requestedMonth,
+                1,
+                0,
+                0,
+                0,
+                config('app.timezone')
+            )->startOfMonth();
+            $latestChartMonth = $chartMonth->copy();
+            $periodKey = $chartMonth->format('Y-m');
+        } else {
+            $periodKey = $this->dashboardCache->rememberLatestAdminDashboardPeriod(function (): string {
+                $latestLogDate = LogEntry::query()->max('date');
+
+                return $latestLogDate !== null
+                    ? Carbon::parse($latestLogDate)->startOfMonth()->format('Y-m')
+                    : now()->startOfMonth()->format('Y-m');
+            });
+            $chartMonth = Carbon::createFromFormat('Y-m', $periodKey, config('app.timezone'))->startOfMonth();
+            $latestChartMonth = $chartMonth->copy();
+        }
 
         $data = $this->dashboardCache->rememberAdminDashboard($periodKey, function () use ($chartMonth, $latestChartMonth) {
             $studentRoleId = Role::query()

@@ -144,7 +144,7 @@ class DashboardCacheTest extends TestCase
         Sanctum::actingAs($admin);
 
         $cache = app(DashboardCacheService::class);
-        $cacheKey = $cache->adminDashboardKey();
+        $cacheKey = $cache->adminDashboardKey('2026-05');
         Cache::forget($cacheKey);
 
         $connection = DB::connection();

@@ -29,6 +29,15 @@ class DashboardCacheService
         );
     }
 
+    public function rememberLatestAdminDashboardPeriod(Closure $callback): string
+    {
+        return (string) Cache::remember(
+            $this->adminDashboardLatestPeriodKey(),
+            self::TTL_SECONDS,
+            $callback,
+        );
+    }
+
     public function rememberManagedUsers(Closure $callback): array
     {
         return Cache::remember(
@@ -53,6 +62,14 @@ class DashboardCacheService
             'dashboard:admin:v%s:%s',
             $this->adminDashboardVersion(),
             $periodKey ?? 'latest',
+        );
+    }
+
+    public function adminDashboardLatestPeriodKey(): string
+    {
+        return sprintf(
+            'dashboard:admin:v%s:latest-period',
+            $this->adminDashboardVersion(),
         );
     }
 
