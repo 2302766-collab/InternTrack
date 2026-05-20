@@ -1616,30 +1616,37 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 640;
+        final headerMaxWidth = isCompact ? double.infinity : 760.0;
 
-        return Container(
-          width: double.infinity,
-          padding: EdgeInsets.all(isCompact ? 18 : 22),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [_heroStart, _heroEnd],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: headerMaxWidth,
+              minWidth: isCompact ? 0 : 560,
             ),
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x26124073),
-                blurRadius: 28,
-                offset: Offset(0, 18),
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(
+                horizontal: isCompact ? 18 : 28,
+                vertical: isCompact ? 18 : 24,
               ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeaderTimerContent(theme, record, isCompact),
-            ],
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [_heroStart, _heroEnd],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x26124073),
+                    blurRadius: 28,
+                    offset: Offset(0, 18),
+                  ),
+                ],
+              ),
+              child: _buildHeaderTimerContent(theme, record, isCompact),
+            ),
           ),
         );
       },
@@ -1656,11 +1663,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         record?.nextAction != null && !_isDtrSubmitting && !_isRefreshing;
 
     final timerColumn = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Wrap(
           spacing: 10,
           runSpacing: 10,
+          alignment: WrapAlignment.center,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
@@ -1697,6 +1705,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             fontSize: isCompact ? 30 : 36,
             letterSpacing: 1.0,
           ),
+          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 12),
         Text(
@@ -1706,6 +1715,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             fontWeight: FontWeight.w700,
             fontSize: isCompact ? 16 : 18,
           ),
+          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 6),
         Text(
@@ -1714,6 +1724,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             color: const Color(0xFFD7EBF7),
             fontSize: isCompact ? 13 : 14,
           ),
+          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 4),
         Text(
@@ -1723,15 +1734,18 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             height: 1.4,
             fontSize: isCompact ? 13 : 14,
           ),
+          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 10),
         DefaultTextStyle(
           style: TextStyle(color: Colors.white.withValues(alpha: 0.84)),
-          child: DashboardRefreshStatus(
-            lastUpdated: _lastUpdated,
-            isRefreshing: _isRefreshing,
-            pullToRefreshLabel: '',
-            refreshingLabel: 'Refreshing student dashboard...',
+          child: Center(
+            child: DashboardRefreshStatus(
+              lastUpdated: _lastUpdated,
+              isRefreshing: _isRefreshing,
+              pullToRefreshLabel: '',
+              refreshingLabel: 'Refreshing student dashboard...',
+            ),
           ),
         ),
       ],
@@ -1740,6 +1754,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     final actionButtons = Wrap(
       spacing: 10,
       runSpacing: 10,
+      alignment: WrapAlignment.center,
       children: [
         FilledButton.icon(
           onPressed: actionEnabled ? _handleDtrAction : null,
@@ -1783,7 +1798,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         timerColumn,
         const SizedBox(height: 18),
