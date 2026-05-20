@@ -1638,15 +1638,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Student Dashboard',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: isCompact ? 18 : 20,
-                ),
-              ),
-              const SizedBox(height: 14),
               _buildHeaderTimerContent(theme, record, isCompact),
             ],
           ),
