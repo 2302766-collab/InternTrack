@@ -1661,63 +1661,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     bool isCompact,
   ) {
     final timeInText = _formatPunchTime(record?.lunchInAt ?? record?.timeInAt);
-    final todayDuration = _todayRenderedDuration(record);
     final actionEnabled =
         record?.nextAction != null && !_isDtrSubmitting && !_isRefreshing;
-
-    Widget metricCard({
-      required String label,
-      required String value,
-      String? helper,
-      Widget? footer,
-    }) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFFD7EBF7),
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: isCompact ? 18 : 22,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            if (helper != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                helper,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.78),
-                  fontSize: 12,
-                  height: 1.35,
-                ),
-              ),
-            ],
-            if (footer != null) ...[
-              const SizedBox(height: 12),
-              footer,
-            ],
-          ],
-        ),
-      );
-    }
 
     final timerColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1846,86 +1791,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       ],
     );
 
-    final metricsColumn = Column(
-      children: [
-        metricCard(
-          label: 'Today',
-          value: _formatTotalMinutes(todayDuration.inMinutes),
-          helper: record == null
-              ? 'No attendance recorded yet.'
-              : 'Total tracked time for today.',
-        ),
-        const SizedBox(height: 12),
-        metricCard(
-          label: 'Total Progress',
-          value: _requiredHours > 0
-              ? '$_approvedHours / $_requiredHours hours'
-              : '$_approvedHours hours',
-          helper: _requiredHours > 0
-              ? '${(_internshipProgressRatio * 100).round()}% of your required hours completed'
-              : 'Approved internship hours so far.',
-          footer: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: LinearProgressIndicator(
-                  value: _internshipProgressRatio,
-                  minHeight: 8,
-                  backgroundColor: Colors.white.withValues(alpha: 0.12),
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    Color(0xFF9FE7FF),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _requiredHours > 0
-                    ? '${math.max(0, _requiredHours - _approvedHours)} hours remaining'
-                    : 'Required hours will appear after your profile loads.',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.78),
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        metricCard(
-          label: 'Pending',
-          value: _heroPendingLabel,
-          helper: _hasTodayLog
-              ? 'Open the logbook if you need to add or update today\'s entry.'
-              : 'Submit today\'s log after your attendance is recorded.',
-        ),
-      ],
-    );
-
-    if (isCompact) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          timerColumn,
-          const SizedBox(height: 18),
-          metricsColumn,
-          const SizedBox(height: 18),
-          actionButtons,
-        ],
-      );
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(flex: 6, child: timerColumn),
-            const SizedBox(width: 18),
-            Expanded(flex: 5, child: metricsColumn),
-          ],
-        ),
+        timerColumn,
         const SizedBox(height: 18),
         actionButtons,
       ],
