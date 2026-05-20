@@ -637,8 +637,12 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
         return 'Completed';
       case _DashboardFilter.noRecentLog:
         return 'No Recent Log';
+      case _DashboardFilter.noLogsYet:
+        return 'No Logs Yet';
+      case _DashboardFilter.missingSupervisor:
+        return 'Missing Supervisor';
       case _DashboardFilter.needsReview:
-        return 'Needs Review';
+        return 'Pending Approval';
     }
   }
 
@@ -820,6 +824,8 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
         return 'Inactive';
       case 'NO_LOGS_YET':
         return 'No Logs Yet';
+      case 'MISSING_SUPERVISOR':
+        return 'Missing Supervisor';
       case 'ON_TRACK':
         return 'On Track';
       default:
@@ -862,6 +868,8 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
         return const Color(0xFFFF5B00);
       case 'NO_LOGS_YET':
         return const Color(0xFFB54708);
+      case 'MISSING_SUPERVISOR':
+        return const Color(0xFFD92D20);
       case 'ON_TRACK':
         return const Color(0xFF00A63E);
       default:
@@ -929,10 +937,11 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
     }
 
     final status = detail.alertStatus.toUpperCase();
-    if (status == 'INACTIVE') return 0;
-    if (status == 'BEHIND') return 1;
-    if (status == 'NO_LOGS_YET') return 2;
-    if (_needsReview(detail)) return 3;
+    if (status == 'MISSING_SUPERVISOR') return 0;
+    if (status == 'INACTIVE') return 1;
+    if (status == 'BEHIND') return 2;
+    if (status == 'NO_LOGS_YET') return 3;
+    if (_needsReview(detail)) return 4;
     if (_hasNoRecentLog(detail, referenceDate)) return 5;
     return 6;
   }
@@ -947,6 +956,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
         : detail.completedHours - expectedHours;
     final daysRemaining = _daysRemaining(detail, referenceDate);
 
+    if (status == 'MISSING_SUPERVISOR') return 'Likely to miss target';
     if (status == 'INACTIVE') return 'Likely to miss target';
     if (status == 'BEHIND' &&
         ((daysRemaining != null && daysRemaining <= 14) || paceGap <= -24)) {
@@ -1023,6 +1033,11 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
         return _isCompleted(detail);
       case _DashboardFilter.noRecentLog:
         return _hasNoRecentLog(detail, referenceDate);
+      case _DashboardFilter.noLogsYet:
+        return detail.alertStatus.toUpperCase() == 'NO_LOGS_YET';
+      case _DashboardFilter.missingSupervisor:
+        return detail.alertStatus.toUpperCase() == 'MISSING_SUPERVISOR' ||
+            detail.supervisorId == null;
       case _DashboardFilter.needsReview:
         return _needsReview(detail);
     }
@@ -1171,8 +1186,8 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
             intern: detail,
             title: detail.studentName,
             subtitle:
-                '${detail.pendingLogs} pending log${detail.pendingLogs == 1 ? '' : 's'} waiting for review.',
-            tag: detail.pendingLogs > 2 ? 'Priority' : 'Review',
+                '${detail.pendingLogs} pending log${detail.pendingLogs == 1 ? '' : 's'} waiting for supervisor approval.',
+            tag: detail.pendingLogs > 2 ? 'Priority' : 'Pending',
             color: detail.pendingLogs > 2
                 ? const Color(0xFFD92D20)
                 : const Color(0xFF326DE6),
@@ -1734,7 +1749,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
           _buildPulseMetric('On Track', '$onTrack', OceanBreezePalette.sky),
           _buildPulseMetric('Completed', '$completed', OceanBreezePalette.tide),
           _buildPulseMetric(
-            'Pending Review',
+            'Pending Approval',
             '$pendingReviews',
             OceanBreezePalette.surfaceMuted,
           ),
@@ -2245,7 +2260,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                     ),
                     _buildMetricBadge(
                       '${snapshot.pendingReviews}',
-                      'Pending Review',
+                      'Pending Approval',
                       const Color(0xFFB54708),
                     ),
                   ],
@@ -2757,7 +2772,12 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
       const _FilterChoice(_DashboardFilter.inactive, 'Inactive'),
       const _FilterChoice(_DashboardFilter.completed, 'Completed'),
       const _FilterChoice(_DashboardFilter.noRecentLog, 'No Recent Log'),
-      const _FilterChoice(_DashboardFilter.needsReview, 'Needs Review'),
+      const _FilterChoice(_DashboardFilter.noLogsYet, 'No Logs Yet'),
+      const _FilterChoice(
+        _DashboardFilter.missingSupervisor,
+        'Missing Supervisor',
+      ),
+      const _FilterChoice(_DashboardFilter.needsReview, 'Pending Approval'),
     ];
 
     return SizedBox(
@@ -2836,6 +2856,8 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                 _buildLegendPill('On Track', const Color(0xFF00A63E)),
                 _buildLegendPill('Behind', const Color(0xFFFF5B00)),
                 _buildLegendPill('Inactive', const Color(0xFFD92D20)),
+                _buildLegendPill('No Logs Yet', const Color(0xFFB54708)),
+                _buildLegendPill('Missing Supervisor', const Color(0xFFD92D20)),
                 _buildLegendPill('Completed', const Color(0xFF0F766E)),
               ],
             ),
@@ -2940,7 +2962,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                   ? null
                                   : _openInternReports,
                               icon: const Icon(Icons.open_in_new_rounded),
-                              label: const Text('Open Intern Reports'),
+                              label: const Text('Open Intern Details'),
                             ),
                           ),
                         ],
@@ -2976,7 +2998,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                 ? null
                                 : _openInternReports,
                             icon: const Icon(Icons.open_in_new_rounded),
-                            label: const Text('Open Intern Reports'),
+                            label: const Text('Open Intern Details'),
                           ),
                         ],
                       );
@@ -3394,7 +3416,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                 title: 'No Recent Log',
                                 value: '$staleLogs',
                                 subtitle:
-                                    '$pendingReviews pending reviews are also waiting.',
+                                    '$pendingReviews logs are waiting for supervisor approval.',
                                 icon: Icons.schedule_rounded,
                                 accent: _accentTertiary,
                                 filter: _DashboardFilter.noRecentLog,
@@ -3478,9 +3500,9 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                             spacing: spacing,
                             panels: [
                               _buildSectionPanel(
-                                title: 'Reports Awaiting Review',
+                                title: 'Pending Supervisor Approval',
                                 subtitle:
-                                    'Students needing review today are grouped here first.',
+                                    'Logs that advisers should monitor while waiting for supervisor action.',
                                 icon: Icons.assignment_turned_in_outlined,
                                 accent: _accentPrimary,
                                 width: triPanelWidth,
@@ -3488,8 +3510,8 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                   reviewItems,
                                   onEmptyAction: _openInternReports,
                                   emptyMessage:
-                                      'No pending reports are waiting right now.',
-                                  emptyButtonLabel: 'Open Intern Reports',
+                                      'No logs are waiting for supervisor approval right now.',
+                                  emptyButtonLabel: 'Open Intern Details',
                                 ),
                               ),
                               _buildSectionPanel(
@@ -3632,6 +3654,8 @@ enum _DashboardFilter {
   inactive,
   completed,
   noRecentLog,
+  noLogsYet,
+  missingSupervisor,
   needsReview,
 }
 
