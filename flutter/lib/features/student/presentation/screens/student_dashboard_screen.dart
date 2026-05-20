@@ -582,6 +582,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     }
 
     return switch (record.status) {
+      'WORKING' when record.isAfternoonOnlySession =>
+        'Your afternoon session is active. Use Time Out when you finish your day.',
       'WORKING' when record.lunchInAt == null =>
         'Your morning session is active. Use Time Out when you start your break.',
       'WORKING' =>
@@ -596,9 +598,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   Future<void> _handleDtrAction() async {
     final token = context.read<AuthProvider>().token ?? '';
     final record = _dtrRecord;
+    final resolvedNextAction = record?.resolvedNextAction(_now());
     if (token.isEmpty ||
         record == null ||
-        record.nextAction == null ||
+        resolvedNextAction == null ||
         _isDtrSubmitting) {
       return;
     }
@@ -611,7 +614,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     try {
       late final DailyTimeRecord updatedRecord;
-      switch (record.nextAction) {
+      switch (resolvedNextAction) {
         case 'TIME_IN':
           updatedRecord = await _dtrService.timeIn();
           break;
@@ -643,7 +646,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${_dtrActionLabel(record.nextAction)} recorded at ${_formatPunchTime(_lastRecordedPunch(updatedRecord))}.',
+            '${_dtrActionLabel(resolvedNextAction)} recorded at ${_formatPunchTime(_lastRecordedPunch(updatedRecord))}.',
           ),
         ),
       );
@@ -1659,8 +1662,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     bool isCompact,
   ) {
     final timeInText = _formatPunchTime(record?.lunchInAt ?? record?.timeInAt);
+    final resolvedNextAction = record?.resolvedNextAction(_now());
     final actionEnabled =
-        record?.nextAction != null && !_isDtrSubmitting && !_isRefreshing;
+        resolvedNextAction != null && !_isDtrSubmitting && !_isRefreshing;
 
     final timerColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -1771,7 +1775,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 )
               : const Icon(Icons.fingerprint_rounded),
           label: Text(
-            _isDtrSubmitting ? 'Saving...' : _dtrActionLabel(record?.nextAction),
+            _isDtrSubmitting
+                ? 'Saving...'
+                : _dtrActionLabel(resolvedNextAction),
           ),
         ),
         OutlinedButton.icon(

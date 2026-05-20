@@ -12,12 +12,14 @@ import 'package:intern_track_app/core/services/auth_service.dart';
 import 'package:intern_track_app/core/services/internship_service.dart';
 import 'package:intern_track_app/core/services/logbook_service.dart';
 import 'package:intern_track_app/core/services/notification_service.dart';
+import 'package:intern_track_app/core/services/dtr_service.dart';
 import 'package:intern_track_app/core/services/student_report_service.dart';
 import 'package:intern_track_app/core/services/token_service.dart';
 import 'package:intern_track_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:intern_track_app/features/student/presentation/screens/student_dashboard_screen.dart';
 import 'package:intern_track_app/shared/models/app_notification.dart';
 import 'package:intern_track_app/shared/models/app_user.dart';
+import 'package:intern_track_app/shared/models/daily_time_record.dart';
 import 'package:intern_track_app/shared/models/internship_profile.dart';
 import 'package:intern_track_app/shared/models/log_entry.dart';
 import 'package:intern_track_app/shared/models/notification_page.dart';
@@ -562,6 +564,71 @@ void main() {
 
     await _disposeRenderedTree(tester);
   });
+
+  testWidgets('afternoon-only active session uses time out instead of lunch out', (
+    tester,
+  ) async {
+    final authProvider = await _buildAuthProvider();
+    final dtrService = _ActionTrackingDtrService(
+      initialRecord: DailyTimeRecord(
+        id: 9,
+        date: '2026-05-10',
+        status: 'WORKING',
+        currentStateLabel: 'Working',
+        nextAction: 'LUNCH_OUT',
+        timeInAt: DateTime(2026, 5, 10, 13, 0),
+        lunchOutAt: null,
+        lunchInAt: null,
+        timeOutAt: null,
+        firstWorkMinutes: 0,
+        secondWorkMinutes: 45,
+        totalWorkMinutes: 45,
+      ),
+      timeOutRecord: DailyTimeRecord(
+        id: 9,
+        date: '2026-05-10',
+        status: 'COMPLETED',
+        currentStateLabel: 'Completed',
+        nextAction: null,
+        timeInAt: DateTime(2026, 5, 10, 13, 0),
+        lunchOutAt: null,
+        lunchInAt: null,
+        timeOutAt: DateTime(2026, 5, 10, 17, 0),
+        firstWorkMinutes: 0,
+        secondWorkMinutes: 240,
+        totalWorkMinutes: 240,
+      ),
+    );
+
+    await tester.pumpWidget(
+      _buildApp(
+        authProvider: authProvider,
+        internshipService: _QueuedInternshipService(
+          responses: Queue.of([() async => _sampleProfile()]),
+        ),
+        dtrService: dtrService,
+        reportService: _QueuedStudentReportService(
+          responses: Queue.of([() async => _sampleReport()]),
+        ),
+        logbookService: _QueuedLogbookService(
+          responses: Queue.of([() async => _sampleLogs()]),
+        ),
+        clock: _FakeClock(DateTime(2026, 5, 10, 13, 30)).call,
+      ),
+    );
+
+    await _pumpDashboardReady(tester);
+
+    expect(find.text('Your afternoon session is active.'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Time Out'));
+    await _pumpDashboardReady(tester);
+
+    expect(dtrService.lastAction, 'timeOut');
+    expect(dtrService.lunchOutCalls, 0);
+
+    await _disposeRenderedTree(tester);
+  });
 }
 
 Future<void> _triggerRefresh(WidgetTester tester) async {
@@ -603,6 +670,7 @@ Future<AuthProvider> _buildAuthProvider() async {
 Widget _buildApp({
   required AuthProvider authProvider,
   required InternshipService internshipService,
+  DtrService? dtrService,
   required StudentReportService reportService,
   required LogbookService logbookService,
   DateTime Function()? clock,
@@ -616,6 +684,7 @@ Widget _buildApp({
       home: StudentDashboardScreen(
         userName: 'Sample Student',
         internshipService: internshipService,
+        dtrService: dtrService ?? _StaticDtrService(),
         reportService: reportService,
         logbookService: logbookService,
         clock: clock,
@@ -841,5 +910,56 @@ class _FakeNotificationService extends NotificationService {
       unreadCount: 0,
       hasMorePages: false,
     );
+  }
+}
+
+class _StaticDtrService extends DtrService {
+  _StaticDtrService()
+    : super(ApiClient(dio: Dio()));
+
+  @override
+  Future<DailyTimeRecord> getTodayRecord() async {
+    return DailyTimeRecord(
+      id: 1,
+      date: '2026-05-10',
+      status: 'NOT_STARTED',
+      currentStateLabel: 'Not Started',
+      nextAction: 'TIME_IN',
+      timeInAt: null,
+      lunchOutAt: null,
+      lunchInAt: null,
+      timeOutAt: null,
+      firstWorkMinutes: 0,
+      secondWorkMinutes: 0,
+      totalWorkMinutes: 0,
+    );
+  }
+}
+
+class _ActionTrackingDtrService extends DtrService {
+  _ActionTrackingDtrService({
+    required this.initialRecord,
+    required this.timeOutRecord,
+  }) : super(ApiClient(dio: Dio()));
+
+  final DailyTimeRecord initialRecord;
+  final DailyTimeRecord timeOutRecord;
+  String? lastAction;
+  int lunchOutCalls = 0;
+
+  @override
+  Future<DailyTimeRecord> getTodayRecord() async => initialRecord;
+
+  @override
+  Future<DailyTimeRecord> lunchOut() async {
+    lastAction = 'lunchOut';
+    lunchOutCalls += 1;
+    return timeOutRecord;
+  }
+
+  @override
+  Future<DailyTimeRecord> timeOut() async {
+    lastAction = 'timeOut';
+    return timeOutRecord;
   }
 }

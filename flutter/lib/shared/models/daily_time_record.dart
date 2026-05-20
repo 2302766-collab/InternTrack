@@ -59,4 +59,31 @@ class DailyTimeRecord {
 
     return DateTime.tryParse(raw)?.toLocal();
   }
+
+  bool get isAfternoonOnlySession =>
+      timeInAt != null &&
+      lunchOutAt == null &&
+      lunchInAt == null &&
+      timeOutAt == null &&
+      !_isMorningPunch(timeInAt);
+
+  String? resolvedNextAction(DateTime now) {
+    if (nextAction == 'LUNCH_OUT' && isAfternoonOnlySession) {
+      return 'TIME_OUT';
+    }
+
+    if (nextAction == 'LUNCH_IN' &&
+        lunchOutAt != null &&
+        !_isMorningPunch(lunchOutAt)) {
+      return 'TIME_OUT';
+    }
+
+    return nextAction;
+  }
+
+  static bool _isMorningPunch(DateTime? value) {
+    if (value == null) return false;
+    final normalized = value.toLocal();
+    return normalized.hour < 12;
+  }
 }

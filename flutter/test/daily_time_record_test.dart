@@ -34,5 +34,19 @@ void main() {
       expect(record.secondWorkMinutes, 0);
       expect(record.totalWorkMinutes, 0);
     });
+
+    test('treats an afternoon-only active session as ready for time out', () {
+      final record = DailyTimeRecord.fromJson({
+        'status': 'WORKING',
+        'next_action': 'LUNCH_OUT',
+        'time_in_at': '2026-04-20T13:00:00',
+      });
+
+      expect(record.isAfternoonOnlySession, isTrue);
+      expect(
+        record.resolvedNextAction(DateTime(2026, 4, 20, 13)),
+        'TIME_OUT',
+      );
+    });
   });
 }

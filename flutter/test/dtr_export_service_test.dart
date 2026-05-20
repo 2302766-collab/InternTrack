@@ -55,6 +55,45 @@ void main() {
       expect(summary.rows.single.pmDeparture, '05:00 PM');
     });
 
+    test('moves afternoon-only punches into the PM columns', () async {
+      final adapter = _JsonAdapter(<String, dynamic>{
+        'success': true,
+        'message': 'ok',
+        'data': <String, dynamic>{
+          'month': 4,
+          'year': 2026,
+          'month_year': 'April 2026',
+          'student_name': 'Juan Dela Cruz',
+          'company_name': 'ABC Corp',
+          'schedule': <String, dynamic>{},
+          'rows': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'day': 2,
+              'am_arrival': '01:00 PM',
+              'am_departure': '05:00 PM',
+              'pm_arrival': '',
+              'pm_departure': '',
+              'undertime_hours': '0',
+              'undertime_minutes': '0',
+              'status': 'COMPLETED',
+            },
+          ],
+        },
+      });
+      final service = DtrService(
+        ApiClient(dio: Dio()..httpClientAdapter = adapter),
+      );
+
+      final row = (await service.getMonthlyRecord(month: 4, year: 2026))
+          .rows
+          .single;
+
+      expect(row.amArrival, isEmpty);
+      expect(row.amDeparture, isEmpty);
+      expect(row.pmArrival, '01:00 PM');
+      expect(row.pmDeparture, '05:00 PM');
+    });
+
     test('sends start and end date filters for student PDF exports', () async {
       final adapter = _DownloadAdapter();
       final service = DtrService(
