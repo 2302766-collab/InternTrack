@@ -2060,7 +2060,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   Widget _buildAttendanceSection() {
     final isLoading = _isSectionLoading(_StudentDashboardSection.dtr);
     final record = _dtrRecord;
-    final canSubmit = record?.nextAction != null && !_isDtrSubmitting;
 
     Widget punchTile({
       required String label,
@@ -2121,100 +2120,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF4FAFB),
-              border: Border.all(color: const Color(0xFFD6ECEF)),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _dtrStatusHeadline(record),
-                  style: const TextStyle(
-                    color: _headlineColor,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _dtrStatusDescription(record),
-                  style: const TextStyle(color: _bodyColor, height: 1.4),
-                ),
-                const SizedBox(height: 16),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isCompact = constraints.maxWidth < 640;
-                    return isCompact
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              FilledButton.icon(
-                                onPressed: canSubmit ? _handleDtrAction : null,
-                                icon: _isDtrSubmitting
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : const Icon(Icons.fingerprint_rounded),
-                                label: Text(
-                                  _isDtrSubmitting
-                                      ? 'Saving...'
-                                      : _dtrActionLabel(record?.nextAction),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              OutlinedButton.icon(
-                                onPressed: () =>
-                                    _openRoute(AppRoutes.studentDtr),
-                                icon: const Icon(Icons.punch_clock_rounded),
-                                label: const Text('Open Full DTR'),
-                              ),
-                            ],
-                          )
-                        : Row(
-                            children: [
-                              FilledButton.icon(
-                                onPressed: canSubmit ? _handleDtrAction : null,
-                                icon: _isDtrSubmitting
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : const Icon(Icons.fingerprint_rounded),
-                                label: Text(
-                                  _isDtrSubmitting
-                                      ? 'Saving...'
-                                      : _dtrActionLabel(record?.nextAction),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              OutlinedButton.icon(
-                                onPressed: () =>
-                                    _openRoute(AppRoutes.studentDtr),
-                                icon: const Icon(Icons.punch_clock_rounded),
-                                label: const Text('Open Full DTR'),
-                              ),
-                            ],
-                          );
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
           LayoutBuilder(
             builder: (context, constraints) {
               final isCompact = constraints.maxWidth < 640;
