@@ -9,6 +9,8 @@
 /.idea
 /.nova
 /.phpunit.cache
+/.composer-cache
+/.composer-home
 /.vscode
 /.zed
 /auth.json

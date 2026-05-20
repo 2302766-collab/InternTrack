@@ -1,13 +1,5 @@
 {
-<<<<<<< HEAD
-    "cmake.sourceDirectory": "C:/Users/val john/InternTrack/.worktrees/MMP-89/flutter/linux",
-=======
-    "cmake.sourceDirectory": "/home/valhelsing/interntracking/flutter/linux/runner",
-    "dart.flutterSdkPath": "/home/valhelsing/interntracking/flutter-sdk",
->>>>>>> 6fbbe9d (Login issue)
-    "dart.analysisExcludedFolders": [
-        "/home/valhelsing/interntracking/flutter-sdk"
-    ],
+    "cmake.sourceDirectory": "${workspaceFolder}/flutter/linux",
     "dart.projectSearchDepth": 3,
     "files.watcherExclude": {
         "**/flutter-sdk/**": true
