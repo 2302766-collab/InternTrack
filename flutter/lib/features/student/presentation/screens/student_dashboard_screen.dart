@@ -1462,132 +1462,150 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     final avatar = _avatarImage(authProvider);
     final displayName = user?.name.isNotEmpty == true ? user!.name : 'Student';
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _topHeaderBorder),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x120F172A),
-            blurRadius: 16,
-            offset: Offset(0, 6),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 430;
+
+        return Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: isCompact ? 14 : 18,
+            vertical: 14,
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          InkWell(
-            onTap: () =>
-                Navigator.pushNamed(context, AppRoutes.studentDashboard),
-            borderRadius: BorderRadius.circular(16),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-              child: Text(
-                'Student Dashboard',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: _headlineColor,
-                ),
-              ),
-            ),
-          ),
-          const Spacer(),
-          NotificationBellButton(token: token, iconColor: _headlineColor),
-          const SizedBox(width: 6),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                themeController.isDarkMode
-                    ? Icons.dark_mode_rounded
-                    : Icons.light_mode_rounded,
-                color: _headlineColor,
-                size: 18,
-              ),
-              Switch(
-                value: themeController.isDarkMode,
-                onChanged: (value) {
-                  context.read<ThemeController>().setDarkMode(value);
-                },
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: _topHeaderBorder),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x120F172A),
+                blurRadius: 16,
+                offset: Offset(0, 6),
               ),
             ],
           ),
-          const SizedBox(width: 8),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              key: _profileMenuAnchorKey,
-              onTap: _openProfilePanel,
-              borderRadius: BorderRadius.circular(22),
-              child: Ink(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF6FAFD),
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: _topHeaderBorder),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: const Color(0xFFE3EEF7),
-                      backgroundImage: avatar,
-                      child: avatar == null
-                          ? Text(
-                              _initialsFor(displayName),
-                              style: const TextStyle(
-                                color: _headlineColor,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 12,
-                              ),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 10),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 150),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            displayName,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: _headlineColor,
-                            ),
-                          ),
-                          Text(
-                            'Profile',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: _bodyColor.withValues(alpha: 0.85),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+          child: Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () =>
+                      Navigator.pushNamed(context, AppRoutes.studentDashboard),
+                  borderRadius: BorderRadius.circular(16),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                    child: Text(
+                      'Student Dashboard',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: _headlineColor,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: _headlineColor,
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 6),
+              NotificationBellButton(token: token, iconColor: _headlineColor),
+              const SizedBox(width: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    themeController.isDarkMode
+                        ? Icons.dark_mode_rounded
+                        : Icons.light_mode_rounded,
+                    color: _headlineColor,
+                    size: 18,
+                  ),
+                  Transform.scale(
+                    scale: isCompact ? 0.85 : 1,
+                    child: Switch(
+                      value: themeController.isDarkMode,
+                      onChanged: (value) {
+                        context.read<ThemeController>().setDarkMode(value);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 4),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  key: _profileMenuAnchorKey,
+                  onTap: _openProfilePanel,
+                  borderRadius: BorderRadius.circular(22),
+                  child: Ink(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isCompact ? 8 : 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF6FAFD),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: _topHeaderBorder),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: const Color(0xFFE3EEF7),
+                          backgroundImage: avatar,
+                          child: avatar == null
+                              ? Text(
+                                  _initialsFor(displayName),
+                                  style: const TextStyle(
+                                    color: _headlineColor,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 12,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        if (!isCompact) ...[
+                          const SizedBox(width: 10),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 150),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  displayName,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: _headlineColor,
+                                  ),
+                                ),
+                                Text(
+                                  'Profile',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: _bodyColor.withValues(alpha: 0.85),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: _headlineColor,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
