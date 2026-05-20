@@ -2784,147 +2784,51 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   Widget _buildQuickActionsSection() {
     return DashboardInfoCard(
-      title: 'Action Shortcuts',
+      title: 'Quick Actions',
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isCompact = constraints.maxWidth < 640;
-          final cardWidth = isCompact
+          final actionWidth = isCompact
               ? constraints.maxWidth
-              : math.min(constraints.maxWidth, 720.0);
+              : constraints.maxWidth >= 920
+              ? (constraints.maxWidth - 36) / 4
+              : (constraints.maxWidth - 12) / 2;
 
-          Widget summaryCard({
-            required String label,
-            required String value,
-            required String helper,
-            required VoidCallback onTap,
-            Widget? footer,
-          }) {
-            return SizedBox(
-              width: cardWidth,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: onTap,
-                  borderRadius: BorderRadius.circular(26),
-                  child: Ink(
-                    padding: EdgeInsets.all(isCompact ? 18 : 20),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [_heroStart, _heroEnd],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(26),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.14),
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x1A124073),
-                          blurRadius: 22,
-                          offset: Offset(0, 14),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          label,
-                          style: const TextStyle(
-                            color: Color(0xFFD7EBF7),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          value,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: isCompact ? 18 : 20,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          helper,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.80),
-                            fontSize: 13,
-                            height: 1.35,
-                          ),
-                        ),
-                        if (footer != null) ...[
-                          const SizedBox(height: 12),
-                          footer,
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          return Wrap(
+            spacing: 12,
+            runSpacing: 12,
             children: [
-              summaryCard(
-                label: 'Today',
-                value: _formatTotalMinutes(
-                  _todayRenderedDuration(_dtrRecord).inMinutes,
-                ),
-                helper: _dtrRecord == null
-                    ? 'Open your DTR to start tracking attendance.'
-                    : 'Total tracked time for today.',
-                onTap: () => _openRoute(AppRoutes.studentDtr),
-              ),
-              const SizedBox(height: 12),
-              summaryCard(
-                label: 'Total Progress',
-                value: _requiredHours > 0
-                    ? '$_approvedHours / $_requiredHours hours'
-                    : '$_approvedHours hours',
-                helper: _requiredHours > 0
-                    ? '${(_internshipProgressRatio * 100).round()}% of your required hours completed'
-                    : 'Approved internship hours so far.',
-                onTap: () => _openRoute(AppRoutes.studentReport),
-                footer: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(999),
-                      child: LinearProgressIndicator(
-                        value: _internshipProgressRatio,
-                        minHeight: 8,
-                        backgroundColor: Colors.white.withValues(alpha: 0.12),
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          Color(0xFF9FE7FF),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _requiredHours > 0
-                          ? '${math.max(0, _requiredHours - _approvedHours)} hours remaining'
-                          : 'Required hours will appear after your profile loads.',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.78),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+              SizedBox(
+                width: actionWidth,
+                child: FilledButton.icon(
+                  onPressed: () => _openRoute(AppRoutes.logbook),
+                  icon: const Icon(Icons.edit_note),
+                  label: const Text('Add Today\'s Log'),
                 ),
               ),
-              const SizedBox(height: 12),
-              summaryCard(
-                label: 'Pending',
-                value: _heroPendingLabel,
-                helper: _hasTodayLog
-                    ? 'Open the logbook if you need to add or update today\'s entry.'
-                    : 'Submit today\'s log after your attendance is recorded.',
-                onTap: () => _openRoute(AppRoutes.logbook),
+              SizedBox(
+                width: actionWidth,
+                child: FilledButton.icon(
+                  onPressed: () => _openRoute(AppRoutes.studentDtr),
+                  icon: const Icon(Icons.punch_clock_rounded),
+                  label: const Text('Open Full DTR'),
+                ),
+              ),
+              SizedBox(
+                width: actionWidth,
+                child: OutlinedButton.icon(
+                  onPressed: () => _openRoute(AppRoutes.studentReport),
+                  icon: const Icon(Icons.assessment_outlined),
+                  label: const Text('View Full Report'),
+                ),
+              ),
+              SizedBox(
+                width: actionWidth,
+                child: OutlinedButton.icon(
+                  onPressed: () => _openRoute(AppRoutes.internshipProfile),
+                  icon: const Icon(Icons.business_center_outlined),
+                  label: const Text('Update Profile'),
+                ),
               ),
             ],
           );
