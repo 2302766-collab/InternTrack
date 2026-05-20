@@ -741,6 +741,33 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     return '$hours h ${remainder.toString().padLeft(2, '0')} m';
   }
 
+  Duration _todayRenderedDuration(DailyTimeRecord? record) {
+    if (record == null) return Duration.zero;
+    return Duration(minutes: record.totalWorkMinutes) + _liveElapsed;
+  }
+
+  double get _internshipProgressRatio {
+    if (_requiredHours <= 0) return 0;
+    return (_approvedHours / _requiredHours).clamp(0.0, 1.0);
+  }
+
+  String get _heroPendingLabel {
+    if (!_hasTodayLog) {
+      return 'Daily log not submitted';
+    }
+    if (_pendingLogsCount > 0) {
+      return _pendingLogsCount == 1
+          ? '1 log pending review'
+          : '$_pendingLogsCount logs pending review';
+    }
+    if (_rejectedLogsCount > 0) {
+      return _rejectedLogsCount == 1
+          ? '1 log needs revision'
+          : '$_rejectedLogsCount logs need revision';
+    }
+    return 'No pending issues';
+  }
+
   String _timerHint(DailyTimeRecord? record) {
     if (record == null) return 'Time in to start tracking your attendance.';
 
@@ -1615,7 +1642,66 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     DailyTimeRecord? record,
     bool isCompact,
   ) {
-    return Column(
+    final timeInText = _formatPunchTime(record?.lunchInAt ?? record?.timeInAt);
+    final todayDuration = _todayRenderedDuration(record);
+    final actionEnabled =
+        record?.nextAction != null && !_isDtrSubmitting && !_isRefreshing;
+
+    Widget metricCard({
+      required String label,
+      required String value,
+      String? helper,
+      Widget? footer,
+    }) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFFD7EBF7),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: isCompact ? 18 : 22,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            if (helper != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                helper,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.78),
+                  fontSize: 12,
+                  height: 1.35,
+                ),
+              ),
+            ],
+            if (footer != null) ...[
+              const SizedBox(height: 12),
+              footer,
+            ],
+          ],
+        ),
+      );
+    }
+
+    final timerColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Wrap(
@@ -1658,7 +1744,16 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             letterSpacing: 1.0,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
+        Text(
+          'Time In: $timeInText',
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: isCompact ? 16 : 18,
+          ),
+        ),
+        const SizedBox(height: 6),
         Text(
           _formatHeaderDate(),
           style: theme.textTheme.bodyLarge?.copyWith(
@@ -1675,17 +1770,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             fontSize: isCompact ? 13 : 14,
           ),
         ),
-        if (record != null) ...[
-          const SizedBox(height: 10),
-          Text(
-            'Total rendered time: ${_formatTotalMinutes(record.totalWorkMinutes)}',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: isCompact ? 12 : 13,
-            ),
-          ),
-        ],
         const SizedBox(height: 10),
         DefaultTextStyle(
           style: TextStyle(color: Colors.white.withValues(alpha: 0.84)),
@@ -1696,6 +1780,136 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             refreshingLabel: 'Refreshing student dashboard...',
           ),
         ),
+      ],
+    );
+
+    final actionButtons = Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        FilledButton.icon(
+          onPressed: actionEnabled ? _handleDtrAction : null,
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: _heroStart,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+          icon: _isDtrSubmitting
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.fingerprint_rounded),
+          label: Text(
+            _isDtrSubmitting ? 'Saving...' : _dtrActionLabel(record?.nextAction),
+          ),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => _openRoute(AppRoutes.studentDtr),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.white,
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.55)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+          icon: const Icon(Icons.punch_clock_rounded),
+          label: const Text('Open Full DTR'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => _openRoute(AppRoutes.logbook),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.white,
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.55)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+          icon: const Icon(Icons.edit_note_rounded),
+          label: const Text('Submit Log'),
+        ),
+      ],
+    );
+
+    final metricsColumn = Column(
+      children: [
+        metricCard(
+          label: 'Today',
+          value: _formatTotalMinutes(todayDuration.inMinutes),
+          helper: record == null
+              ? 'No attendance recorded yet.'
+              : 'Total tracked time for today.',
+        ),
+        const SizedBox(height: 12),
+        metricCard(
+          label: 'Total Progress',
+          value: _requiredHours > 0
+              ? '$_approvedHours / $_requiredHours hours'
+              : '$_approvedHours hours',
+          helper: _requiredHours > 0
+              ? '${(_internshipProgressRatio * 100).round()}% of your required hours completed'
+              : 'Approved internship hours so far.',
+          footer: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: LinearProgressIndicator(
+                  value: _internshipProgressRatio,
+                  minHeight: 8,
+                  backgroundColor: Colors.white.withValues(alpha: 0.12),
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    Color(0xFF9FE7FF),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _requiredHours > 0
+                    ? '${math.max(0, _requiredHours - _approvedHours)} hours remaining'
+                    : 'Required hours will appear after your profile loads.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.78),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        metricCard(
+          label: 'Pending',
+          value: _heroPendingLabel,
+          helper: _hasTodayLog
+              ? 'Open the logbook if you need to add or update today\'s entry.'
+              : 'Submit today\'s log after your attendance is recorded.',
+        ),
+      ],
+    );
+
+    if (isCompact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          timerColumn,
+          const SizedBox(height: 18),
+          metricsColumn,
+          const SizedBox(height: 18),
+          actionButtons,
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(flex: 6, child: timerColumn),
+            const SizedBox(width: 18),
+            Expanded(flex: 5, child: metricsColumn),
+          ],
+        ),
+        const SizedBox(height: 18),
+        actionButtons,
       ],
     );
   }
