@@ -37,11 +37,13 @@ class _StudentAssignmentManagementScreenState
   final Map<int, SupervisorOption?> _draftSupervisors =
       <int, SupervisorOption?>{};
   final List<AdminStudentSummary> _students = <AdminStudentSummary>[];
+  final TextEditingController _searchController = TextEditingController();
 
   bool _isLoadingStudents = true;
   bool _isPageLoading = false;
   bool _showOnlyNeedsAssignment = false;
   String? _errorMessage;
+  String _searchQuery = '';
   int _currentPage = 1;
   int _lastPage = 1;
   int _totalStudents = 0;
@@ -53,6 +55,12 @@ class _StudentAssignmentManagementScreenState
     _adviserProvider = context.read<AdviserManagementProvider>();
     _supervisorProvider = context.read<SupervisorManagementProvider>();
     _loadInitialData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadInitialData() async {
@@ -218,19 +226,31 @@ class _StudentAssignmentManagementScreenState
   }
 
   List<AdminStudentSummary> get _visibleStudents {
-    if (!_showOnlyNeedsAssignment) {
-      return _students;
-    }
+    final normalizedQuery = _searchQuery.trim().toLowerCase();
 
     return _students.where((student) {
       final adviser = _adviserProvider.getStudentAssignment(student.studentId);
       final supervisor = _supervisorProvider.getStudentAssignment(
         student.studentId,
       );
-      return !student.hasAdviser ||
+      final matchesAssignmentFilter =
+          !_showOnlyNeedsAssignment ||
+          !student.hasAdviser ||
           adviser?.adviserId == null ||
           !student.hasSupervisor ||
           supervisor?.supervisorId == null;
+
+      if (!matchesAssignmentFilter) {
+        return false;
+      }
+
+      if (normalizedQuery.isEmpty) {
+        return true;
+      }
+
+      return student.name.toLowerCase().contains(normalizedQuery) ||
+          (student.company?.toLowerCase().contains(normalizedQuery) ?? false) ||
+          student.studentId.toString().contains(normalizedQuery);
     }).toList();
   }
 
@@ -416,6 +436,8 @@ class _StudentAssignmentManagementScreenState
   }
 
   Widget _buildToolbar() {
+    final hasSearchQuery = _searchQuery.trim().isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -447,6 +469,49 @@ class _StudentAssignmentManagementScreenState
             style: TextStyle(fontSize: 14, color: _textSecondary, height: 1.45),
           ),
           const SizedBox(height: 16),
+          TextField(
+            controller: _searchController,
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+            decoration: InputDecoration(
+              hintText: 'Search by student name, ID, or company',
+              prefixIcon: const Icon(Icons.search_rounded),
+              suffixIcon: hasSearchQuery
+                  ? IconButton(
+                      tooltip: 'Clear search',
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _searchQuery = '';
+                        });
+                      },
+                      icon: const Icon(Icons.close_rounded),
+                    )
+                  : null,
+              filled: true,
+              fillColor: const Color(0xFFF8FAFC),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: const BorderSide(color: _borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: const BorderSide(color: _borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: const BorderSide(color: _brandPrimary, width: 1.4),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
           Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -505,6 +570,17 @@ class _StudentAssignmentManagementScreenState
               ),
             ],
           ),
+          if (hasSearchQuery) ...[
+            const SizedBox(height: 12),
+            Text(
+              '${_visibleStudents.length} result${_visibleStudents.length == 1 ? '' : 's'} on this page',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: _textSecondary,
+              ),
+            ),
+          ],
         ],
       ),
     );
