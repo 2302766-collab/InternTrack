@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/logbook_service.dart';
+import '../../../../core/theme/theme_utils.dart';
 import '../../../../core/utils/file_download_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_download_web.dart'
     as file_download;
@@ -369,6 +370,7 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
     await showDialog<void>(
       context: context,
       builder: (context) {
+        final theme = Theme.of(context);
         return Dialog(
           insetPadding: const EdgeInsets.all(24),
           child: Column(
@@ -381,9 +383,9 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
                     Expanded(
                       child: Text(
                         file.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF102A56),
+                          color: theme.primaryTextColor,
                         ),
                       ),
                     ),
@@ -430,6 +432,7 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
   }
 
   Widget _buildSelectedAttachmentPreview() {
+    final theme = Theme.of(context);
     final file = _selectedFile;
     if (file == null) {
       return const SizedBox.shrink();
@@ -443,9 +446,9 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.panelColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE4E7EC)),
+        border: Border.all(color: theme.borderSubtleColor),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -455,9 +458,9 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: theme.subtlePanelColor,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE4E7EC)),
+              border: Border.all(color: theme.borderSubtleColor),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(15),
@@ -489,15 +492,15 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF2F4F7),
+                        color: theme.softPanelColor,
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
                         file.name.split('.').last.toUpperCase(),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF475467),
+                          color: theme.secondaryTextColor,
                         ),
                       ),
                     ),
@@ -508,17 +511,17 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEFF8FF),
+                          color: theme.accentPanelColor,
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
                           isImage
                               ? 'Image preview ready'
                               : 'PDF preview available',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF175CD3),
+                            color: theme.colorScheme.primary,
                           ),
                         ),
                       ),
@@ -529,10 +532,10 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
                   file.name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF102A56),
+                    color: theme.primaryTextColor,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -547,9 +550,9 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
                       : isPdf
                       ? 'Open the PDF preview in a browser tab before submitting.'
                       : 'File is attached and ready to upload.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF667085),
+                    color: theme.secondaryTextColor,
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -599,15 +602,15 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF2F4F7),
+                                color: theme.softPanelColor,
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
                                 file.name.split('.').last.toUpperCase(),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF475467),
+                                  color: theme.secondaryTextColor,
                                 ),
                               ),
                             ),
@@ -618,17 +621,17 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFEFF8FF),
+                                  color: theme.accentPanelColor,
                                   borderRadius: BorderRadius.circular(999),
                                 ),
                                 child: Text(
                                   isImage
                                       ? 'Image preview ready'
                                       : 'PDF preview available',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
-                                    color: Color(0xFF175CD3),
+                                    color: theme.colorScheme.primary,
                                   ),
                                 ),
                               ),
@@ -639,10 +642,10 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
                           file.name,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF102A56),
+                            color: theme.primaryTextColor,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -657,9 +660,9 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
                               : isPdf
                               ? 'Open the PDF preview in a browser tab before submitting.'
                               : 'File is attached and ready to upload.',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: Color(0xFF667085),
+                            color: theme.secondaryTextColor,
                           ),
                         ),
                         const SizedBox(height: 14),
@@ -706,22 +709,24 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
   }
 
   Widget _buildFieldLabel(String text) {
+    final theme = Theme.of(context);
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.w700,
-        color: Color(0xFF102A56),
+        color: theme.primaryTextColor,
       ),
     );
   }
 
   Widget _buildHelperText(String text) {
+    final theme = Theme.of(context);
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 13,
-        color: Color(0xFF667085),
+        color: theme.secondaryTextColor,
         height: 1.4,
       ),
     );
@@ -735,13 +740,14 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
           : AutovalidateMode.onUserInteraction,
       validator: (_) => _validateAttachment(),
       builder: (state) {
+        final theme = Theme.of(context);
         return Container(
           width: double.infinity,
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8FBFF),
+            color: theme.subtlePanelColor,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFDCE6F2)),
+            border: Border.all(color: theme.borderSubtleColor),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -782,7 +788,7 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
                 const SizedBox(height: 8),
                 Text(
                   state.errorText!,
-                  style: const TextStyle(color: Colors.red),
+                  style: TextStyle(color: theme.colorScheme.error),
                 ),
               ],
             ],
@@ -839,11 +845,7 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
 
         return Row(
           mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            cancelButton,
-            const SizedBox(width: 12),
-            submitButton,
-          ],
+          children: [cancelButton, const SizedBox(width: 12), submitButton],
         );
       },
     );
@@ -851,6 +853,7 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Add Daily Log')),
       body: SingleChildScrollView(
@@ -866,20 +869,20 @@ class _LogSubmissionScreenState extends State<LogSubmissionScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Add Daily Log',
                     style: TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF102A56),
+                      color: theme.primaryTextColor,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Record your internship work hours and activity details.',
                     style: TextStyle(
                       fontSize: 15,
-                      color: Color(0xFF4A6480),
+                      color: theme.secondaryTextColor,
                       height: 1.45,
                     ),
                   ),

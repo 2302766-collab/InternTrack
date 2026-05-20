@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/dtr_service.dart';
+import '../../../../core/theme/theme_utils.dart';
 import '../../../../core/utils/file_download_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_download_web.dart'
     as file_download;
@@ -23,11 +24,6 @@ class StudentDtrScreen extends StatefulWidget {
 }
 
 class _StudentDtrScreenState extends State<StudentDtrScreen> {
-  static const Color _canvas = Color(0xFFF4F8FB);
-  static const Color _ink = Color(0xFF102A56);
-  static const Color _muted = Color(0xFF667085);
-  static const Color _line = Color(0xFFD8E4EC);
-
   late final DtrService _dtrService;
 
   DailyTimeRecord? _record;
@@ -253,6 +249,8 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
   }
 
   Widget _buildTableToolbar(MonthlyDtrSummary? summary) {
+    final theme = Theme.of(context);
+
     return Wrap(
       spacing: 12,
       runSpacing: 12,
@@ -261,9 +259,9 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8FBFD),
+            color: theme.subtlePanelColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _line),
+            border: Border.all(color: theme.borderSubtleColor),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -284,10 +282,10 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                   child: Text(
                     summary?.monthYear ??
                         DateFormat('MMMM yyyy').format(_selectedMonth),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: _ink,
+                      color: theme.primaryTextColor,
                     ),
                   ),
                 ),
@@ -306,7 +304,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
               : () => _exportSelectedMonth(pdf: false),
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-            side: const BorderSide(color: _line),
+            side: BorderSide(color: theme.borderSubtleColor),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
@@ -349,6 +347,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
   }
 
   Widget _buildScheduleMeta(MonthlyDtrSummary summary) {
+    final theme = Theme.of(context);
     final items = <String>[
       if ((summary.companyName ?? '').trim().isNotEmpty)
         'Company: ${summary.companyName}',
@@ -366,16 +365,16 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
             (item) => Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FBFD),
+                color: theme.subtlePanelColor,
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: _line),
+                border: Border.all(color: theme.borderSubtleColor),
               ),
               child: Text(
                 item,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: _ink,
+                  color: theme.primaryTextColor,
                 ),
               ),
             ),
@@ -441,6 +440,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
   }
 
   Widget _buildTable(MonthlyDtrSummary summary) {
+    final theme = Theme.of(context);
     const dayWidth = 78.0;
     const dateWidth = 136.0;
     const timeWidth = 112.0;
@@ -452,19 +452,19 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
         width: width,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
         alignment: alignment ?? Alignment.centerLeft,
-        decoration: const BoxDecoration(
-          color: Color(0xFFF2F6FA),
+        decoration: BoxDecoration(
+          color: theme.softPanelColor,
           border: Border(
-            bottom: BorderSide(color: _line),
-            right: BorderSide(color: _line),
+            bottom: BorderSide(color: theme.borderSubtleColor),
+            right: BorderSide(color: theme.borderSubtleColor),
           ),
         ),
         child: Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w800,
-            color: _muted,
+            color: theme.secondaryTextColor,
             letterSpacing: 0.4,
           ),
         ),
@@ -483,11 +483,11 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
         alignment: alignment ?? Alignment.centerLeft,
         decoration: BoxDecoration(
-          color: shaded ? const Color(0xFFFAFCFE) : Colors.white,
+          color: shaded ? theme.subtlePanelColor : theme.panelColor,
           border: Border(
-            bottom: const BorderSide(color: _line),
+            bottom: BorderSide(color: theme.borderSubtleColor),
             right: showRightBorder
-                ? const BorderSide(color: _line)
+                ? BorderSide(color: theme.borderSubtleColor)
                 : BorderSide.none,
           ),
         ),
@@ -498,10 +498,10 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _line),
-        boxShadow: const [
+        border: Border.all(color: theme.borderSubtleColor),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x080F172A),
+            color: theme.shadowColorSoft.withValues(alpha: 0.45),
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
@@ -551,9 +551,9 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                         alignment: Alignment.center,
                         child: Text(
                           row.day.toString(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w800,
-                            color: _ink,
+                            color: theme.primaryTextColor,
                           ),
                         ),
                       ),
@@ -562,8 +562,8 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                         shaded: row.day.isEven,
                         child: Text(
                           _weekdayLabel(summary, row),
-                          style: const TextStyle(
-                            color: _ink,
+                          style: TextStyle(
+                            color: theme.primaryTextColor,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -619,18 +619,19 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
   }
 
   Widget _buildMonthlySection() {
+    final theme = Theme.of(context);
     final summary = _monthlySummary;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.panelColor,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: _line),
-        boxShadow: const [
+        border: Border.all(color: theme.borderSubtleColor),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x120F172A),
+            color: theme.shadowColorSoft,
             blurRadius: 16,
             offset: Offset(0, 6),
           ),
@@ -649,7 +650,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                 );
               },
               style: TextButton.styleFrom(
-                foregroundColor: _ink,
+                foregroundColor: theme.primaryTextColor,
                 padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
               ),
               icon: const Icon(Icons.arrow_back_rounded, size: 18),
@@ -660,18 +661,18 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Daily Time Record Table',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w800,
-              color: _ink,
+              color: theme.primaryTextColor,
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Monthly attendance view with AM and PM indicators.',
-            style: TextStyle(fontSize: 14, color: _muted),
+            style: TextStyle(fontSize: 14, color: theme.secondaryTextColor),
           ),
           const SizedBox(height: 16),
           _buildTableToolbar(summary),
@@ -689,7 +690,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                 children: [
                   Text(
                     _monthlyErrorMessage!,
-                    style: const TextStyle(color: Color(0xFFB42318)),
+                    style: TextStyle(color: theme.colorScheme.error),
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton(
@@ -700,11 +701,11 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
               ),
             )
           else if (summary == null)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Text(
                 'No monthly DTR data available yet.',
-                style: TextStyle(color: _muted),
+                style: TextStyle(color: theme.secondaryTextColor),
               ),
             )
           else ...[
@@ -713,7 +714,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
               const SizedBox(height: 10),
               Text(
                 summary.notes,
-                style: const TextStyle(fontSize: 13, color: _muted),
+                style: TextStyle(fontSize: 13, color: theme.secondaryTextColor),
               ),
             ],
             const SizedBox(height: 16),
@@ -728,7 +729,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
   Widget build(BuildContext context) {
     return StudentScaffold(
       currentRoute: AppRoutes.studentDtr,
-      backgroundColor: _canvas,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: _isLoading && _record == null
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null && _record == null
@@ -741,7 +742,9 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                     Text(
                       _errorMessage!,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: _muted),
+                      style: TextStyle(
+                        color: Theme.of(context).secondaryTextColor,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     ElevatedButton(

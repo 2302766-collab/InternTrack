@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../../../core/services/logbook_service.dart';
+import '../../../../core/theme/theme_utils.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/file_download_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_download_web.dart'
@@ -287,6 +288,7 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
     await showDialog<void>(
       context: context,
       builder: (context) {
+        final theme = Theme.of(context);
         return Dialog(
           insetPadding: const EdgeInsets.all(24),
           child: Column(
@@ -299,9 +301,9 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                     Expanded(
                       child: Text(
                         _shortFileName(file.filename),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF102A56),
+                          color: theme.primaryTextColor,
                         ),
                       ),
                     ),
@@ -379,15 +381,16 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
     required Widget child,
     EdgeInsetsGeometry padding = const EdgeInsets.all(20),
   }) {
+    final theme = Theme.of(context);
     return Container(
       width: double.infinity,
       padding: padding,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.panelColor,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x120F172A),
+            color: theme.shadowColorSoft,
             blurRadius: 18,
             offset: Offset(0, 6),
           ),
@@ -401,27 +404,29 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
     required String title,
     required String subtitle,
   }) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF102A56),
+            color: theme.primaryTextColor,
           ),
         ),
         const SizedBox(height: 4),
         Text(
           subtitle,
-          style: const TextStyle(fontSize: 14, color: Color(0xFF667085)),
+          style: TextStyle(fontSize: 14, color: theme.secondaryTextColor),
         ),
       ],
     );
   }
 
   Widget _buildSummaryCard() {
+    final theme = Theme.of(context);
     return _buildSectionCard(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -434,39 +439,39 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Daily Log Entry',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.2,
-                        color: Color(0xFF667085),
+                        color: theme.secondaryTextColor,
                       ),
                     ),
                     const SizedBox(height: 10),
                     Text(
                       DateFormatter.formatApiDate(_log.date),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF102A56),
+                        color: theme.primaryTextColor,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Submitted ${_formatTimestamp(_log.submittedAt)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF667085),
+                        color: theme.secondaryTextColor,
                       ),
                     ),
                     const SizedBox(height: 10),
                     Text(
                       _statusDescription(_log.status),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         height: 1.45,
-                        color: Color(0xFF344054),
+                        color: theme.primaryTextColor,
                       ),
                     ),
                   ],
@@ -547,18 +552,20 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
   }
 
   Widget _buildMetricPanel({required String label, required String value}) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFF6F8FB),
+        color: theme.subtlePanelColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE4E7EC)),
+        border: Border.all(color: theme.borderSubtleColor),
       ),
       child: _SummaryMetric(label: label, value: value),
     );
   }
 
   Widget _buildTaskDescriptionCard() {
+    final theme = Theme.of(context);
     return _buildSectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -572,29 +579,29 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF9FBFD),
+              color: theme.subtlePanelColor,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFDCE6F2)),
+              border: Border.all(color: theme.borderSubtleColor),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Task Completed',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.2,
-                    color: Color(0xFF667085),
+                    color: theme.secondaryTextColor,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   _formatTaskDescription(_log.taskDescription),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     height: 1.6,
-                    color: Color(0xFF344054),
+                    color: theme.primaryTextColor,
                   ),
                 ),
               ],
@@ -642,6 +649,7 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
   }
 
   Widget _buildReviewHistorySection() {
+    final theme = Theme.of(context);
     if (_log.reviewHistory.isEmpty) {
       return _buildSectionCard(
         child: Column(
@@ -655,11 +663,11 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
             SizedBox(
               width: double.infinity,
               child: DecoratedBox(
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF8FAFC),
+                decoration: BoxDecoration(
+                  color: theme.subtlePanelColor,
                   borderRadius: BorderRadius.all(Radius.circular(18)),
                   border: Border.fromBorderSide(
-                    BorderSide(color: Color(0xFFE4E7EC)),
+                    BorderSide(color: theme.borderSubtleColor),
                   ),
                 ),
                 child: Padding(
@@ -676,9 +684,9 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                           _log.isPending
                               ? 'No supervisor feedback yet. This log is still waiting for review.'
                               : 'No supervisor feedback is available for this submission yet.',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
-                            color: Color(0xFF667085),
+                            color: theme.secondaryTextColor,
                           ),
                         ),
                       ),
@@ -742,7 +750,7 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                               child: Container(
                                 width: 2,
                                 margin: const EdgeInsets.symmetric(vertical: 6),
-                                color: const Color(0xFFD0D5DD),
+                                color: theme.borderSubtleColor,
                               ),
                             ),
                         ],
@@ -753,12 +761,14 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: theme.panelColor,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFE4E7EC)),
-                          boxShadow: const [
+                          border: Border.all(color: theme.borderSubtleColor),
+                          boxShadow: [
                             BoxShadow(
-                              color: Color(0x0F0F172A),
+                              color: theme.shadowColorSoft.withValues(
+                                alpha: 0.72,
+                              ),
                               blurRadius: 14,
                               offset: Offset(0, 4),
                             ),
@@ -802,30 +812,30 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                                 ),
                                 Text(
                                   _formatTimestamp(action.actedAt),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
-                                    color: Color(0xFF667085),
+                                    color: theme.secondaryTextColor,
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 14),
-                            const Text(
+                            Text(
                               'Reviewed by',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: 0.2,
-                                color: Color(0xFF667085),
+                                color: theme.secondaryTextColor,
                               ),
                             ),
                             const SizedBox(height: 6),
                             Text(
                               action.supervisorName ?? 'Supervisor',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF102A56),
+                                color: theme.primaryTextColor,
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -833,17 +843,17 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                               width: double.infinity,
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF8FAFC),
+                                color: theme.subtlePanelColor,
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: Text(
                                 action.hasComment
                                     ? action.comment!.trim()
                                     : 'No comment added',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
                                   height: 1.5,
-                                  color: Color(0xFF344054),
+                                  color: theme.primaryTextColor,
                                 ),
                               ),
                             ),
@@ -862,6 +872,7 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
   }
 
   Widget _buildAttachmentPreview(LogAttachment attachment) {
+    final theme = Theme.of(context);
     final file = _attachmentFiles[attachment.id];
     final error = _attachmentErrors[attachment.id];
     final isLoading = _loadingAttachmentIds.contains(attachment.id);
@@ -871,9 +882,9 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
         width: 84,
         height: 84,
         decoration: BoxDecoration(
-          color: const Color(0xFFF4F6FA),
+          color: theme.subtlePanelColor,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFE4E7EC)),
+          border: Border.all(color: theme.borderSubtleColor),
         ),
         child: Icon(
           _isPdfAttachment(attachment)
@@ -892,7 +903,7 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
         borderRadius: BorderRadius.circular(18),
         child: Container(
           decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFE4E7EC)),
+            border: Border.all(color: theme.borderSubtleColor),
             borderRadius: BorderRadius.circular(18),
           ),
           child: Image.memory(
@@ -909,14 +920,12 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
       width: 84,
       height: 84,
       decoration: BoxDecoration(
-        color: error != null
-            ? const Color(0xFFFDECEC)
-            : const Color(0xFFF4F6FA),
+        color: error != null ? const Color(0xFFFDECEC) : theme.subtlePanelColor,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: error != null
               ? const Color(0xFFF3B5AE)
-              : const Color(0xFFE4E7EC),
+              : theme.borderSubtleColor,
         ),
       ),
       child: isLoading
@@ -936,6 +945,7 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
   }
 
   Widget _buildAttachmentItem(LogAttachment attachment, int index) {
+    final theme = Theme.of(context);
     final isImage = _isImageAttachment(attachment);
     final isPdf = _isPdfAttachment(attachment);
     final originalName = _shortFileName(attachment.filePath);
@@ -945,12 +955,12 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.panelColor,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE4E7EC)),
-        boxShadow: const [
+        border: Border.all(color: theme.borderSubtleColor),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0F0F172A),
+            color: theme.shadowColorSoft.withValues(alpha: 0.72),
             blurRadius: 14,
             offset: Offset(0, 4),
           ),
@@ -977,15 +987,15 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF2F4F7),
+                            color: theme.softPanelColor,
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
                             attachment.fileType.toUpperCase(),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF475467),
+                              color: theme.secondaryTextColor,
                             ),
                           ),
                         ),
@@ -996,17 +1006,17 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFEFF8FF),
+                              color: theme.accentPanelColor,
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
                               isImage
                                   ? 'Preview ready'
                                   : 'Browser view available',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF175CD3),
+                                color: theme.colorScheme.primary,
                               ),
                             ),
                           ),
@@ -1015,35 +1025,35 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                     const SizedBox(height: 10),
                     Text(
                       displayName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF102A56),
+                        color: theme.primaryTextColor,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       'Original file: $originalName',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF667085),
+                        color: theme.secondaryTextColor,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       '${attachment.fileType.toUpperCase()} | ${_formatFileSize(attachment.fileSize)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF667085),
+                        color: theme.secondaryTextColor,
                       ),
                     ),
                     if ((attachment.createdAt ?? '').isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(
                         'Uploaded ${_formatTimestamp(attachment.createdAt)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: Color(0xFF667085),
+                          color: theme.secondaryTextColor,
                         ),
                       ),
                     ],
@@ -1075,8 +1085,8 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                     icon: const Icon(Icons.visibility_outlined),
                     label: const Text('Preview'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEFF8FF),
-                      foregroundColor: const Color(0xFF175CD3),
+                      backgroundColor: theme.accentPanelColor,
+                      foregroundColor: theme.colorScheme.primary,
                       elevation: 0,
                     ),
                   ),
@@ -1086,7 +1096,7 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                     icon: const Icon(Icons.open_in_new_rounded),
                     label: const Text('View'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFF4E5),
+                      backgroundColor: theme.warningPanelColor,
                       foregroundColor: const Color(0xFFB54708),
                       elevation: 0,
                     ),
@@ -1105,6 +1115,7 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
   }
 
   Widget _buildAttachmentsSection() {
+    final theme = Theme.of(context);
     return _buildSectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1120,13 +1131,13 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: theme.subtlePanelColor,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFE4E7EC)),
+                border: Border.all(color: theme.borderSubtleColor),
               ),
-              child: const Text(
+              child: Text(
                 'No attachments uploaded yet.',
-                style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
+                style: TextStyle(fontSize: 14, color: theme.secondaryTextColor),
               ),
             )
           else
@@ -1139,6 +1150,7 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
   }
 
   Widget _buildFooterAction() {
+    final theme = Theme.of(context);
     if (_log.isPending) {
       return _buildSectionCard(
         child: Row(
@@ -1148,12 +1160,12 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: const Color(0xFFEFF8FF),
+                color: theme.accentPanelColor,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.edit_note_rounded,
-                color: Color(0xFF175CD3),
+                color: theme.colorScheme.primary,
               ),
             ),
             const SizedBox(width: 14),
@@ -1161,21 +1173,21 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Need to make changes?',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF102A56),
+                      color: theme.primaryTextColor,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'You can still update this log while it is pending supervisor review.',
                     style: TextStyle(
                       fontSize: 14,
                       height: 1.5,
-                      color: Color(0xFF344054),
+                      color: theme.primaryTextColor,
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -1222,10 +1234,10 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                       : _log.status.toUpperCase() == 'REJECTED'
                       ? 'Log needs correction'
                       : 'Editing locked',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF102A56),
+                    color: theme.primaryTextColor,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -1235,10 +1247,10 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                       : _log.status.toUpperCase() == 'REJECTED'
                       ? 'Please review the supervisor feedback above. You can still prepare corrections and send them to admin for approval.'
                       : 'Editing is disabled because this log is no longer pending review.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     height: 1.5,
-                    color: Color(0xFF344054),
+                    color: theme.primaryTextColor,
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -1349,20 +1361,21 @@ class _SummaryMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF667085)),
+          style: TextStyle(fontSize: 12, color: theme.secondaryTextColor),
         ),
         const SizedBox(height: 8),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF102A56),
+            color: theme.primaryTextColor,
           ),
         ),
       ],
