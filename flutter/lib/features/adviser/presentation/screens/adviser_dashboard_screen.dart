@@ -2042,77 +2042,87 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
       );
     }
 
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: atRiskInterns.map((detail) {
-        final width = atRiskInterns.length == 1 ? double.infinity : 260.0;
-        return SizedBox(
-          width: width,
-          child: InkWell(
-            onTap: () => _openIntern(detail),
+    Widget buildCard(InternListItem detail) {
+      return InkWell(
+        onTap: () => _openIntern(detail),
+        borderRadius: BorderRadius.circular(20),
+        child: Ink(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFFBF7),
             borderRadius: BorderRadius.circular(20),
-            child: Ink(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFFBF7),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFF5D2BE)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            border: Border.all(color: const Color(0xFFF5D2BE)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: const Color(0xFF326DE6),
-                        child: Text(
-                          _initialsFor(detail.studentName),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                          ),
-                        ),
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: const Color(0xFF326DE6),
+                    child: Text(
+                      _initialsFor(detail.studentName),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          detail.studentName,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF102A56),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  _buildTag(_baseStatusLabel(detail), _statusColor(detail)),
-                  const SizedBox(height: 10),
-                  Text(
-                    detail.alertMessage,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      height: 1.45,
-                      color: Color(0xFF4A6480),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    _staleLogLabel(detail, referenceDate),
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFB54708),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      detail.studentName,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF102A56),
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 10),
+              _buildTag(_baseStatusLabel(detail), _statusColor(detail)),
+              const SizedBox(height: 10),
+              Text(
+                detail.alertMessage,
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.45,
+                  color: Color(0xFF4A6480),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _staleLogLabel(detail, referenceDate),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFFB54708),
+                ),
+              ),
+            ],
           ),
+        ),
+      );
+    }
+
+    if (atRiskInterns.length == 1) {
+      return SizedBox(
+        width: double.infinity,
+        child: buildCard(atRiskInterns.first),
+      );
+    }
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: atRiskInterns.map((detail) {
+        return SizedBox(
+          width: 260,
+          child: buildCard(detail),
         );
       }).toList(),
     );
