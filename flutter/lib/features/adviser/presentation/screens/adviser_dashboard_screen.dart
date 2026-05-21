@@ -1557,15 +1557,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                   children: [
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        IconButton(
-                          onPressed: _logout,
-                          icon: const Icon(Icons.arrow_back),
-                          tooltip: 'Logout',
-                        ),
-                        const Spacer(),
-                        mobileActions,
-                      ],
+                      children: [const Spacer(), mobileActions],
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -1607,12 +1599,6 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
               : Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      onPressed: _logout,
-                      icon: const Icon(Icons.arrow_back),
-                      tooltip: 'Logout',
-                    ),
-                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
