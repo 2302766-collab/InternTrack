@@ -60,7 +60,6 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   String _searchQuery = '';
   _DashboardFilter _selectedFilter = _DashboardFilter.all;
   _DashboardSort _selectedSort = _DashboardSort.mostUrgent;
-  _DashboardSurfaceView _selectedView = _DashboardSurfaceView.main;
   int _internProgressPage = 1;
   List<InternListItem> _interns = <InternListItem>[];
   ThemeData get _theme => Theme.of(context);
@@ -657,13 +656,6 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
     if (focusResults) {
       _focusSortedResults(sort);
     }
-  }
-
-  void _setDashboardView(_DashboardSurfaceView view) {
-    if (_selectedView == view) return;
-    setState(() {
-      _selectedView = view;
-    });
   }
 
   String _filterLabel(_DashboardFilter filter) {
@@ -2048,75 +2040,6 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildDashboardViewMenu(double contentWidth) {
-    final isCompact = contentWidth < 640;
-
-    Widget buildChip(_DashboardSurfaceView view) {
-      final selected = _selectedView == view;
-
-      return InkWell(
-        onTap: () => _setDashboardView(view),
-        borderRadius: BorderRadius.circular(999),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: EdgeInsets.symmetric(
-            horizontal: isCompact ? 14 : 16,
-            vertical: 11,
-          ),
-          decoration: BoxDecoration(
-            color: selected ? _accentPrimary : const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: selected ? _accentPrimary : const Color(0xFFDCE6F2),
-            ),
-          ),
-          child: Text(
-            view.label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: selected ? Colors.white : _headlineColor,
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(isCompact ? 16 : 18),
-      decoration: BoxDecoration(
-        color: _surfaceColor,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Dashboard Menu',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: _headlineColor,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _selectedView.description,
-            style: TextStyle(fontSize: 13, height: 1.4, color: _bodyColor),
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: _DashboardSurfaceView.values.map(buildChip).toList(),
-          ),
-        ],
       ),
     );
   }
@@ -3833,120 +3756,113 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                       child: Column(
                         children: [
                           _buildFilterWorkspace(contentWidth),
-                          const SizedBox(height: 18),
-                          _buildDashboardViewMenu(contentWidth),
-                          const SizedBox(height: 18),
-                          if (_selectedView == _DashboardSurfaceView.main) ...[
-                            _buildAlignedPanelGrid(
-                              columns: triPanelColumns,
-                              spacing: spacing,
-                              panels: [
-                                _buildSectionPanel(
-                                  title: 'Pending Supervisor Approval',
-                                  subtitle:
-                                      'Logs that advisers should monitor while waiting for supervisor action.',
-                                  icon: Icons.assignment_turned_in_outlined,
-                                  accent: _accentPrimary,
-                                  width: triPanelWidth,
-                                  child: _buildActionList(
-                                    reviewItems,
-                                    onEmptyAction: _openInternReports,
-                                    emptyMessage:
-                                        'No logs are waiting for supervisor approval right now.',
-                                    emptyButtonLabel: 'Open Intern Details',
-                                  ),
+                          const SizedBox(height: 20),
+                          _buildAlignedPanelGrid(
+                            columns: triPanelColumns,
+                            spacing: spacing,
+                            panels: [
+                              _buildSectionPanel(
+                                title: 'Pending Supervisor Approval',
+                                subtitle:
+                                    'Logs that advisers should monitor while waiting for supervisor action.',
+                                icon: Icons.assignment_turned_in_outlined,
+                                accent: _accentPrimary,
+                                width: triPanelWidth,
+                                child: _buildActionList(
+                                  reviewItems,
+                                  onEmptyAction: _openInternReports,
+                                  emptyMessage:
+                                      'No logs are waiting for supervisor approval right now.',
+                                  emptyButtonLabel: 'Open Intern Details',
                                 ),
-                                _buildSectionPanel(
-                                  title: 'Upcoming Deadlines',
-                                  subtitle:
-                                      'Internship end dates and stale follow-ups to keep on your radar.',
-                                  icon: Icons.event_available_rounded,
-                                  accent: _accentSecondary,
-                                  width: triPanelWidth,
-                                  child: _buildActionList(
-                                    upcomingItems,
-                                    onEmptyAction: _loadDashboardData,
-                                    emptyMessage:
-                                        'No deadlines or follow-ups were detected from the current advisee data.',
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 18),
-                            _buildSectionPanel(
-                              title: 'At-Risk Spotlight',
-                              subtitle:
-                                  'The top five advisees who likely need outreach first.',
-                              icon: Icons.priority_high_rounded,
-                              accent: _accentSecondary,
-                              width: contentWidth,
-                              child: _buildAtRiskSpotlight(
-                                atRiskInterns,
-                                referenceDate,
                               ),
-                            ),
-                            const SizedBox(height: 22),
-                            _buildProgressPanel(visibleInterns, referenceDate),
-                          ] else if (_selectedView ==
-                              _DashboardSurfaceView.activity) ...[
-                            _buildAlignedPanelGrid(
-                              columns: triPanelColumns,
-                              spacing: spacing,
-                              panels: [
-                                _buildSectionPanel(
-                                  title: 'Recent Activity',
-                                  subtitle:
-                                      'Quick visibility into which students updated most recently.',
-                                  icon: Icons.bolt_rounded,
-                                  accent: _accentSoft,
-                                  width: triPanelWidth,
-                                  child: _buildActionList(
-                                    recentActivityItems,
-                                    onEmptyAction: _loadDashboardData,
-                                    emptyMessage:
-                                        'Recent activity will appear here once advisees start logging time.',
-                                  ),
+                              _buildSectionPanel(
+                                title: 'Upcoming Deadlines',
+                                subtitle:
+                                    'Internship end dates and stale follow-ups to keep on your radar.',
+                                icon: Icons.event_available_rounded,
+                                accent: _accentSecondary,
+                                width: triPanelWidth,
+                                child: _buildActionList(
+                                  upcomingItems,
+                                  onEmptyAction: _loadDashboardData,
+                                  emptyMessage:
+                                      'No deadlines or follow-ups were detected from the current advisee data.',
                                 ),
-                              ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          _buildSectionPanel(
+                            title: 'At-Risk Spotlight',
+                            subtitle:
+                                'The top five advisees who likely need outreach first.',
+                            icon: Icons.priority_high_rounded,
+                            accent: _accentSecondary,
+                            width: contentWidth,
+                            child: _buildAtRiskSpotlight(
+                              atRiskInterns,
+                              referenceDate,
                             ),
-                            const SizedBox(height: 18),
-                            _buildSectionPanel(
-                              title: 'Weekly Activity',
-                              subtitle:
-                                  'A seven-day read of how many advisees logged activity each day.',
-                              icon: Icons.bar_chart_rounded,
-                              accent: _accentPrimary,
-                              width: contentWidth,
-                              child: _buildWeeklyActivityChart(weeklyActivity),
-                            ),
-                          ] else ...[
-                            _buildAlignedPanelGrid(
-                              columns: dualPanelColumns,
-                              spacing: spacing,
-                              panels: [
-                                _buildSectionPanel(
-                                  title: 'Company Snapshot',
-                                  subtitle:
-                                      'Group advisees by internship site to surface location-level issues.',
-                                  icon: Icons.apartment_rounded,
-                                  accent: _accentPrimary,
-                                  width: dualPanelWidth,
-                                  child: _buildCompanySnapshot(
-                                    companySnapshots,
-                                  ),
+                          ),
+                          const SizedBox(height: 22),
+                          _buildProgressPanel(visibleInterns, referenceDate),
+                          const SizedBox(height: 22),
+                          _buildAlignedPanelGrid(
+                            columns: triPanelColumns,
+                            spacing: spacing,
+                            panels: [
+                              _buildSectionPanel(
+                                title: 'Recent Activity',
+                                subtitle:
+                                    'Quick visibility into which students updated most recently.',
+                                icon: Icons.bolt_rounded,
+                                accent: _accentSoft,
+                                width: triPanelWidth,
+                                child: _buildActionList(
+                                  recentActivityItems,
+                                  onEmptyAction: _loadDashboardData,
+                                  emptyMessage:
+                                      'Recent activity will appear here once advisees start logging time.',
                                 ),
-                                _buildSectionPanel(
-                                  title: 'Completion Forecast',
-                                  subtitle:
-                                      'Projected finish risk, based on current pace, alerts, and internship timing.',
-                                  icon: Icons.insights_rounded,
-                                  accent: _accentTertiary,
-                                  width: dualPanelWidth,
-                                  child: _buildForecastList(forecasts),
-                                ),
-                              ],
-                            ),
-                          ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          _buildSectionPanel(
+                            title: 'Weekly Activity',
+                            subtitle:
+                                'A seven-day read of how many advisees logged activity each day.',
+                            icon: Icons.bar_chart_rounded,
+                            accent: _accentPrimary,
+                            width: contentWidth,
+                            child: _buildWeeklyActivityChart(weeklyActivity),
+                          ),
+                          const SizedBox(height: 22),
+                          _buildAlignedPanelGrid(
+                            columns: dualPanelColumns,
+                            spacing: spacing,
+                            panels: [
+                              _buildSectionPanel(
+                                title: 'Company Snapshot',
+                                subtitle:
+                                    'Group advisees by internship site to surface location-level issues.',
+                                icon: Icons.apartment_rounded,
+                                accent: _accentPrimary,
+                                width: dualPanelWidth,
+                                child: _buildCompanySnapshot(companySnapshots),
+                              ),
+                              _buildSectionPanel(
+                                title: 'Completion Forecast',
+                                subtitle:
+                                    'Projected finish risk, based on current pace, alerts, and internship timing.',
+                                icon: Icons.insights_rounded,
+                                accent: _accentTertiary,
+                                width: dualPanelWidth,
+                                child: _buildForecastList(forecasts),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -4022,23 +3938,6 @@ enum _DashboardSort {
   const _DashboardSort(this.label);
 
   final String label;
-}
-
-enum _DashboardSurfaceView {
-  main('Main Dashboard', 'Keep urgent adviser work front and center.'),
-  activity(
-    'Activity',
-    'See recent logs and weekly activity without stretching the main page.',
-  ),
-  insights(
-    'Insights',
-    'Open company and completion analytics only when you need them.',
-  );
-
-  const _DashboardSurfaceView(this.label, this.description);
-
-  final String label;
-  final String description;
 }
 
 class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
