@@ -1444,50 +1444,76 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
             : constraints.maxWidth >= 1280
             ? 420.0
             : 360.0;
+        final displayName = authProvider.user?.name.isNotEmpty == true
+            ? authProvider.user!.name
+            : widget.userName;
 
         final profileSection = Row(
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: isCompact
-                    ? CrossAxisAlignment.start
-                    : CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    widget.userName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: _headlineColor,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    authProvider.user?.role.isNotEmpty == true
-                        ? authProvider.user!.role
-                        : 'Academic Adviser',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13, color: _bodyColor),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(width: 10),
             const SettingsShortcutButton(),
             const SizedBox(width: 8),
             NotificationBellButton(token: authProvider.token ?? ''),
-            const SizedBox(width: 14),
-            InkWell(
-              key: _profileMenuAnchorKey,
-              onTap: _openProfilePanel,
-              borderRadius: BorderRadius.circular(999),
-              child: _buildAvatar(
-                user: authProvider.user,
-                radius: 26,
-                fontSize: 16,
+            const SizedBox(width: 6),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                key: _profileMenuAnchorKey,
+                onTap: _openProfilePanel,
+                borderRadius: BorderRadius.circular(22),
+                child: Ink(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF6FAFD),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: _borderColor),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildAvatar(
+                        user: authProvider.user,
+                        radius: 18,
+                        fontSize: 12,
+                      ),
+                      const SizedBox(width: 10),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 150),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: _headlineColor,
+                              ),
+                            ),
+                            Text(
+                              'Profile',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: _bodyColor.withValues(alpha: 0.85),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: _headlineColor,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
@@ -1503,46 +1529,55 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
         final mobileProfileSection = InkWell(
           key: _profileMenuAnchorKey,
           onTap: _openProfilePanel,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(22),
           child: Ink(
-            padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
+            padding: EdgeInsets.symmetric(
+              horizontal: isCompact ? 8 : 12,
+              vertical: 8,
+            ),
             decoration: BoxDecoration(
-              color: const Color(0xFFF6F9FC),
-              borderRadius: BorderRadius.circular(999),
+              color: const Color(0xFFF6FAFD),
+              borderRadius: BorderRadius.circular(22),
               border: Border.all(color: _borderColor),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildAvatar(user: authProvider.user, radius: 22, fontSize: 14),
-                const SizedBox(width: 10),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 170),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.userName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: _headlineColor,
+                _buildAvatar(user: authProvider.user, radius: 18, fontSize: 12),
+                if (!isCompact) ...[
+                  const SizedBox(width: 10),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 150),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: _headlineColor,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        authProvider.user?.role.isNotEmpty == true
-                            ? authProvider.user!.role
-                            : 'Academic Adviser',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: _bodyColor),
-                      ),
-                    ],
+                        Text(
+                          'Profile',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: _bodyColor.withValues(alpha: 0.85),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: _headlineColor,
+                  ),
+                ],
               ],
             ),
           ),
