@@ -1764,16 +1764,20 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 child: InkWell(
                   onTap: () => _openRoute(AppRoutes.studentDashboard),
                   borderRadius: BorderRadius.circular(16),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 6,
+                    ),
                     child: Text(
-                      'Student Dashboard',
-                      maxLines: 1,
+                      isCompact ? 'Student\nDashboard' : 'Student Dashboard',
+                      maxLines: isCompact ? 2 : 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: isCompact ? 15 : 16,
                         fontWeight: FontWeight.w800,
                         color: _headlineColor,
+                        height: isCompact ? 1.1 : null,
                       ),
                     ),
                   ),
