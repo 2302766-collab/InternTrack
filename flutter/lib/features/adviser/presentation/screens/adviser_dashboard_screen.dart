@@ -1426,9 +1426,13 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   Widget _buildHeader(AuthProvider authProvider) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 900;
-        final isCompact = constraints.maxWidth < 520;
-        final profileMaxWidth = constraints.maxWidth >= 1280 ? 420.0 : 360.0;
+        final isNarrow = constraints.maxWidth < 960;
+        final isCompact = constraints.maxWidth < 560;
+        final profileMaxWidth = constraints.maxWidth < 640
+            ? constraints.maxWidth
+            : constraints.maxWidth >= 1280
+            ? 420.0
+            : 360.0;
 
         final profileSection = Row(
           children: [
@@ -1508,7 +1512,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                               Text(
                                 'Academic Adviser Dashboard',
                                 style: TextStyle(
-                                  fontSize: 24,
+                                  fontSize: isCompact ? 22 : 24,
                                   fontWeight: FontWeight.w700,
                                   color: _headlineColor,
                                 ),
@@ -1561,7 +1565,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                           Text(
                             'Academic Adviser Dashboard',
                             style: TextStyle(
-                              fontSize: 28,
+                              fontSize: constraints.maxWidth < 1120 ? 24 : 28,
                               fontWeight: FontWeight.w700,
                               color: _headlineColor,
                             ),
@@ -1697,80 +1701,120 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
     required int staleLogs,
     required int endingSoon,
   }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: _heroStart,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x250F172A),
-            blurRadius: 24,
-            offset: Offset(0, 10),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 640;
+        final metricWidth = constraints.maxWidth >= 1180
+            ? 150.0
+            : constraints.maxWidth >= 760
+            ? (constraints.maxWidth - 18) / 2
+            : constraints.maxWidth;
+
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(isCompact ? 20 : 24),
+          decoration: BoxDecoration(
+            color: _heroStart,
+            borderRadius: BorderRadius.circular(isCompact ? 24 : 28),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x250F172A),
+                blurRadius: 24,
+                offset: Offset(0, 10),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Wrap(
-        spacing: 18,
-        runSpacing: 18,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          const SizedBox(
-            width: 220,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Monitoring Pulse',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
+          child: Wrap(
+            spacing: 18,
+            runSpacing: 18,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SizedBox(
+                width: constraints.maxWidth >= 1180
+                    ? 220
+                    : constraints.maxWidth >= 760
+                    ? constraints.maxWidth
+                    : constraints.maxWidth,
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Monitoring Pulse',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'A quick read on workload, progress, and who needs attention first.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.5,
+                        color: Color(0xFFD9E5F2),
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 8),
-                Text(
-                  'A quick read on workload, progress, and who needs attention first.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    height: 1.5,
-                    color: Color(0xFFD9E5F2),
-                  ),
+              ),
+              SizedBox(
+                width: metricWidth,
+                child: _buildPulseMetric(
+                  'Avg Progress',
+                  '$avgProgress%',
+                  OceanBreezePalette.mist,
                 ),
-              ],
-            ),
+              ),
+              SizedBox(
+                width: metricWidth,
+                child: _buildPulseMetric(
+                  'On Track',
+                  '$onTrack',
+                  OceanBreezePalette.sky,
+                ),
+              ),
+              SizedBox(
+                width: metricWidth,
+                child: _buildPulseMetric(
+                  'Completed',
+                  '$completed',
+                  OceanBreezePalette.tide,
+                ),
+              ),
+              SizedBox(
+                width: metricWidth,
+                child: _buildPulseMetric(
+                  'Pending Approval',
+                  '$pendingReviews',
+                  OceanBreezePalette.surfaceMuted,
+                ),
+              ),
+              SizedBox(
+                width: metricWidth,
+                child: _buildPulseMetric(
+                  'No Recent Log',
+                  '$staleLogs',
+                  OceanBreezePalette.mist,
+                ),
+              ),
+              SizedBox(
+                width: metricWidth,
+                child: _buildPulseMetric(
+                  'Ending Soon',
+                  '$endingSoon',
+                  OceanBreezePalette.sky,
+                ),
+              ),
+            ],
           ),
-          _buildPulseMetric(
-            'Avg Progress',
-            '$avgProgress%',
-            OceanBreezePalette.mist,
-          ),
-          _buildPulseMetric('On Track', '$onTrack', OceanBreezePalette.sky),
-          _buildPulseMetric('Completed', '$completed', OceanBreezePalette.tide),
-          _buildPulseMetric(
-            'Pending Approval',
-            '$pendingReviews',
-            OceanBreezePalette.surfaceMuted,
-          ),
-          _buildPulseMetric(
-            'No Recent Log',
-            '$staleLogs',
-            OceanBreezePalette.mist,
-          ),
-          _buildPulseMetric(
-            'Ending Soon',
-            '$endingSoon',
-            OceanBreezePalette.sky,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildPulseMetric(String label, String value, Color accent) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 140),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white.withAlpha(22),
@@ -1811,66 +1855,72 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   }) {
     return SizedBox(
       width: width,
-      child: Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          color: _surfaceColor,
-          borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: _borderColor),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x120F172A),
-              blurRadius: 20,
-              offset: Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: accent.withAlpha(20),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(icon, color: accent),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: _headlineColor,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          height: 1.4,
-                          color: _bodyColor,
-                        ),
-                      ),
-                    ],
-                  ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < 560;
+
+          return Container(
+            padding: EdgeInsets.all(isCompact ? 18 : 22),
+            decoration: BoxDecoration(
+              color: _surfaceColor,
+              borderRadius: BorderRadius.circular(isCompact ? 22 : 26),
+              border: Border.all(color: _borderColor),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x120F172A),
+                  blurRadius: 20,
+                  offset: Offset(0, 6),
                 ),
               ],
             ),
-            const SizedBox(height: 18),
-            child,
-          ],
-        ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: accent.withAlpha(20),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(icon, color: accent),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: isCompact ? 17 : 18,
+                              fontWeight: FontWeight.w800,
+                              color: _headlineColor,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            subtitle,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              height: 1.4,
+                              color: _bodyColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                child,
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -1880,44 +1930,10 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
     required int columns,
     required double spacing,
   }) {
-    if (columns <= 1) {
-      return Column(
-        children: [
-          for (var index = 0; index < panels.length; index++) ...[
-            panels[index],
-            if (index < panels.length - 1) SizedBox(height: spacing),
-          ],
-        ],
-      );
-    }
-
-    final rows = <Widget>[];
-    for (var start = 0; start < panels.length; start += columns) {
-      final end = (start + columns).clamp(0, panels.length);
-      final rowPanels = panels.sublist(start, end);
-
-      rows.add(
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var index = 0; index < rowPanels.length; index++) ...[
-                Expanded(child: rowPanels[index]),
-                if (index < rowPanels.length - 1) SizedBox(width: spacing),
-              ],
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      children: [
-        for (var index = 0; index < rows.length; index++) ...[
-          rows[index],
-          if (index < rows.length - 1) SizedBox(height: spacing),
-        ],
-      ],
+    return Wrap(
+      spacing: spacing,
+      runSpacing: spacing,
+      children: panels,
     );
   }
 
@@ -2650,7 +2666,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
     int totalCount,
   ) {
     return Container(
-      width: contentWidth,
+      width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
         color: const Color(0xFFF4F5F7).withAlpha(245),
@@ -2667,6 +2683,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isNarrow = constraints.maxWidth < 840;
+          final isCompact = constraints.maxWidth < 560;
 
           final searchField = TextField(
             controller: _searchController,
@@ -2725,7 +2742,10 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                   children: [
                     Expanded(flex: 3, child: searchField),
                     const SizedBox(width: 12),
-                    SizedBox(width: 220, child: sortField),
+                    SizedBox(
+                      width: constraints.maxWidth < 1080 ? 200 : 220,
+                      child: sortField,
+                    ),
                   ],
                 ),
               const SizedBox(height: 10),
@@ -2736,10 +2756,10 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                 children: [
                   Text(
                     'Showing $visibleCount of $totalCount interns',
-                    style: const TextStyle(
-                      fontSize: 13,
+                    style: TextStyle(
+                      fontSize: isCompact ? 12.5 : 13,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF355070),
+                      color: const Color(0xFF355070),
                     ),
                   ),
                   if (_selectedFilter != _DashboardFilter.all ||
@@ -3334,12 +3354,15 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
           final viewportWidth = constraints.maxWidth
               .clamp(0.0, _maxContentWidth)
               .toDouble();
-          final horizontalPadding = constraints.maxWidth < 640
+          final isPhone = constraints.maxWidth < 640;
+          final isTablet = constraints.maxWidth >= 640 &&
+              constraints.maxWidth < 1024;
+          final horizontalPadding = isPhone
               ? 16.0
               : constraints.maxWidth >= 1440
               ? 40.0
               : 26.0;
-          const spacing = 18.0;
+          final spacing = isPhone ? 14.0 : 18.0;
           final contentWidth = (viewportWidth - (horizontalPadding * 2))
               .clamp(0.0, viewportWidth)
               .toDouble();
@@ -3367,7 +3390,6 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
               ? 2
               : 1;
           final dualPanelColumns = contentWidth >= 1180 ? 2 : 1;
-          final stickyHeight = constraints.maxWidth < 840 ? 196.0 : 160.0;
 
           return CustomScrollView(
             controller: _dashboardScrollController,
@@ -3382,9 +3404,9 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(
                         horizontalPadding,
-                        28,
+                        isPhone ? 20 : 28,
                         horizontalPadding,
-                        24,
+                        isPhone ? 18 : 24,
                       ),
                       child: Column(
                         children: [
@@ -3451,11 +3473,36 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                   ),
                 ),
               ),
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _StickyHeaderDelegate(
-                  minExtentValue: stickyHeight,
-                  maxExtentValue: stickyHeight,
+              if (isTablet || constraints.maxWidth >= 1024)
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _StickyHeaderDelegate(
+                    minExtentValue: isTablet ? 178.0 : 148.0,
+                    maxExtentValue: isTablet ? 178.0 : 148.0,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: _maxContentWidth,
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            horizontalPadding,
+                            8,
+                            horizontalPadding,
+                            8,
+                          ),
+                          child: _buildControlsHeader(
+                            contentWidth,
+                            visibleInterns.length,
+                            totalInterns,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                SliverToBoxAdapter(
                   child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(
@@ -3464,7 +3511,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                       child: Padding(
                         padding: EdgeInsets.fromLTRB(
                           horizontalPadding,
-                          8,
+                          0,
                           horizontalPadding,
                           8,
                         ),
@@ -3477,7 +3524,6 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                     ),
                   ),
                 ),
-              ),
               SliverToBoxAdapter(
                 child: Center(
                   child: ConstrainedBox(
@@ -3487,7 +3533,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(
                         horizontalPadding,
-                        18,
+                        isPhone ? 12 : 18,
                         horizontalPadding,
                         32,
                       ),
