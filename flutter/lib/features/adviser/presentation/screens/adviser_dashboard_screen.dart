@@ -60,6 +60,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   String _searchQuery = '';
   _DashboardFilter _selectedFilter = _DashboardFilter.all;
   _DashboardSort _selectedSort = _DashboardSort.mostUrgent;
+  _AdviserMobileTab _currentMobileTab = _AdviserMobileTab.dashboard;
   int _internProgressPage = 1;
   List<InternListItem> _interns = <InternListItem>[];
   ThemeData get _theme => Theme.of(context);
@@ -3431,7 +3432,10 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final isCompact = constraints.maxWidth < 640;
-                  final pages = List<int>.generate(lastPage, (index) => index + 1);
+                  final pages = List<int>.generate(
+                    lastPage,
+                    (index) => index + 1,
+                  );
 
                   final controls = Wrap(
                     alignment: WrapAlignment.center,
@@ -3889,42 +3893,613 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
     );
   }
 
+  Widget _buildMobileTopBar(AuthProvider authProvider) {
+    final themeController = context.watch<ThemeController>();
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      decoration: BoxDecoration(
+        color: _surfaceColor,
+        border: Border(bottom: BorderSide(color: _borderColor)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _currentMobileTab.title,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: _headlineColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _currentMobileTab.subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: _bodyColor,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              NotificationBellButton(
+                token: authProvider.token ?? '',
+                iconColor: _headlineColor,
+              ),
+              const SizedBox(width: 6),
+              Icon(
+                themeController.isDarkMode
+                    ? Icons.dark_mode_rounded
+                    : Icons.light_mode_rounded,
+                color: _headlineColor,
+                size: 18,
+              ),
+              Switch(
+                value: themeController.isDarkMode,
+                onChanged: (value) {
+                  context.read<ThemeController>().setDarkMode(value);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildProfileTrigger(
+                user: authProvider.user,
+                displayName: _resolvedUserName(authProvider.user),
+                compact: false,
+              ),
+              const Spacer(),
+              if (_currentMobileTab != _AdviserMobileTab.profile)
+                TextButton.icon(
+                  onPressed: _loadDashboardData,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Refresh'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          DashboardRefreshStatus(
+            lastUpdated: _lastUpdated,
+            isRefreshing: _isRefreshing,
+            pullToRefreshLabel: 'Pull down to refresh dashboard data',
+            refreshingLabel: 'Refreshing adviser dashboard...',
+            dense: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileDashboardTab(DateTime referenceDate) {
+    final alerts = _buildAlerts(referenceDate);
+    final totalInterns = _interns.length;
+    final onTrack = _interns
+        .where(
+          (detail) =>
+              detail.alertStatus.toUpperCase() == 'ON_TRACK' &&
+              !_isCompleted(detail),
+        )
+        .length;
+    final completed = _interns.where(_isCompleted).length;
+    final needsAttention = _interns
+        .where((detail) => detail.hasActiveAlert)
+        .length;
+    final staleLogs = _interns
+        .where((detail) => _hasNoRecentLog(detail, referenceDate))
+        .length;
+    final pendingReviews = _interns.fold<int>(
+      0,
+      (sum, detail) => sum + detail.pendingLogs,
+    );
+    final endingSoon = _interns.where((detail) {
+      final daysRemaining = _daysRemaining(detail, referenceDate);
+      return daysRemaining != null &&
+          daysRemaining >= 0 &&
+          daysRemaining <= 14 &&
+          !_isCompleted(detail);
+    }).length;
+    final avgProgress = _interns.isEmpty
+        ? 0
+        : (_interns
+                      .map((detail) => detail.progressPercentage)
+                      .reduce((a, b) => a + b) /
+                  _interns.length)
+              .round();
+    final noLogsYet = _interns
+        .where((detail) => detail.alertStatus.toUpperCase() == 'NO_LOGS_YET')
+        .length;
+
+    return ListView(
+      controller: _dashboardScrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+      children: [
+        _buildStatCard(
+          title: 'Total Interns',
+          value: '$totalInterns',
+          subtitle: '$onTrack on track and $completed completed.',
+          icon: Icons.groups_2_outlined,
+          accent: _accentPrimary,
+          filter: _DashboardFilter.all,
+        ),
+        const SizedBox(height: 14),
+        _buildStatCard(
+          title: 'Needs Attention',
+          value: '$needsAttention',
+          subtitle:
+              '$staleLogs have stale logs and $noLogsYet have no logs yet.',
+          icon: Icons.warning_amber_rounded,
+          accent: _accentSecondary,
+          filter: _DashboardFilter.needsAttention,
+        ),
+        const SizedBox(height: 14),
+        _buildStatCard(
+          title: 'No Recent Log',
+          value: '$staleLogs',
+          subtitle: '$pendingReviews logs are waiting for supervisor approval.',
+          icon: Icons.schedule_rounded,
+          accent: _accentTertiary,
+          filter: _DashboardFilter.noRecentLog,
+        ),
+        const SizedBox(height: 14),
+        _buildStatCard(
+          title: 'Completed',
+          value: '$completed',
+          subtitle:
+              '${totalInterns - completed} still in progress across your roster.',
+          icon: Icons.verified_rounded,
+          accent: _accentSoft,
+          filter: _DashboardFilter.completed,
+        ),
+        const SizedBox(height: 18),
+        _buildPulsePanel(
+          avgProgress: avgProgress,
+          onTrack: onTrack,
+          completed: completed,
+          pendingReviews: pendingReviews,
+          staleLogs: staleLogs,
+          endingSoon: endingSoon,
+        ),
+        const SizedBox(height: 18),
+        _buildAlertsPanel(alerts),
+      ],
+    );
+  }
+
+  Widget _buildMobileInternsTab(DateTime referenceDate) {
+    final filteredInterns = _filteredInterns(referenceDate);
+    final visibleInterns = _visibleInterns(referenceDate);
+
+    return ListView(
+      controller: _dashboardScrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      children: [
+        _buildControlsHeader(
+          MediaQuery.of(context).size.width - 32,
+          filteredInterns.length,
+          _interns.length,
+        ),
+        const SizedBox(height: 16),
+        _buildFilterWorkspace(MediaQuery.of(context).size.width - 32),
+        const SizedBox(height: 18),
+        _buildProgressPanel(visibleInterns, referenceDate),
+      ],
+    );
+  }
+
+  Widget _buildMobileActivityTab(DateTime referenceDate) {
+    final filteredInterns = _filteredInterns(referenceDate);
+    final reviewItems = _buildReviewItems(filteredInterns);
+    final upcomingItems = _buildUpcomingItems(filteredInterns, referenceDate);
+    final recentActivityItems = _buildRecentActivityItems(
+      filteredInterns,
+      referenceDate,
+    );
+    final atRiskInterns = _buildAtRiskInterns(filteredInterns, referenceDate);
+
+    return ListView(
+      controller: _dashboardScrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      children: [
+        _buildSectionPanel(
+          title: 'Pending Supervisor Approval',
+          subtitle:
+              'Logs that advisers should monitor while waiting for supervisor action.',
+          icon: Icons.assignment_turned_in_outlined,
+          accent: _accentPrimary,
+          child: _buildActionList(
+            reviewItems,
+            onEmptyAction: _openInternReports,
+            emptyMessage:
+                'No logs are waiting for supervisor approval right now.',
+            emptyButtonLabel: 'Open Intern Details',
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildSectionPanel(
+          title: 'Upcoming Deadlines',
+          subtitle:
+              'Internship end dates and stale follow-ups to keep on your radar.',
+          icon: Icons.event_available_rounded,
+          accent: _accentSecondary,
+          child: _buildActionList(
+            upcomingItems,
+            onEmptyAction: _loadDashboardData,
+            emptyMessage:
+                'No deadlines or follow-ups were detected from the current advisee data.',
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildSectionPanel(
+          title: 'At-Risk Spotlight',
+          subtitle: 'The top five advisees who likely need outreach first.',
+          icon: Icons.priority_high_rounded,
+          accent: _accentSecondary,
+          child: _buildAtRiskSpotlight(atRiskInterns, referenceDate),
+        ),
+        const SizedBox(height: 16),
+        _buildSectionPanel(
+          title: 'Recent Activity',
+          subtitle:
+              'Quick visibility into which students updated most recently.',
+          icon: Icons.bolt_rounded,
+          accent: _accentSoft,
+          child: _buildActionList(
+            recentActivityItems,
+            onEmptyAction: _loadDashboardData,
+            emptyMessage:
+                'Recent activity will appear here once advisees start logging time.',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileInsightsTab(DateTime referenceDate) {
+    final filteredInterns = _filteredInterns(referenceDate);
+    final weeklyActivity = _buildWeeklyActivity(filteredInterns, referenceDate);
+    final companySnapshots = _buildCompanySnapshots(filteredInterns);
+    final forecasts = _buildForecastItems(filteredInterns, referenceDate);
+
+    return ListView(
+      controller: _dashboardScrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      children: [
+        _buildSectionPanel(
+          title: 'Weekly Activity',
+          subtitle:
+              'A seven-day read of how many advisees logged activity each day.',
+          icon: Icons.bar_chart_rounded,
+          accent: _accentPrimary,
+          child: _buildWeeklyActivityChart(weeklyActivity),
+        ),
+        const SizedBox(height: 16),
+        _buildSectionPanel(
+          title: 'Company Snapshot',
+          subtitle:
+              'Group advisees by internship site to surface location-level issues.',
+          icon: Icons.apartment_rounded,
+          accent: _accentPrimary,
+          child: _buildCompanySnapshot(companySnapshots),
+        ),
+        const SizedBox(height: 16),
+        _buildSectionPanel(
+          title: 'Completion Forecast',
+          subtitle:
+              'Projected finish risk, based on current pace, alerts, and internship timing.',
+          icon: Icons.insights_rounded,
+          accent: _accentTertiary,
+          child: _buildForecastList(forecasts),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfileTab(AuthProvider authProvider) {
+    final user = authProvider.user;
+
+    return ListView(
+      controller: _dashboardScrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _surfaceColor,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: _borderColor),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x120F172A),
+                blurRadius: 20,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _buildAvatar(user: user, radius: 28, fontSize: 18),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _resolvedUserName(user),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: _headlineColor,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          user?.email.isNotEmpty == true
+                              ? user!.email
+                              : 'No email available',
+                          style: TextStyle(fontSize: 13, color: _bodyColor),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildMiniTag(
+                          label:
+                              (user?.role.isNotEmpty == true
+                                      ? user!.role
+                                      : 'Adviser')
+                                  .toUpperCase(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              _buildProfileInfoCard(user),
+              const SizedBox(height: 16),
+              _buildProfileActionTile(
+                icon: Icons.person_outline_rounded,
+                title: 'Edit profile details',
+                subtitle: 'Update your display name and gender details.',
+                onTap: () async {
+                  await showProfileEditDialog(
+                    context,
+                    title: 'Edit adviser profile',
+                    user: authProvider.user,
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              _buildProfileActionTile(
+                icon: Icons.edit_outlined,
+                title: 'Change profile photo',
+                subtitle: 'Upload a JPG or PNG image for this adviser.',
+                onTap: _pickProfilePhoto,
+              ),
+              if ((user?.avatarBase64 ?? '').isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _buildProfileActionTile(
+                  icon: Icons.hide_image_outlined,
+                  title: 'Remove profile photo',
+                  subtitle: 'Switch back to the generated initials avatar.',
+                  onTap: _removeProfilePhoto,
+                ),
+              ],
+              const SizedBox(height: 10),
+              _buildProfileActionTile(
+                icon: Icons.list_alt_rounded,
+                title: 'Open advisee list',
+                subtitle: 'Jump to the full adviser intern list screen.',
+                onTap: _openInternReports,
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _logout,
+                  icon: const Icon(Icons.logout_rounded),
+                  label: const Text('Log out'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFB42318),
+                    side: const BorderSide(color: Color(0xFFF0C4C0)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileBody(AuthProvider authProvider) {
+    final referenceDate = _referenceDate();
+
+    return Column(
+      children: [
+        _buildMobileTopBar(authProvider),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _loadDashboardData,
+            child: switch (_currentMobileTab) {
+              _AdviserMobileTab.dashboard => _buildMobileDashboardTab(
+                referenceDate,
+              ),
+              _AdviserMobileTab.interns => _buildMobileInternsTab(
+                referenceDate,
+              ),
+              _AdviserMobileTab.activity => _buildMobileActivityTab(
+                referenceDate,
+              ),
+              _AdviserMobileTab.insights => _buildMobileInsightsTab(
+                referenceDate,
+              ),
+              _AdviserMobileTab.profile => _buildProfileTab(authProvider),
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
 
-    return Scaffold(
-      backgroundColor: _canvasColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(authProvider),
-            Expanded(
-              child: _isInitialLoading && !_hasCompletedFirstLoad
-                  ? const Center(child: CircularProgressIndicator())
-                  : _errorMessage != null && _interns.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _errorMessage!,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: _bodyColor),
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: _loadDashboardData,
-                            child: Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    )
-                  : _buildBody(),
-            ),
-          ],
-        ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobileLayout = constraints.maxWidth < 960;
+
+        return Scaffold(
+          backgroundColor: _canvasColor,
+          bottomNavigationBar: isMobileLayout
+              ? _AdviserMobileBottomNavBar(
+                  currentTab: _currentMobileTab,
+                  onChanged: (tab) {
+                    if (tab == _currentMobileTab) return;
+                    setState(() {
+                      _currentMobileTab = tab;
+                    });
+                  },
+                )
+              : null,
+          body: SafeArea(
+            bottom: !isMobileLayout,
+            child: _isInitialLoading && !_hasCompletedFirstLoad
+                ? const Center(child: CircularProgressIndicator())
+                : _errorMessage != null && _interns.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: _bodyColor),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: _loadDashboardData,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                : isMobileLayout
+                ? _buildMobileBody(authProvider)
+                : Column(
+                    children: [
+                      _buildHeader(authProvider),
+                      Expanded(child: _buildBody()),
+                    ],
+                  ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+enum _AdviserMobileTab {
+  dashboard(
+    title: 'Dashboard',
+    subtitle: 'Summary cards, pulse, and alerts.',
+    icon: Icons.dashboard_outlined,
+    activeIcon: Icons.dashboard_rounded,
+  ),
+  interns(
+    title: 'Interns',
+    subtitle: 'Search, filter, and review advisee progress.',
+    icon: Icons.groups_outlined,
+    activeIcon: Icons.groups_rounded,
+  ),
+  activity(
+    title: 'Activity',
+    subtitle: 'Approvals, deadlines, and follow-up items.',
+    icon: Icons.access_time_outlined,
+    activeIcon: Icons.access_time_filled_rounded,
+  ),
+  insights(
+    title: 'Insights',
+    subtitle: 'Weekly trends, company snapshot, and forecast.',
+    icon: Icons.insert_chart_outlined_rounded,
+    activeIcon: Icons.insert_chart_rounded,
+  ),
+  profile(
+    title: 'Profile',
+    subtitle: 'Account details and adviser actions.',
+    icon: Icons.person_outline_rounded,
+    activeIcon: Icons.person_rounded,
+  );
+
+  const _AdviserMobileTab({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.activeIcon,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final IconData activeIcon;
+}
+
+class _AdviserMobileBottomNavBar extends StatelessWidget {
+  const _AdviserMobileBottomNavBar({
+    required this.currentTab,
+    required this.onChanged,
+  });
+
+  final _AdviserMobileTab currentTab;
+  final ValueChanged<_AdviserMobileTab> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tabs = _AdviserMobileTab.values;
+
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      currentIndex: tabs.indexOf(currentTab),
+      selectedItemColor: theme.colorScheme.primary,
+      unselectedItemColor: theme.colorScheme.onSurface.withAlpha(170),
+      selectedLabelStyle: theme.textTheme.labelSmall?.copyWith(
+        fontWeight: FontWeight.w700,
       ),
+      unselectedLabelStyle: theme.textTheme.labelSmall?.copyWith(
+        fontWeight: FontWeight.w600,
+      ),
+      iconSize: 22,
+      onTap: (index) => onChanged(tabs[index]),
+      items: tabs
+          .map(
+            (tab) => BottomNavigationBarItem(
+              icon: Icon(tab.icon),
+              activeIcon: Icon(tab.activeIcon),
+              label: tab.title,
+            ),
+          )
+          .toList(growable: false),
     );
   }
 }
