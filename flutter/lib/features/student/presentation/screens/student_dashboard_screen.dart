@@ -780,24 +780,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     };
   }
 
-  String get _attentionChipLabel {
-    if (!_profileComplete) return 'Profile Incomplete';
-    if (!_hasTodayLog) return 'Action Needed';
-    if (_pendingLogsCount > 0) return 'For Review';
-    if (_isBehindPace) return 'Needs Recovery';
-    return 'On Track';
-  }
-
-  (Color, Color) get _attentionChipColors {
-    if (!_profileComplete) {
-      return (OceanBreezePalette.surfaceMuted, _heroStart);
-    }
-    if (!_hasTodayLog || _pendingLogsCount > 0 || ((_paceDelta ?? 0) < 0)) {
-      return (OceanBreezePalette.surfaceSoft, _accentPrimary);
-    }
-    return (OceanBreezePalette.mist, _accentSecondary);
-  }
-
   List<LogEntryItem> get _recentLogs => _logs.take(4).toList();
 
   DateTime get _today {
@@ -938,93 +920,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   void _openRoute(String route) {
     Navigator.pushNamed(context, route);
-  }
-
-  void _handlePrimaryAction() {
-    if (_profile == null) {
-      _openRoute(AppRoutes.internshipProfile);
-      return;
-    }
-
-    if (!_hasTodayLog) {
-      _openRoute(AppRoutes.logbook);
-      return;
-    }
-
-    if (_pendingLogsCount > 0) {
-      _openRoute(AppRoutes.logbook);
-      return;
-    }
-
-    if (_isBehindPace) {
-      _openRoute(AppRoutes.logbook);
-      return;
-    }
-
-    _openRoute(AppRoutes.studentReport);
-  }
-
-  String get _primaryActionLabel {
-    if (_profile == null) return 'Complete Internship Profile';
-    if (!_hasTodayLog) return 'Add Today\'s Log';
-    if (_pendingLogsCount > 0) return 'Review Pending Logs';
-    if (_isBehindPace) return 'Catch Up in Logbook';
-    return 'View Full Report';
-  }
-
-  IconData get _primaryActionIcon {
-    if (_profile == null) return Icons.business_center_outlined;
-    if (!_hasTodayLog) return Icons.edit_note;
-    if (_pendingLogsCount > 0) return Icons.pending_actions_outlined;
-    if (_isBehindPace) return Icons.edit_note;
-    return Icons.assessment_outlined;
-  }
-
-  String get _nextActionTitle {
-    if (_profile == null) {
-      return 'Complete your internship profile';
-    }
-    if (!_hasTodayLog) {
-      return 'Add today\'s log entry';
-    }
-    if (_pendingLogsCount > 0) {
-      final noun = _pendingLogsCount == 1 ? 'log' : 'logs';
-      return 'You have $_pendingLogsCount $noun pending review';
-    }
-    if (_isBehindPace) {
-      return 'You are behind expected pace';
-    }
-    return 'You are on track';
-  }
-
-  String get _nextActionDescription {
-    if (_profile == null) {
-      return 'Add your profile details to unlock tracking and reports.';
-    }
-    if (!_hasTodayLog) {
-      return 'Today\'s log is still missing.';
-    }
-    if (_pendingLogsCount > 0) {
-      return 'Recent submissions are waiting for supervisor review.';
-    }
-    final paceDelta = _paceDeltaAfterPending;
-    if (paceDelta != null && paceDelta < 0) {
-      return 'You are ${paceDelta.abs()} hours behind target pace.';
-    }
-    return 'Everything is on track for now.';
-  }
-
-  Color get _nextActionColor {
-    if (_profile == null) {
-      return _heroStart;
-    }
-    if (!_hasTodayLog) {
-      return _accentPrimary;
-    }
-    if (_pendingLogsCount > 0 || _isBehindPace) {
-      return _accentPrimary;
-    }
-    return _accentSecondary;
   }
 
   ImageProvider<Object>? _avatarImage(AuthProvider authProvider) {
@@ -1794,131 +1689,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [timerColumn, const SizedBox(height: 18), actionButtons],
-    );
-  }
-
-  Widget _buildNextActionSection() {
-    return DashboardInfoCard(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isCompact = constraints.maxWidth < 640;
-
-          final attentionChip = Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: _attentionChipColors.$1,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              _attentionChipLabel,
-              style: TextStyle(
-                color: _attentionChipColors.$2,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          );
-
-          final content = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (isCompact) ...[
-                Text(
-                  _nextActionTitle,
-                  style: const TextStyle(
-                    color: _headlineColor,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                attentionChip,
-              ] else
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _nextActionTitle,
-                        style: const TextStyle(
-                          color: _headlineColor,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    attentionChip,
-                  ],
-                ),
-              const SizedBox(height: 6),
-              Text(
-                _nextActionDescription,
-                style: const TextStyle(color: _bodyColor, height: 1.4),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: isCompact ? double.infinity : null,
-                child: FilledButton.icon(
-                  onPressed: _handlePrimaryAction,
-                  icon: Icon(_primaryActionIcon),
-                  label: Text(_primaryActionLabel),
-                ),
-              ),
-            ],
-          );
-
-          return Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: _nextActionColor.withValues(alpha: 0.08),
-              border: Border.all(
-                color: _nextActionColor.withValues(alpha: 0.18),
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: isCompact
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: _nextActionColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          _primaryActionIcon,
-                          color: _nextActionColor,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      content,
-                    ],
-                  )
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: _nextActionColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          _primaryActionIcon,
-                          color: _nextActionColor,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(child: content),
-                    ],
-                  ),
-          );
-        },
-      ),
     );
   }
 
@@ -2805,8 +2575,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       _buildDashboardErrorState()
                     else ...[
                       _buildAttendanceSection(),
-                      const SizedBox(height: 16),
-                      _buildNextActionSection(),
                       const SizedBox(height: 16),
                       _buildSummaryAndMetricsSection(),
                       const SizedBox(height: 16),
