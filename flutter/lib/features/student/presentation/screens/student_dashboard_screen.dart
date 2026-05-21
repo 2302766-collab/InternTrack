@@ -596,14 +596,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     };
   }
 
-  Future<void> _handleDtrAction() async {
+  Future<void> _submitDtrAction(String action) async {
     final token = context.read<AuthProvider>().token ?? '';
-    final record = _dtrRecord;
-    final resolvedNextAction = record?.resolvedNextAction(_now());
-    if (token.isEmpty ||
-        record == null ||
-        resolvedNextAction == null ||
-        _isDtrSubmitting) {
+    if (token.isEmpty || _isDtrSubmitting) {
       return;
     }
 
@@ -615,7 +610,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     try {
       late final DailyTimeRecord updatedRecord;
-      switch (resolvedNextAction) {
+      switch (action) {
         case 'TIME_IN':
           updatedRecord = await _dtrService.timeIn();
           break;
@@ -647,7 +642,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${_dtrActionLabel(resolvedNextAction)} recorded at ${_formatPunchTime(_lastRecordedPunch(updatedRecord))}.',
+            '${_dtrActionLabel(action)} recorded at ${_formatPunchTime(_lastRecordedPunch(updatedRecord))}.',
           ),
         ),
       );
@@ -1678,9 +1673,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     bool isCompact,
   ) {
     final timeInText = _formatPunchTime(record?.lunchInAt ?? record?.timeInAt);
-    final resolvedNextAction = record?.resolvedNextAction(_now());
-    final actionEnabled =
-        resolvedNextAction != null && !_isDtrSubmitting && !_isRefreshing;
 
     final timerColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -1776,26 +1768,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       runSpacing: 10,
       alignment: WrapAlignment.center,
       children: [
-        FilledButton.icon(
-          onPressed: actionEnabled ? _handleDtrAction : null,
-          style: FilledButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: _heroStart,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          ),
-          icon: _isDtrSubmitting
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.fingerprint_rounded),
-          label: Text(
-            _isDtrSubmitting
-                ? 'Saving...'
-                : _dtrActionLabel(resolvedNextAction),
-          ),
-        ),
         OutlinedButton.icon(
           onPressed: () => _openRoute(AppRoutes.studentDtr),
           style: OutlinedButton.styleFrom(
@@ -1960,50 +1932,76 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       required IconData icon,
       required Color iconColor,
       required Color backgroundColor,
+      required bool enabled,
+      VoidCallback? onTap,
     }) {
-      return Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: backgroundColor,
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
           borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: iconColor, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      color: _bodyColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _formatPunchTime(value),
-                    style: const TextStyle(
-                      color: _headlineColor,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
+          child: Ink(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: enabled
+                  ? backgroundColor
+                  : backgroundColor.withValues(alpha: 0.62),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: enabled
+                    ? iconColor.withValues(alpha: 0.18)
+                    : const Color(0x1A0F172A),
               ),
             ),
-          ],
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: enabled ? 0.12 : 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: enabled
+                        ? iconColor
+                        : iconColor.withValues(alpha: 0.55),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: TextStyle(
+                          color: enabled
+                              ? _bodyColor
+                              : _bodyColor.withValues(alpha: 0.72),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatPunchTime(value),
+                        style: TextStyle(
+                          color: enabled
+                              ? _headlineColor
+                              : _headlineColor.withValues(alpha: 0.7),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
@@ -2036,6 +2034,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.login_rounded,
                       iconColor: const Color(0xFF027A48),
                       backgroundColor: const Color(0xFFF3FBF7),
+                      enabled:
+                          !isLoading &&
+                          !_isRefreshing &&
+                          !_isDtrSubmitting &&
+                          (record?.timeInAt == null),
+                      onTap: () => _submitDtrAction('TIME_IN'),
                     ),
                   ),
                   SizedBox(
@@ -2046,6 +2050,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.logout_rounded,
                       iconColor: const Color(0xFFB54708),
                       backgroundColor: const Color(0xFFFFF8ED),
+                      enabled:
+                          !isLoading &&
+                          !_isRefreshing &&
+                          !_isDtrSubmitting &&
+                          (record?.timeInAt != null) &&
+                          (record?.lunchOutAt == null),
+                      onTap: () => _submitDtrAction('LUNCH_OUT'),
                     ),
                   ),
                   SizedBox(
@@ -2056,6 +2067,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.restaurant_rounded,
                       iconColor: const Color(0xFF027A48),
                       backgroundColor: const Color(0xFFF3FBF7),
+                      enabled:
+                          !isLoading &&
+                          !_isRefreshing &&
+                          !_isDtrSubmitting &&
+                          (record?.lunchOutAt != null) &&
+                          (record?.lunchInAt == null),
+                      onTap: () => _submitDtrAction('LUNCH_IN'),
                     ),
                   ),
                   SizedBox(
@@ -2066,6 +2084,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.lunch_dining_outlined,
                       iconColor: const Color(0xFFB54708),
                       backgroundColor: const Color(0xFFFFF8ED),
+                      enabled:
+                          !isLoading &&
+                          !_isRefreshing &&
+                          !_isDtrSubmitting &&
+                          (record?.timeInAt != null) &&
+                          (record?.lunchOutAt == null),
+                      onTap: () => _submitDtrAction('LUNCH_OUT'),
                     ),
                   ),
                   SizedBox(
@@ -2076,6 +2101,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.login_rounded,
                       iconColor: const Color(0xFF027A48),
                       backgroundColor: const Color(0xFFF3FBF7),
+                      enabled:
+                          !isLoading &&
+                          !_isRefreshing &&
+                          !_isDtrSubmitting &&
+                          (record?.lunchOutAt != null) &&
+                          (record?.lunchInAt == null),
+                      onTap: () => _submitDtrAction('LUNCH_IN'),
                     ),
                   ),
                   SizedBox(
@@ -2086,6 +2118,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.logout_rounded,
                       iconColor: const Color(0xFFB54708),
                       backgroundColor: const Color(0xFFFFF8ED),
+                      enabled:
+                          !isLoading &&
+                          !_isRefreshing &&
+                          !_isDtrSubmitting &&
+                          (record?.lunchInAt != null) &&
+                          (record?.timeOutAt == null),
+                      onTap: () => _submitDtrAction('TIME_OUT'),
                     ),
                   ),
                 ],
