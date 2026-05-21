@@ -2062,23 +2062,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   SizedBox(
                     width: tileWidth,
                     child: punchTile(
-                      label: 'Lunch In',
-                      value: record?.lunchInAt,
-                      icon: Icons.restaurant_rounded,
-                      iconColor: const Color(0xFF027A48),
-                      backgroundColor: const Color(0xFFF3FBF7),
-                      enabled:
-                          !isLoading &&
-                          !_isRefreshing &&
-                          !_isDtrSubmitting &&
-                          (record?.lunchOutAt != null) &&
-                          (record?.lunchInAt == null),
-                      onTap: () => _submitDtrAction('LUNCH_IN'),
-                    ),
-                  ),
-                  SizedBox(
-                    width: tileWidth,
-                    child: punchTile(
                       label: 'Lunch Out',
                       value: record?.lunchOutAt,
                       icon: Icons.lunch_dining_outlined,
@@ -2091,6 +2074,23 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           (record?.timeInAt != null) &&
                           (record?.lunchOutAt == null),
                       onTap: () => _submitDtrAction('LUNCH_OUT'),
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: punchTile(
+                      label: 'Lunch In',
+                      value: record?.lunchInAt,
+                      icon: Icons.restaurant_rounded,
+                      iconColor: const Color(0xFF027A48),
+                      backgroundColor: const Color(0xFFF3FBF7),
+                      enabled:
+                          !isLoading &&
+                          !_isRefreshing &&
+                          !_isDtrSubmitting &&
+                          (record?.lunchOutAt != null) &&
+                          (record?.lunchInAt == null),
+                      onTap: () => _submitDtrAction('LUNCH_IN'),
                     ),
                   ),
                   SizedBox(
