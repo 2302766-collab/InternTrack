@@ -767,6 +767,37 @@ void main() {
     await _disposeRenderedTree(tester);
   });
 
+  testWidgets('attendance section shows six attendance slots', (tester) async {
+    final authProvider = await _buildAuthProvider();
+
+    await tester.pumpWidget(
+      _buildApp(
+        authProvider: authProvider,
+        internshipService: _QueuedInternshipService(
+          responses: Queue.of([() async => _sampleProfile()]),
+        ),
+        dtrService: _StaticDtrService(),
+        reportService: _QueuedStudentReportService(
+          responses: Queue.of([() async => _sampleReport()]),
+        ),
+        logbookService: _QueuedLogbookService(
+          responses: Queue.of([() async => _sampleLogs()]),
+        ),
+      ),
+    );
+
+    await _pumpDashboardReady(tester);
+
+    expect(find.text('AM Time In'), findsOneWidget);
+    expect(find.text('AM Time Out'), findsOneWidget);
+    expect(find.text('Lunch Out'), findsOneWidget);
+    expect(find.text('Lunch In'), findsOneWidget);
+    expect(find.text('PM Time In'), findsOneWidget);
+    expect(find.text('PM Time Out'), findsOneWidget);
+
+    await _disposeRenderedTree(tester);
+  });
+
   testWidgets('break session offers lunch in and resumes work', (tester) async {
     final authProvider = await _buildAuthProvider();
     final dtrService = _ActionTrackingDtrService(

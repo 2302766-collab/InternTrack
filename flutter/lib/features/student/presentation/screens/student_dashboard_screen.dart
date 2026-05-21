@@ -2018,8 +2018,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               final isCompact = constraints.maxWidth < 640;
               final tileWidth = isCompact
                   ? constraints.maxWidth
+                  : constraints.maxWidth >= 1380
+                  ? (constraints.maxWidth - 60) / 6
                   : constraints.maxWidth >= 920
-                  ? (constraints.maxWidth - 36) / 4
+                  ? (constraints.maxWidth - 24) / 3
                   : (constraints.maxWidth - 12) / 2;
 
               return Wrap(
@@ -2029,7 +2031,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   SizedBox(
                     width: tileWidth,
                     child: punchTile(
-                      label: 'First Time In',
+                      label: 'AM Time In',
                       value: record?.timeInAt,
                       icon: Icons.login_rounded,
                       iconColor: const Color(0xFF027A48),
@@ -2039,7 +2041,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   SizedBox(
                     width: tileWidth,
                     child: punchTile(
-                      label: 'First Time Out',
+                      label: 'AM Time Out',
                       value: record?.lunchOutAt,
                       icon: Icons.logout_rounded,
                       iconColor: const Color(0xFFB54708),
@@ -2049,7 +2051,27 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   SizedBox(
                     width: tileWidth,
                     child: punchTile(
-                      label: 'Second Time In',
+                      label: 'Lunch Out',
+                      value: record?.lunchOutAt,
+                      icon: Icons.lunch_dining_outlined,
+                      iconColor: const Color(0xFFB54708),
+                      backgroundColor: const Color(0xFFFFF8ED),
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: punchTile(
+                      label: 'Lunch In',
+                      value: record?.lunchInAt,
+                      icon: Icons.restaurant_rounded,
+                      iconColor: const Color(0xFF027A48),
+                      backgroundColor: const Color(0xFFF3FBF7),
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: punchTile(
+                      label: 'PM Time In',
                       value: record?.lunchInAt,
                       icon: Icons.login_rounded,
                       iconColor: const Color(0xFF027A48),
@@ -2059,7 +2081,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   SizedBox(
                     width: tileWidth,
                     child: punchTile(
-                      label: 'Final Time Out',
+                      label: 'PM Time Out',
                       value: record?.timeOutAt,
                       icon: Icons.logout_rounded,
                       iconColor: const Color(0xFFB54708),

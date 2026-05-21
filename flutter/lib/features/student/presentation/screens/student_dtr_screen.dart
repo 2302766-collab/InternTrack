@@ -591,7 +591,9 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: Theme.of(context).dividerColor.withValues(alpha: 0.4),
+                    color: Theme.of(
+                      context,
+                    ).dividerColor.withValues(alpha: 0.4),
                   ),
                 ),
                 child: ListTile(
@@ -645,23 +647,37 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                         'Send corrected attendance times for ${DateFormat('MMMM d, yyyy').format(requestDate)} to the admin and your supervisor.',
                       ),
                       const SizedBox(height: 18),
+                      const Text(
+                        'Lunch Out / AM Time Out and Lunch In / PM Time In currently share the same recorded timestamps from the API.',
+                      ),
+                      const SizedBox(height: 18),
                       timeTile(
-                        label: 'Morning Time In',
+                        label: 'AM Time In',
                         value: timeInAt,
                         onChanged: (value) => timeInAt = value,
                       ),
                       timeTile(
-                        label: 'Morning Time Out',
+                        label: 'AM Time Out',
                         value: lunchOutAt,
                         onChanged: (value) => lunchOutAt = value,
                       ),
                       timeTile(
-                        label: 'Afternoon Time In',
+                        label: 'Lunch Out',
+                        value: lunchOutAt,
+                        onChanged: (value) => lunchOutAt = value,
+                      ),
+                      timeTile(
+                        label: 'Lunch In',
                         value: lunchInAt,
                         onChanged: (value) => lunchInAt = value,
                       ),
                       timeTile(
-                        label: 'Afternoon Time Out',
+                        label: 'PM Time In',
+                        value: lunchInAt,
+                        onChanged: (value) => lunchInAt = value,
+                      ),
+                      timeTile(
+                        label: 'PM Time Out',
                         value: timeOutAt,
                         onChanged: (value) => timeOutAt = value,
                       ),
@@ -704,7 +720,8 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                           Expanded(
                             child: FilledButton(
                               onPressed: () {
-                                final trimmedReason = reasonController.text.trim();
+                                final trimmedReason = reasonController.text
+                                    .trim();
                                 if (trimmedReason.length < 5) {
                                   setSheetState(() {
                                     validationError =
@@ -803,7 +820,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     final theme = Theme.of(context);
     const dayWidth = 78.0;
     const dateWidth = 136.0;
-    const timeWidth = 112.0;
+    const timeWidth = 106.0;
     const undertimeWidth = 112.0;
     const statusWidth = 156.0;
     const requestWidth = 160.0;
@@ -885,6 +902,16 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                       timeWidth,
                       alignment: Alignment.center,
                     ),
+                    headerCell(
+                      'LUNCH OUT',
+                      timeWidth,
+                      alignment: Alignment.center,
+                    ),
+                    headerCell(
+                      'LUNCH IN',
+                      timeWidth,
+                      alignment: Alignment.center,
+                    ),
                     headerCell('PM IN', timeWidth, alignment: Alignment.center),
                     headerCell(
                       'PM OUT',
@@ -945,6 +972,30 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                         shaded: row.day.isEven,
                         alignment: Alignment.center,
                         child: Text(_timeText(row.amDeparture)),
+                      ),
+                      bodyCell(
+                        width: timeWidth,
+                        shaded: row.day.isEven,
+                        alignment: Alignment.center,
+                        child: Text(
+                          _timeText(
+                            row.lunchOutAt != null
+                                ? _formatTime(row.lunchOutAt)
+                                : row.amDeparture,
+                          ),
+                        ),
+                      ),
+                      bodyCell(
+                        width: timeWidth,
+                        shaded: row.day.isEven,
+                        alignment: Alignment.center,
+                        child: Text(
+                          _timeText(
+                            row.lunchInAt != null
+                                ? _formatTime(row.lunchInAt)
+                                : row.pmArrival,
+                          ),
+                        ),
                       ),
                       bodyCell(
                         width: timeWidth,
