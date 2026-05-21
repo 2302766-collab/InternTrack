@@ -8,14 +8,11 @@ class LogbookNavArgs {
   final int? logId;
 }
 
-enum StudentNotificationRouteKind { logbook, report }
+enum StudentNotificationRouteKind { logbook, report, dtr }
 
 /// Resolved in-app navigation for a student notification tap.
 class StudentNotificationRoute {
-  const StudentNotificationRoute._({
-    required this.kind,
-    this.logId,
-  });
+  const StudentNotificationRoute._({required this.kind, this.logId});
 
   final StudentNotificationRouteKind kind;
 
@@ -24,10 +21,13 @@ class StudentNotificationRoute {
   final int? logId;
 
   const StudentNotificationRoute.logbook({int? logId})
-      : this._(kind: StudentNotificationRouteKind.logbook, logId: logId);
+    : this._(kind: StudentNotificationRouteKind.logbook, logId: logId);
 
   const StudentNotificationRoute.report()
-      : this._(kind: StudentNotificationRouteKind.report);
+    : this._(kind: StudentNotificationRouteKind.report);
+
+  const StudentNotificationRoute.dtr()
+    : this._(kind: StudentNotificationRouteKind.dtr);
 
   /// Maps API `type` + `meta` to a student navigation target.
   /// Returns null when no safe route is inferred (caller shows a short fallback).
@@ -37,10 +37,17 @@ class StudentNotificationRoute {
     final meta = notification.meta;
 
     int? logIdFromMeta;
+    String? resourceType;
     if (meta != null) {
       logIdFromMeta = _readPositiveInt(
-        meta['log_id'] ?? meta['logId'] ?? meta['target_id'] ?? meta['targetId'],
+        meta['log_id'] ??
+            meta['logId'] ??
+            meta['log_entry_id'] ??
+            meta['resource_id'] ??
+            meta['target_id'] ??
+            meta['targetId'],
       );
+      resourceType = meta['resource_type']?.toString().trim().toLowerCase();
     }
 
     if (normalized.isNotEmpty) {
@@ -49,6 +56,12 @@ class StudentNotificationRoute {
       }
       if (_isReportType(normalized)) {
         return StudentNotificationRoute.report();
+      }
+      if (_isEditRequestReviewType(normalized)) {
+        if (resourceType == 'daily_time_record') {
+          return const StudentNotificationRoute.dtr();
+        }
+        return StudentNotificationRoute.logbook(logId: logIdFromMeta);
       }
       return null;
     }
@@ -63,6 +76,9 @@ class StudentNotificationRoute {
     }
     if (title.contains('report')) {
       return StudentNotificationRoute.report();
+    }
+    if (title.contains('dtr')) {
+      return const StudentNotificationRoute.dtr();
     }
 
     return null;
@@ -88,6 +104,11 @@ class StudentNotificationRoute {
       if (normalized == k || normalized.startsWith(k)) return true;
     }
     return normalized.contains('report');
+  }
+
+  static bool _isEditRequestReviewType(String normalized) {
+    return normalized == 'edit_request_approved' ||
+        normalized == 'edit_request_rejected';
   }
 
   static int? _readPositiveInt(Object? value) {
