@@ -448,6 +448,72 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         .toUpperCase();
   }
 
+  Widget _buildProfileTrigger({
+    required AppUser? user,
+    required String displayName,
+    bool compact = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: _profileMenuAnchorKey,
+        onTap: _openProfilePanel,
+        borderRadius: BorderRadius.circular(24),
+        child: Ink(
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 8 : 14,
+            vertical: compact ? 8 : 10,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF3F7FB),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: _panelBorder),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildAvatar(user: user, radius: compact ? 17 : 18, fontSize: 12),
+              if (!compact) ...[
+                const SizedBox(width: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 150),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: _headlineColor,
+                        ),
+                      ),
+                      Text(
+                        'Profile',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _bodyColor.withValues(alpha: 0.85),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: _headlineColor,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   ImageProvider<Object>? _avatarImageProviderFor(String? avatarBase64) {
     if (avatarBase64 == null || avatarBase64.isEmpty) {
       return null;
@@ -1009,6 +1075,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         theme.textTheme.bodyMedium?.color ?? primaryTextColor;
     final dividerColor =
         theme.dividerTheme.color ?? theme.colorScheme.outlineVariant;
+    final displayName = authProvider.user?.name.isNotEmpty == true
+        ? authProvider.user!.name
+        : widget.userName;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1028,68 +1097,12 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             NotificationBellButton(token: authProvider.token ?? ''),
             const SizedBox(width: 8),
             Expanded(
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  key: _profileMenuAnchorKey,
-                  onTap: _openProfilePanel,
-                  borderRadius: BorderRadius.circular(22),
-                  child: Ink(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _panelSoft,
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: _panelBorder),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: isCompact
-                                ? CrossAxisAlignment.start
-                                : CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                authProvider.user?.name.isNotEmpty == true
-                                    ? authProvider.user!.name
-                                    : widget.userName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: primaryTextColor,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                authProvider.user?.role.isNotEmpty == true
-                                    ? authProvider.user!.role
-                                    : 'Company Supervisor',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: secondaryTextColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        _buildAvatar(
-                          user: authProvider.user,
-                          radius: 26,
-                          fontSize: 16,
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.keyboard_arrow_down_rounded),
-                      ],
-                    ),
-                  ),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: _buildProfileTrigger(
+                  user: authProvider.user,
+                  displayName: displayName,
+                  compact: isCompact,
                 ),
               ),
             ),
