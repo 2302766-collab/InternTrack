@@ -22,6 +22,7 @@ import '../../../../shared/widgets/profile_edit_dialog.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../supervisor/presentation/screens/intern_detail_screen.dart';
 import '../../../supervisor/presentation/screens/intern_list_screen.dart';
+import '../../../supervisor/presentation/screens/intern_report_screen.dart';
 
 class AdviserDashboardScreen extends StatefulWidget {
   final String userName;
@@ -169,6 +170,23 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => const InternListScreen(role: 'adviser'),
+      ),
+    );
+
+    if (mounted) {
+      await _loadDashboardData();
+    }
+  }
+
+  Future<void> _openInternReport(InternListItem detail) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => InternReportScreen(
+          role: 'adviser',
+          studentId: detail.studentId,
+          studentName: detail.studentName,
+        ),
       ),
     );
 
@@ -2508,6 +2526,107 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
     );
   }
 
+  Widget _buildReportAccessList(List<InternListItem> interns) {
+    if (interns.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildEmptySectionMessage(
+            'No advisees are available for report viewing yet.',
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _openInternReports,
+            icon: const Icon(Icons.open_in_new_rounded),
+            label: const Text('Open Advisee List'),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      children: interns.map((detail) {
+        final progress = detail.progressPercentage;
+        final statusColor = _statusColor(detail);
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE8EDF4)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              detail.studentName,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: _headlineColor,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              detail.companyName,
+                              style: TextStyle(fontSize: 13, color: _bodyColor),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      _buildTag(_statusLabel(detail), statusColor),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '$progress% progress • ${detail.completedHours}/${detail.requiredHours} hours completed',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: _bodyColor,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _openIntern(detail),
+                          icon: const Icon(Icons.visibility_outlined),
+                          label: const Text('Open Details'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () => _openInternReport(detail),
+                          icon: const Icon(Icons.assessment_rounded),
+                          label: const Text('View Report'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _buildAlertsPanel(List<_AdviserAlert> alerts) {
     final primaryAlerts = alerts.take(3).toList();
     final extraAlerts = alerts.length > 3
@@ -4167,10 +4286,9 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
     );
   }
 
-  Widget _buildMobileInsightsTab(DateTime referenceDate) {
+  Widget _buildMobileReportsTab(DateTime referenceDate) {
     final filteredInterns = _filteredInterns(referenceDate);
-    final weeklyActivity = _buildWeeklyActivity(filteredInterns, referenceDate);
-    final companySnapshots = _buildCompanySnapshots(filteredInterns);
+    final reports = _visibleInterns(referenceDate).take(8).toList();
     final forecasts = _buildForecastItems(filteredInterns, referenceDate);
 
     return ListView(
@@ -4179,21 +4297,12 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
         _buildSectionPanel(
-          title: 'Weekly Activity',
+          title: 'Student Reports',
           subtitle:
-              'A seven-day read of how many advisees logged activity each day.',
-          icon: Icons.bar_chart_rounded,
+              'Open each advisee report directly from the adviser workspace.',
+          icon: Icons.assessment_rounded,
           accent: _accentPrimary,
-          child: _buildWeeklyActivityChart(weeklyActivity),
-        ),
-        const SizedBox(height: 16),
-        _buildSectionPanel(
-          title: 'Company Snapshot',
-          subtitle:
-              'Group advisees by internship site to surface location-level issues.',
-          icon: Icons.apartment_rounded,
-          accent: _accentPrimary,
-          child: _buildCompanySnapshot(companySnapshots),
+          child: _buildReportAccessList(reports),
         ),
         const SizedBox(height: 16),
         _buildSectionPanel(
@@ -4350,7 +4459,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
               _AdviserMobileTab.activity => _buildMobileActivityTab(
                 referenceDate,
               ),
-              _AdviserMobileTab.insights => _buildMobileInsightsTab(
+              _AdviserMobileTab.reports => _buildMobileReportsTab(
                 referenceDate,
               ),
               _AdviserMobileTab.profile => _buildProfileTab(authProvider),
@@ -4438,11 +4547,11 @@ enum _AdviserMobileTab {
     icon: Icons.access_time_outlined,
     activeIcon: Icons.access_time_filled_rounded,
   ),
-  insights(
-    title: 'Insights',
-    subtitle: 'Weekly trends, company snapshot, and forecast.',
-    icon: Icons.insert_chart_outlined_rounded,
-    activeIcon: Icons.insert_chart_rounded,
+  reports(
+    title: 'Reports',
+    subtitle: 'Open advisee reports and progress summaries.',
+    icon: Icons.assessment_outlined,
+    activeIcon: Icons.assessment_rounded,
   ),
   profile(
     title: 'Profile',
