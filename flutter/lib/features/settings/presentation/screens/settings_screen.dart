@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_controller.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -11,7 +12,9 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final themeController = context.watch<ThemeController>();
-    final isDarkMode = themeController.isDarkMode;
+    final authProvider = context.watch<AuthProvider>();
+    final isAdmin = authProvider.role.toLowerCase() == 'admin';
+    final isDarkMode = isAdmin ? false : themeController.isDarkMode;
     final statusColor = theme.colorScheme.primary.withValues(
       alpha: isDarkMode ? 0.24 : 0.10,
     );
@@ -35,6 +38,13 @@ class SettingsScreen extends StatelessWidget {
                         'Theme Preference',
                         style: theme.textTheme.titleLarge,
                       ),
+                      if (isAdmin) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          'Dark mode is available for student, adviser, and supervisor accounts only.',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ],
                       const SizedBox(height: 20),
                       Row(
                         children: [
@@ -50,11 +60,13 @@ class SettingsScreen extends StatelessWidget {
                             activeTrackColor: AppTheme.brandColor.withValues(
                               alpha: 0.40,
                             ),
-                            onChanged: (value) {
-                              context.read<ThemeController>().setDarkMode(
-                                value,
-                              );
-                            },
+                            onChanged: isAdmin
+                                ? null
+                                : (value) {
+                                    context.read<ThemeController>().setDarkMode(
+                                      value,
+                                    );
+                                  },
                           ),
                         ],
                       ),
@@ -73,6 +85,8 @@ class SettingsScreen extends StatelessWidget {
                         child: Text(
                           isDarkMode
                               ? 'Dark Theme Applied'
+                              : isAdmin
+                              ? 'Admin uses Light Theme'
                               : 'Light Theme Applied',
                           style: theme.textTheme.titleMedium,
                         ),

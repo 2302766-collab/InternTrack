@@ -9,6 +9,7 @@ import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/intern_list_service.dart';
 import '../../../../core/theme/ocean_breeze_palette.dart';
+import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/theme/theme_utils.dart';
 import '../../../../core/utils/file_picker_helper_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
@@ -18,7 +19,6 @@ import '../../../../shared/models/intern_list_item.dart';
 import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
 import '../../../../shared/widgets/profile_edit_dialog.dart';
-import '../../../../shared/widgets/settings_shortcut_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../supervisor/presentation/screens/intern_detail_screen.dart';
 import '../../../supervisor/presentation/screens/intern_list_screen.dart';
@@ -806,15 +806,15 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
       child: InkWell(
         key: _profileMenuAnchorKey,
         onTap: _openProfilePanel,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
         child: Ink(
           padding: EdgeInsets.symmetric(
-            horizontal: compact ? 8 : 14,
-            vertical: compact ? 8 : 10,
+            horizontal: compact ? 8 : 12,
+            vertical: 8,
           ),
           decoration: BoxDecoration(
-            color: const Color(0xFFF3F7FB),
-            borderRadius: BorderRadius.circular(24),
+            color: _surfaceColor,
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(color: _borderColor),
           ),
           child: Row(
@@ -822,7 +822,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
             children: [
               _buildAvatar(user: user, radius: compact ? 17 : 18, fontSize: 12),
               if (!compact) ...[
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 150),
                   child: Column(
@@ -849,7 +849,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Icon(Icons.keyboard_arrow_down_rounded, color: _headlineColor),
               ],
             ],
@@ -1576,6 +1576,8 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   }
 
   Widget _buildHeader(AuthProvider authProvider) {
+    final themeController = context.watch<ThemeController>();
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 960;
@@ -1591,36 +1593,40 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
 
         final profileSection = Row(
           children: [
-            const SizedBox(width: 10),
-            const SettingsShortcutButton(),
-            const SizedBox(width: 8),
-            NotificationBellButton(token: authProvider.token ?? ''),
-            const SizedBox(width: 6),
-            _buildProfileTrigger(
-              user: authProvider.user,
-              displayName: displayName,
+            NotificationBellButton(
+              token: authProvider.token ?? '',
+              iconColor: _headlineColor,
             ),
-          ],
-        );
-        final mobileActions = Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SettingsShortcutButton(),
-            const SizedBox(width: 8),
-            NotificationBellButton(token: authProvider.token ?? ''),
-          ],
-        );
-        final mobileProfileSection = _buildProfileTrigger(
-          user: authProvider.user,
-          displayName: displayName,
-          compact: isCompact,
-        );
-        final mobileProfileCluster = Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            mobileActions,
-            const SizedBox(width: 10),
-            Flexible(child: mobileProfileSection),
+            const SizedBox(width: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  themeController.isDarkMode
+                      ? Icons.dark_mode_rounded
+                      : Icons.light_mode_rounded,
+                  color: _headlineColor,
+                  size: 18,
+                ),
+                Transform.scale(
+                  scale: isCompact ? 0.85 : 1,
+                  child: Switch(
+                    value: themeController.isDarkMode,
+                    onChanged: (value) {
+                      context.read<ThemeController>().setDarkMode(value);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: _buildProfileTrigger(
+                user: authProvider.user,
+                displayName: displayName,
+                compact: isCompact,
+              ),
+            ),
           ],
         );
 
@@ -1672,7 +1678,10 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                     const SizedBox(height: 14),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: mobileProfileCluster,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: profileMaxWidth),
+                        child: profileSection,
+                      ),
                     ),
                   ],
                 )

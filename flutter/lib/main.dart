@@ -216,6 +216,9 @@ class InternTrackApp extends StatelessWidget {
       ],
       child: Consumer2<AuthProvider, ThemeController>(
         builder: (context, authProvider, themeController, _) {
+          final isAdminThemeLocked =
+              authProvider.role.toLowerCase() == 'admin';
+
           return MaterialApp(
             title: 'InternTrack',
             debugShowCheckedModeBanner: false,
@@ -337,7 +340,9 @@ class InternTrackApp extends StatelessWidget {
             },
             theme: AppTheme.lightTheme(),
             darkTheme: AppTheme.darkTheme(),
-            themeMode: themeController.themeMode,
+            themeMode: isAdminThemeLocked
+                ? ThemeMode.light
+                : themeController.themeMode,
           );
         },
       ),

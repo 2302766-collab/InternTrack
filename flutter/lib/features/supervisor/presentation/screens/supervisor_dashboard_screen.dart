@@ -11,6 +11,7 @@ import '../../../../core/services/edit_request_service.dart';
 import '../../../../core/services/supervisor_dashboard_service.dart';
 import '../../../../core/services/supervisor_log_service.dart';
 import '../../../../core/theme/ocean_breeze_palette.dart';
+import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/theme/theme_utils.dart';
 import '../../../../core/utils/file_picker_helper_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
@@ -22,7 +23,6 @@ import '../../../../shared/models/supervisor_log_item.dart';
 import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
 import '../../../../shared/widgets/profile_edit_dialog.dart';
-import '../../../../shared/widgets/settings_shortcut_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'intern_list_screen.dart';
 import 'supervisor_log_detail_screen.dart';
@@ -460,15 +460,15 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       child: InkWell(
         key: _profileMenuAnchorKey,
         onTap: _openProfilePanel,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
         child: Ink(
           padding: EdgeInsets.symmetric(
-            horizontal: compact ? 8 : 14,
-            vertical: compact ? 8 : 10,
+            horizontal: compact ? 8 : 12,
+            vertical: 8,
           ),
           decoration: BoxDecoration(
-            color: const Color(0xFFF3F7FB),
-            borderRadius: BorderRadius.circular(24),
+            color: _panelSoft,
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(color: _panelBorder),
           ),
           child: Row(
@@ -476,7 +476,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             children: [
               _buildAvatar(user: user, radius: compact ? 17 : 18, fontSize: 12),
               if (!compact) ...[
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 150),
                   child: Column(
@@ -503,7 +503,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Icon(Icons.keyboard_arrow_down_rounded, color: _headlineColor),
               ],
             ],
@@ -1076,6 +1076,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Widget _buildHeader(AuthProvider authProvider) {
+    final themeController = context.watch<ThemeController>();
     final theme = Theme.of(context);
     final surfaceColor = theme.colorScheme.surface;
     final primaryTextColor = theme.colorScheme.onSurface;
@@ -1100,11 +1101,34 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
         final profileSection = Row(
           children: [
-            const SettingsShortcutButton(),
-            const SizedBox(width: 8),
-            NotificationBellButton(token: authProvider.token ?? ''),
-            const SizedBox(width: 8),
-            Expanded(
+            NotificationBellButton(
+              token: authProvider.token ?? '',
+              iconColor: primaryTextColor,
+            ),
+            const SizedBox(width: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  themeController.isDarkMode
+                      ? Icons.dark_mode_rounded
+                      : Icons.light_mode_rounded,
+                  color: primaryTextColor,
+                  size: 18,
+                ),
+                Transform.scale(
+                  scale: isCompact ? 0.85 : 1,
+                  child: Switch(
+                    value: themeController.isDarkMode,
+                    onChanged: (value) {
+                      context.read<ThemeController>().setDarkMode(value);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 4),
+            Flexible(
               child: Align(
                 alignment: Alignment.centerRight,
                 child: _buildProfileTrigger(
