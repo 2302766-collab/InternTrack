@@ -557,8 +557,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   String _dtrActionLabel(String? nextAction) {
     return switch (nextAction) {
       'TIME_IN' => 'Time In',
-      'LUNCH_OUT' => 'Time Out',
-      'LUNCH_IN' => 'Time In',
+      'LUNCH_OUT' => 'Lunch Out',
+      'LUNCH_IN' => 'Lunch In',
       'TIME_OUT' => 'Time Out',
       _ => 'Completed',
     };
@@ -571,7 +571,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     return switch (record.status) {
       'WORKING' => 'You are timed in',
-      'ON_BREAK' => 'You are timed out',
+      'ON_BREAK' => 'You are on break',
       'COMPLETED' => 'Today is complete',
       _ => 'Ready to time in',
     };
@@ -586,10 +586,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       'WORKING' when record.isAfternoonOnlySession =>
         'Your afternoon session is active. Use Time Out when you finish your day.',
       'WORKING' when record.lunchInAt == null =>
-        'Your morning session is active. Use Time Out when you start your break.',
+        'Your morning session is active. Use Lunch Out when you start your break.',
       'WORKING' =>
         'Your afternoon session is active. Use Time Out when you finish your day.',
-      'ON_BREAK' => 'You are currently timed out. Use Time In when you return.',
+      'ON_BREAK' => 'You are currently on break. Use Lunch In when you return.',
       'COMPLETED' =>
         'Your punches for today are complete. You can still open the full DTR for details.',
       _ => 'Time in from the dashboard so attendance starts right away.',
