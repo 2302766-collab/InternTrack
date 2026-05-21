@@ -67,7 +67,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   bool _isRefreshing = false;
   bool _hasCompletedFirstLoad = false;
   _SupervisorMobileTab _currentMobileTab = _SupervisorMobileTab.dashboard;
-  DateTime? _lastUpdated;
 
   List<SupervisorLogItem> _pendingLogs = <SupervisorLogItem>[];
   List<EditRequestItem> _pendingEditRequests = <EditRequestItem>[];
@@ -101,8 +100,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   Color get _panelBorder => _theme.borderSubtleColor;
   Color get _headlineColor => _theme.primaryTextColor;
   Color get _bodyColor => _theme.secondaryTextColor;
-
-  DateTime _now() => (widget.clock ?? DateTime.now)();
 
   @override
   void didChangeDependencies() {
@@ -170,7 +167,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       _sectionLoading[_SupervisorDashboardSection.editRequests] = true;
     });
 
-    final results = await Future.wait<_SupervisorSectionResult<dynamic>>([
+    await Future.wait<_SupervisorSectionResult<dynamic>>([
       _refreshPendingLogs(markLoading: false),
       _refreshSummary(markLoading: false),
       _refreshEditRequests(markLoading: false),
@@ -178,17 +175,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
     if (!mounted) return;
 
-    final successfulSections = results
-        .where((result) => result.succeeded)
-        .length;
-
     setState(() {
       _isInitialLoading = false;
       _isRefreshing = false;
       _hasCompletedFirstLoad = true;
-      if (successfulSections > 0) {
-        _lastUpdated = _now();
-      }
     });
   }
 
@@ -199,25 +189,19 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       _sectionLoading[section] = true;
     });
 
-    final result = switch (section) {
-      _SupervisorDashboardSection.summary => await _refreshSummary(
-        markLoading: false,
-      ),
-      _SupervisorDashboardSection.logs => await _refreshPendingLogs(
-        markLoading: false,
-      ),
-      _SupervisorDashboardSection.editRequests => await _refreshEditRequests(
-        markLoading: false,
-      ),
-    };
+    switch (section) {
+      case _SupervisorDashboardSection.summary:
+        await _refreshSummary(markLoading: false);
+        break;
+      case _SupervisorDashboardSection.logs:
+        await _refreshPendingLogs(markLoading: false);
+        break;
+      case _SupervisorDashboardSection.editRequests:
+        await _refreshEditRequests(markLoading: false);
+        break;
+    }
 
     if (!mounted) return;
-
-    setState(() {
-      if (result.succeeded) {
-        _lastUpdated = _now();
-      }
-    });
   }
 
   Future<_SupervisorSectionResult<SupervisorDashboardSummary>> _refreshSummary({
@@ -1096,8 +1080,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     final theme = Theme.of(context);
     final surfaceColor = theme.colorScheme.surface;
     final primaryTextColor = theme.colorScheme.onSurface;
-    final secondaryTextColor =
-        theme.textTheme.bodyMedium?.color ?? primaryTextColor;
     final dividerColor =
         theme.dividerTheme.color ?? theme.colorScheme.outlineVariant;
     final displayName = _resolvedUserName(authProvider.user);
@@ -1155,52 +1137,33 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           ],
         );
 
-        final titleBlock = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Supervisor Dashboard',
-              style: TextStyle(
-                fontSize: isNarrow ? (isCompact ? 20 : 24) : 28,
-                fontWeight: FontWeight.w700,
-                color: primaryTextColor,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Monitor intern activity, review submissions, and keep approvals moving.',
-              style: TextStyle(
-                fontSize: isCompact ? 13 : 14,
-                color: secondaryTextColor,
-              ),
-            ),
-            const SizedBox(height: 8),
-            DashboardRefreshStatus(
-              lastUpdated: _lastUpdated,
-              isRefreshing: _isRefreshing,
-              pullToRefreshLabel: 'Pull down to refresh dashboard data',
-              refreshingLabel: 'Refreshing supervisor dashboard...',
-            ),
-          ],
-        );
-
         return Container(
           padding: EdgeInsets.fromLTRB(
             horizontalPadding,
-            20,
+            16,
             horizontalPadding,
-            20,
+            16,
           ),
           decoration: BoxDecoration(
             color: surfaceColor,
             border: Border(bottom: BorderSide(color: dividerColor)),
           ),
           child: isNarrow
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              ? Row(
                   children: [
-                    titleBlock,
-                    const SizedBox(height: 16),
+                    Expanded(
+                      child: Text(
+                        'Supervisor Dashboard',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: isCompact ? 20 : 24,
+                          fontWeight: FontWeight.w700,
+                          color: primaryTextColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
                     ConstrainedBox(
                       constraints: BoxConstraints(maxWidth: profileMaxWidth),
                       child: profileSection,
@@ -1210,7 +1173,16 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               : Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: titleBlock),
+                    Expanded(
+                      child: Text(
+                        'Supervisor Dashboard',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          color: primaryTextColor,
+                        ),
+                      ),
+                    ),
                     const SizedBox(width: 12),
                     ConstrainedBox(
                       constraints: BoxConstraints(maxWidth: profileMaxWidth),
@@ -2471,85 +2443,52 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
   Widget _buildMobileTopBar(AuthProvider authProvider) {
     final themeController = context.watch<ThemeController>();
-    final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       decoration: BoxDecoration(
         color: _panelColor,
         border: Border(bottom: BorderSide(color: _panelBorder)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _currentMobileTab.title,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: _headlineColor,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _currentMobileTab.subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: _bodyColor,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              NotificationBellButton(
-                token: authProvider.token ?? '',
-                iconColor: _headlineColor,
-              ),
-              const SizedBox(width: 6),
-              Icon(
-                themeController.isDarkMode
-                    ? Icons.dark_mode_rounded
-                    : Icons.light_mode_rounded,
+          Expanded(
+            child: Text(
+              'Supervisor Dashboard',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
                 color: _headlineColor,
-                size: 18,
+                height: 1.15,
               ),
-              Switch(
-                value: themeController.isDarkMode,
-                onChanged: (value) {
-                  context.read<ThemeController>().setDarkMode(value);
-                },
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildProfileTrigger(
-                user: authProvider.user,
-                displayName: _resolvedUserName(authProvider.user),
-                compact: false,
-              ),
-              const Spacer(),
-              if (_currentMobileTab != _SupervisorMobileTab.profile)
-                TextButton.icon(
-                  onPressed: _loadDashboardData,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Refresh'),
-                ),
-            ],
+          const SizedBox(width: 6),
+          NotificationBellButton(
+            token: authProvider.token ?? '',
+            iconColor: _headlineColor,
           ),
-          const SizedBox(height: 6),
-          DashboardRefreshStatus(
-            lastUpdated: _lastUpdated,
-            isRefreshing: _isRefreshing,
-            pullToRefreshLabel: 'Pull down to refresh dashboard data',
-            refreshingLabel: 'Refreshing supervisor dashboard...',
-            dense: true,
+          const SizedBox(width: 6),
+          Icon(
+            themeController.isDarkMode
+                ? Icons.dark_mode_rounded
+                : Icons.light_mode_rounded,
+            color: _headlineColor,
+            size: 18,
+          ),
+          Switch(
+            value: themeController.isDarkMode,
+            onChanged: (value) {
+              context.read<ThemeController>().setDarkMode(value);
+            },
+          ),
+          const SizedBox(width: 4),
+          _buildProfileTrigger(
+            user: authProvider.user,
+            displayName: _resolvedUserName(authProvider.user),
+            compact: true,
           ),
         ],
       ),

@@ -16,7 +16,6 @@ import '../../../../core/utils/file_picker_helper_stub.dart'
     as file_picker;
 import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/intern_list_item.dart';
-import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
 import '../../../../shared/widgets/profile_edit_dialog.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -55,7 +54,6 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   bool _isInitialLoading = true;
   bool _isRefreshing = false;
   bool _hasCompletedFirstLoad = false;
-  DateTime? _lastUpdated;
   bool _showAllAlerts = false;
   String? _errorMessage;
   String _searchQuery = '';
@@ -125,7 +123,6 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
       setState(() {
         _interns = interns;
         _errorMessage = null;
-        _lastUpdated = _now();
       });
     } catch (e) {
       if (!mounted) return;
@@ -1657,55 +1654,34 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
         return Container(
           padding: EdgeInsets.fromLTRB(
             isNarrow ? 16 : 28,
-            20,
+            16,
             isNarrow ? 16 : 28,
-            20,
+            16,
           ),
           decoration: BoxDecoration(
             color: _surfaceColor,
             border: Border(bottom: BorderSide(color: _borderColor)),
           ),
           child: isNarrow
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              ? Row(
                   children: [
-                    const SizedBox(height: 8),
-                    Text(
-                      'Academic Adviser Dashboard',
-                      style: TextStyle(
-                        fontSize: isCompact ? 20 : 22,
-                        height: 1.15,
-                        fontWeight: FontWeight.w700,
-                        color: _headlineColor,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 320),
+                    Expanded(
                       child: Text(
-                        'Search, triage, and coach advisees from one place.',
+                        'Adviser Dashboard',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: isCompact ? 13 : 14,
-                          height: 1.35,
-                          color: _bodyColor,
+                          fontSize: isCompact ? 20 : 22,
+                          height: 1.15,
+                          fontWeight: FontWeight.w700,
+                          color: _headlineColor,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    DashboardRefreshStatus(
-                      lastUpdated: _lastUpdated,
-                      isRefreshing: _isRefreshing,
-                      pullToRefreshLabel: 'Pull down to refresh dashboard data',
-                      refreshingLabel: 'Refreshing adviser dashboard...',
-                      dense: true,
-                    ),
-                    const SizedBox(height: 14),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: profileMaxWidth),
-                        child: profileSection,
-                      ),
+                    const SizedBox(width: 12),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: profileMaxWidth),
+                      child: profileSection,
                     ),
                   ],
                 )
@@ -1713,31 +1689,13 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Academic Adviser Dashboard',
-                            style: TextStyle(
-                              fontSize: constraints.maxWidth < 1120 ? 24 : 28,
-                              fontWeight: FontWeight.w700,
-                              color: _headlineColor,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Search, triage, and coach advisees from one place.',
-                            style: TextStyle(fontSize: 14, color: _bodyColor),
-                          ),
-                          const SizedBox(height: 8),
-                          DashboardRefreshStatus(
-                            lastUpdated: _lastUpdated,
-                            isRefreshing: _isRefreshing,
-                            pullToRefreshLabel:
-                                'Pull down to refresh dashboard data',
-                            refreshingLabel: 'Refreshing adviser dashboard...',
-                          ),
-                        ],
+                      child: Text(
+                        'Adviser Dashboard',
+                        style: TextStyle(
+                          fontSize: constraints.maxWidth < 1120 ? 24 : 28,
+                          fontWeight: FontWeight.w700,
+                          color: _headlineColor,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -4014,85 +3972,52 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
 
   Widget _buildMobileTopBar(AuthProvider authProvider) {
     final themeController = context.watch<ThemeController>();
-    final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       decoration: BoxDecoration(
         color: _surfaceColor,
         border: Border(bottom: BorderSide(color: _borderColor)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _currentMobileTab.title,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: _headlineColor,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _currentMobileTab.subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: _bodyColor,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              NotificationBellButton(
-                token: authProvider.token ?? '',
-                iconColor: _headlineColor,
-              ),
-              const SizedBox(width: 6),
-              Icon(
-                themeController.isDarkMode
-                    ? Icons.dark_mode_rounded
-                    : Icons.light_mode_rounded,
+          Expanded(
+            child: Text(
+              'Adviser Dashboard',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
                 color: _headlineColor,
-                size: 18,
+                height: 1.15,
               ),
-              Switch(
-                value: themeController.isDarkMode,
-                onChanged: (value) {
-                  context.read<ThemeController>().setDarkMode(value);
-                },
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildProfileTrigger(
-                user: authProvider.user,
-                displayName: _resolvedUserName(authProvider.user),
-                compact: false,
-              ),
-              const Spacer(),
-              if (_currentMobileTab != _AdviserMobileTab.profile)
-                TextButton.icon(
-                  onPressed: _loadDashboardData,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Refresh'),
-                ),
-            ],
+          const SizedBox(width: 6),
+          NotificationBellButton(
+            token: authProvider.token ?? '',
+            iconColor: _headlineColor,
           ),
-          const SizedBox(height: 6),
-          DashboardRefreshStatus(
-            lastUpdated: _lastUpdated,
-            isRefreshing: _isRefreshing,
-            pullToRefreshLabel: 'Pull down to refresh dashboard data',
-            refreshingLabel: 'Refreshing adviser dashboard...',
-            dense: true,
+          const SizedBox(width: 6),
+          Icon(
+            themeController.isDarkMode
+                ? Icons.dark_mode_rounded
+                : Icons.light_mode_rounded,
+            color: _headlineColor,
+            size: 18,
+          ),
+          Switch(
+            value: themeController.isDarkMode,
+            onChanged: (value) {
+              context.read<ThemeController>().setDarkMode(value);
+            },
+          ),
+          const SizedBox(width: 4),
+          _buildProfileTrigger(
+            user: authProvider.user,
+            displayName: _resolvedUserName(authProvider.user),
+            compact: true,
           ),
         ],
       ),
