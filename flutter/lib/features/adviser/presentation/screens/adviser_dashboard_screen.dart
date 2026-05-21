@@ -1588,7 +1588,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                     );
                   },
                   icon: Icon(Icons.copy_all_rounded),
-                  label: Text('Copy Reminder'),
+                  label: Text('Send Reminder'),
                 ),
               ),
             ],
