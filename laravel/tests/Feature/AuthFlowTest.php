@@ -188,8 +188,8 @@ class AuthFlowTest extends TestCase
                 'avatar_base64' => $oversizedAvatarBase64,
             ])
             ->assertStatus(422)
-            ->assertJsonPath('message', 'The given data was invalid.')
-            ->assertJsonPath('errors.avatar_base64.0', 'Profile photo must be 5MB or smaller.');
+            ->assertJsonPath('message', 'Validation failed.')
+            ->assertJsonPath('data.errors.avatar_base64.0', 'Profile photo must be 5MB or smaller.');
     }
 
     public function test_login_access_token_can_be_reused_for_authenticated_requests_until_logout(): void
