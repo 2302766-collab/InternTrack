@@ -1635,6 +1635,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1673,7 +1674,6 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                     color: accent,
                   ),
                 ),
-                const Spacer(),
                 const SizedBox(height: 12),
                 Text(
                   subtitle,
