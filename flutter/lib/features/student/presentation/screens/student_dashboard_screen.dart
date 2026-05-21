@@ -85,6 +85,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   bool _didLoadDashboard = false;
   bool _hasCompletedFirstLoad = false;
   bool _isDtrSubmitting = false;
+  bool _attendanceButtonsLocked = false;
   String? _dashboardError;
   DateTime? _lastUpdated;
   Duration _liveElapsed = Duration.zero;
@@ -604,6 +605,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     setState(() {
       _isDtrSubmitting = true;
+      _attendanceButtonsLocked = true;
       _sectionErrors[_StudentDashboardSection.dtr] = null;
       _dashboardError = null;
     });
@@ -651,6 +653,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
       final message = _userFacingErrorMessage(e);
       setState(() {
+        _attendanceButtonsLocked = false;
         _sectionErrors[_StudentDashboardSection.dtr] = message;
       });
 
@@ -1695,6 +1698,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   Widget _buildAttendanceSection() {
     final isLoading = _isSectionLoading(_StudentDashboardSection.dtr);
     final record = _dtrRecord;
+    final attendanceButtonsEnabled =
+        !isLoading &&
+        !_isRefreshing &&
+        !_isDtrSubmitting &&
+        !_attendanceButtonsLocked;
 
     Widget punchTile({
       required String label,
@@ -1804,11 +1812,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.login_rounded,
                       iconColor: const Color(0xFF027A48),
                       backgroundColor: const Color(0xFFF3FBF7),
-                      enabled:
-                          !isLoading &&
-                          !_isRefreshing &&
-                          !_isDtrSubmitting &&
-                          (record?.timeInAt == null),
+                      enabled: attendanceButtonsEnabled,
                       onTap: () => _submitDtrAction('TIME_IN'),
                     ),
                   ),
@@ -1820,12 +1824,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.logout_rounded,
                       iconColor: const Color(0xFFB54708),
                       backgroundColor: const Color(0xFFFFF8ED),
-                      enabled:
-                          !isLoading &&
-                          !_isRefreshing &&
-                          !_isDtrSubmitting &&
-                          (record?.timeInAt != null) &&
-                          (record?.lunchOutAt == null),
+                      enabled: attendanceButtonsEnabled,
                       onTap: () => _submitDtrAction('LUNCH_OUT'),
                     ),
                   ),
@@ -1837,12 +1836,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.lunch_dining_outlined,
                       iconColor: const Color(0xFFB54708),
                       backgroundColor: const Color(0xFFFFF8ED),
-                      enabled:
-                          !isLoading &&
-                          !_isRefreshing &&
-                          !_isDtrSubmitting &&
-                          (record?.timeInAt != null) &&
-                          (record?.lunchOutAt == null),
+                      enabled: attendanceButtonsEnabled,
                       onTap: () => _submitDtrAction('LUNCH_OUT'),
                     ),
                   ),
@@ -1854,12 +1848,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.restaurant_rounded,
                       iconColor: const Color(0xFF027A48),
                       backgroundColor: const Color(0xFFF3FBF7),
-                      enabled:
-                          !isLoading &&
-                          !_isRefreshing &&
-                          !_isDtrSubmitting &&
-                          (record?.lunchOutAt != null) &&
-                          (record?.lunchInAt == null),
+                      enabled: attendanceButtonsEnabled,
                       onTap: () => _submitDtrAction('LUNCH_IN'),
                     ),
                   ),
@@ -1871,12 +1860,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.login_rounded,
                       iconColor: const Color(0xFF027A48),
                       backgroundColor: const Color(0xFFF3FBF7),
-                      enabled:
-                          !isLoading &&
-                          !_isRefreshing &&
-                          !_isDtrSubmitting &&
-                          (record?.lunchOutAt != null) &&
-                          (record?.lunchInAt == null),
+                      enabled: attendanceButtonsEnabled,
                       onTap: () => _submitDtrAction('LUNCH_IN'),
                     ),
                   ),
@@ -1888,12 +1872,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.logout_rounded,
                       iconColor: const Color(0xFFB54708),
                       backgroundColor: const Color(0xFFFFF8ED),
-                      enabled:
-                          !isLoading &&
-                          !_isRefreshing &&
-                          !_isDtrSubmitting &&
-                          (record?.lunchInAt != null) &&
-                          (record?.timeOutAt == null),
+                      enabled: attendanceButtonsEnabled,
                       onTap: () => _submitDtrAction('TIME_OUT'),
                     ),
                   ),

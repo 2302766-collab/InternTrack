@@ -798,6 +798,103 @@ void main() {
     await _disposeRenderedTree(tester);
   });
 
+  testWidgets(
+    'attendance buttons start enabled and lock after one successful tap',
+    (tester) async {
+      final authProvider = await _buildAuthProvider();
+      final dtrService = _ActionTrackingDtrService(
+        initialRecord: DailyTimeRecord(
+          id: 12,
+          date: '2026-05-10',
+          status: 'COMPLETED',
+          currentStateLabel: 'Completed',
+          nextAction: null,
+          timeInAt: DateTime(2026, 5, 10, 8, 0),
+          lunchOutAt: DateTime(2026, 5, 10, 12, 0),
+          lunchInAt: DateTime(2026, 5, 10, 13, 0),
+          timeOutAt: DateTime(2026, 5, 10, 17, 0),
+          firstWorkMinutes: 240,
+          secondWorkMinutes: 240,
+          totalWorkMinutes: 480,
+        ),
+        lunchOutRecord: DailyTimeRecord(
+          id: 12,
+          date: '2026-05-10',
+          status: 'COMPLETED',
+          currentStateLabel: 'Completed',
+          nextAction: null,
+          timeInAt: DateTime(2026, 5, 10, 8, 0),
+          lunchOutAt: DateTime(2026, 5, 10, 12, 0),
+          lunchInAt: DateTime(2026, 5, 10, 13, 0),
+          timeOutAt: DateTime(2026, 5, 10, 17, 0),
+          firstWorkMinutes: 240,
+          secondWorkMinutes: 240,
+          totalWorkMinutes: 480,
+        ),
+        lunchInRecord: DailyTimeRecord(
+          id: 12,
+          date: '2026-05-10',
+          status: 'COMPLETED',
+          currentStateLabel: 'Completed',
+          nextAction: null,
+          timeInAt: DateTime(2026, 5, 10, 8, 0),
+          lunchOutAt: DateTime(2026, 5, 10, 12, 0),
+          lunchInAt: DateTime(2026, 5, 10, 13, 0),
+          timeOutAt: DateTime(2026, 5, 10, 17, 0),
+          firstWorkMinutes: 240,
+          secondWorkMinutes: 240,
+          totalWorkMinutes: 480,
+        ),
+        timeOutRecord: DailyTimeRecord(
+          id: 12,
+          date: '2026-05-10',
+          status: 'COMPLETED',
+          currentStateLabel: 'Completed',
+          nextAction: null,
+          timeInAt: DateTime(2026, 5, 10, 8, 0),
+          lunchOutAt: DateTime(2026, 5, 10, 12, 0),
+          lunchInAt: DateTime(2026, 5, 10, 13, 0),
+          timeOutAt: DateTime(2026, 5, 10, 17, 0),
+          firstWorkMinutes: 240,
+          secondWorkMinutes: 240,
+          totalWorkMinutes: 480,
+        ),
+      );
+
+      await tester.pumpWidget(
+        _buildApp(
+          authProvider: authProvider,
+          internshipService: _QueuedInternshipService(
+            responses: Queue.of([() async => _sampleProfile()]),
+          ),
+          dtrService: dtrService,
+          reportService: _QueuedStudentReportService(
+            responses: Queue.of([() async => _sampleReport()]),
+          ),
+          logbookService: _QueuedLogbookService(
+            responses: Queue.of([() async => _sampleLogs()]),
+          ),
+        ),
+      );
+
+      await _pumpDashboardReady(tester);
+
+      await tester.tap(find.text('PM Time Out'));
+      await _pumpDashboardReady(tester);
+
+      expect(dtrService.lastAction, 'timeOut');
+      expect(dtrService.timeOutCalls, 1);
+
+      await tester.tap(find.text('AM Time In'));
+      await _pumpDashboardReady(tester);
+
+      expect(dtrService.timeInCalls, 0);
+      expect(dtrService.timeOutCalls, 1);
+
+      await _disposeRenderedTree(tester);
+    },
+  );
+
   testWidgets('break session offers lunch in and resumes work', (tester) async {
     final authProvider = await _buildAuthProvider();
     final dtrService = _ActionTrackingDtrService(
@@ -1210,8 +1307,10 @@ class _ActionTrackingDtrService extends DtrService {
   final DailyTimeRecord lunchInRecord;
   final DailyTimeRecord timeOutRecord;
   String? lastAction;
+  int timeInCalls = 0;
   int lunchOutCalls = 0;
   int lunchInCalls = 0;
+  int timeOutCalls = 0;
 
   @override
   Future<DailyTimeRecord> getTodayRecord() async => initialRecord;
@@ -1233,12 +1332,14 @@ class _ActionTrackingDtrService extends DtrService {
   @override
   Future<DailyTimeRecord> timeIn() async {
     lastAction = 'timeIn';
+    timeInCalls += 1;
     return lunchOutRecord;
   }
 
   @override
   Future<DailyTimeRecord> timeOut() async {
     lastAction = 'timeOut';
+    timeOutCalls += 1;
     return timeOutRecord;
   }
 }
