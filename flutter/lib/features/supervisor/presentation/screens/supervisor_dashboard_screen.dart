@@ -66,6 +66,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   bool _isInitialLoading = true;
   bool _isRefreshing = false;
   bool _hasCompletedFirstLoad = false;
+  _SupervisorMobileTab _currentMobileTab = _SupervisorMobileTab.dashboard;
   DateTime? _lastUpdated;
 
   List<SupervisorLogItem> _pendingLogs = <SupervisorLogItem>[];
@@ -2468,6 +2469,489 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     );
   }
 
+  Widget _buildMobileTopBar(AuthProvider authProvider) {
+    final themeController = context.watch<ThemeController>();
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      decoration: BoxDecoration(
+        color: _panelColor,
+        border: Border(bottom: BorderSide(color: _panelBorder)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _currentMobileTab.title,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: _headlineColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _currentMobileTab.subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: _bodyColor,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              NotificationBellButton(
+                token: authProvider.token ?? '',
+                iconColor: _headlineColor,
+              ),
+              const SizedBox(width: 6),
+              Icon(
+                themeController.isDarkMode
+                    ? Icons.dark_mode_rounded
+                    : Icons.light_mode_rounded,
+                color: _headlineColor,
+                size: 18,
+              ),
+              Switch(
+                value: themeController.isDarkMode,
+                onChanged: (value) {
+                  context.read<ThemeController>().setDarkMode(value);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildProfileTrigger(
+                user: authProvider.user,
+                displayName: _resolvedUserName(authProvider.user),
+                compact: false,
+              ),
+              const Spacer(),
+              if (_currentMobileTab != _SupervisorMobileTab.profile)
+                TextButton.icon(
+                  onPressed: _loadDashboardData,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Refresh'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          DashboardRefreshStatus(
+            lastUpdated: _lastUpdated,
+            isRefreshing: _isRefreshing,
+            pullToRefreshLabel: 'Pull down to refresh dashboard data',
+            refreshingLabel: 'Refreshing supervisor dashboard...',
+            dense: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileDashboardTab() {
+    final summary = _dashboardSummary;
+    final isSummaryLoading = _isSectionLoading(
+      _SupervisorDashboardSection.summary,
+    );
+    final pendingCount = summary?.pendingReview ?? _pendingLogs.length;
+    final totalStudents = summary?.totalStudents ?? 0;
+    final approvedToday = summary?.approvedToday ?? 0;
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+      children: [
+        _buildHeroPanel(
+          pendingCount: pendingCount,
+          approvedToday: approvedToday,
+          totalStudents: totalStudents,
+          isNarrow: true,
+        ),
+        const SizedBox(height: 18),
+        if (isSummaryLoading && _dashboardSummary == null)
+          _buildStatsSkeleton()
+        else
+          Column(
+            children: [
+              _buildStatCard(
+                title: 'Pending Review',
+                value: '$pendingCount',
+                icon: Icons.access_time_rounded,
+                accent: _accentPrimary,
+                helper: 'Submissions waiting for your decision.',
+                width: double.infinity,
+              ),
+              const SizedBox(height: 12),
+              _buildStatCard(
+                title: 'Approved Today',
+                value: '$approvedToday',
+                icon: Icons.check_circle_outline_rounded,
+                accent: _accentSecondary,
+                helper: 'Logs you cleared within today\'s cycle.',
+                width: double.infinity,
+              ),
+              const SizedBox(height: 12),
+              _buildStatCard(
+                title: 'Total Students',
+                value: '$totalStudents',
+                icon: Icons.groups_rounded,
+                accent: _accentMuted,
+                helper: 'Interns currently assigned to your supervision.',
+                width: double.infinity,
+              ),
+            ],
+          ),
+        if (_summaryError != null) ...[
+          const SizedBox(height: 12),
+          DashboardInlineNotice(
+            message: _summaryError!,
+            onRetry: () => _refreshSection(_SupervisorDashboardSection.summary),
+          ),
+        ] else if (isSummaryLoading) ...[
+          const SizedBox(height: 12),
+          _buildSectionRefreshingHint('Refreshing dashboard summary...'),
+        ],
+        const SizedBox(height: 16),
+        _buildActionBar(),
+      ],
+    );
+  }
+
+  Widget _buildMobileLogsTab() {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      children: [_buildLogsPanel()],
+    );
+  }
+
+  Widget _buildMobileRequestsTab() {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      children: [_buildEditRequestsPanel()],
+    );
+  }
+
+  Widget _buildInternSpotlightCard(SupervisorLogItem log) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _panelColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _panelBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      log.studentName,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: _headlineColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      (log.companyName ?? '').isNotEmpty
+                          ? log.companyName!
+                          : _formatDate(log.date),
+                      style: TextStyle(fontSize: 13, color: _bodyColor),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: _statusBg(log.status),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  _statusLabel(log.status),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _statusFg(log.status),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            log.taskDescription,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 13.5, height: 1.4, color: _bodyColor),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _openLogReview(log),
+                  icon: const Icon(Icons.rate_review_outlined),
+                  label: const Text('Review Log'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _openAssignedInterns,
+                  icon: const Icon(Icons.groups_2_outlined),
+                  label: const Text('Open Roster'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileInternsTab() {
+    final uniqueLogs = <int, SupervisorLogItem>{};
+    for (final log in _pendingLogs) {
+      uniqueLogs.putIfAbsent(log.internshipProfileId, () => log);
+    }
+    final spotlightLogs = uniqueLogs.values.take(6).toList();
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      children: [
+        _buildQuickActionCard(
+          title: 'Assigned Intern Roster',
+          description:
+              'Open the full supervisor intern list to review assigned students and access their detail pages.',
+          icon: Icons.groups_2_outlined,
+          onTap: _openAssignedInterns,
+          filled: true,
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _panelColor,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: _panelBorder),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0F0F172A),
+                blurRadius: 20,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Intern Spotlight',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: _headlineColor,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Jump into recent intern review activity, then use the assigned roster for full student access.',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  height: 1.45,
+                  color: _bodyColor,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (spotlightLogs.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: _panelSoft,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: _panelBorder),
+                  ),
+                  child: Text(
+                    'No active log queue right now. Open the assigned intern roster to view your students.',
+                    style: TextStyle(fontSize: 14, color: _bodyColor),
+                  ),
+                )
+              else
+                ...spotlightLogs.map(_buildInternSpotlightCard),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileProfileTab(AuthProvider authProvider) {
+    final user = authProvider.user;
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _panelColor,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: _panelBorder),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x120F172A),
+                blurRadius: 20,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _buildAvatar(user: user, radius: 28, fontSize: 18),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _resolvedUserName(user),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: _headlineColor,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          user?.email.isNotEmpty == true
+                              ? user!.email
+                              : 'No email available',
+                          style: TextStyle(fontSize: 13, color: _bodyColor),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildMiniTag(
+                          label:
+                              (user?.role.isNotEmpty == true
+                                      ? user!.role
+                                      : 'Supervisor')
+                                  .toUpperCase(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              _buildProfileInfoCard(user),
+              const SizedBox(height: 16),
+              _buildProfileActionTile(
+                icon: Icons.person_outline_rounded,
+                title: 'Edit profile details',
+                subtitle: 'Update your display name and gender details.',
+                onTap: () async {
+                  await showProfileEditDialog(
+                    context,
+                    title: 'Edit supervisor profile',
+                    user: authProvider.user,
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              _buildProfileActionTile(
+                icon: Icons.edit_outlined,
+                title: 'Change profile photo',
+                subtitle: 'Upload a JPG or PNG image for this supervisor.',
+                onTap: _pickProfilePhoto,
+              ),
+              if ((user?.avatarBase64 ?? '').isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _buildProfileActionTile(
+                  icon: Icons.hide_image_outlined,
+                  title: 'Remove profile photo',
+                  subtitle: 'Switch back to the generated initials avatar.',
+                  onTap: _removeProfilePhoto,
+                ),
+              ],
+              const SizedBox(height: 10),
+              _buildProfileActionTile(
+                icon: Icons.groups_2_outlined,
+                title: 'Open assigned interns',
+                subtitle: 'Jump to the full supervisor intern roster screen.',
+                onTap: _openAssignedInterns,
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _logout,
+                  icon: const Icon(Icons.logout_rounded),
+                  label: const Text('Log out'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFB42318),
+                    side: const BorderSide(color: Color(0xFFF0C4C0)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileBody(AuthProvider authProvider) {
+    return Column(
+      children: [
+        _buildMobileTopBar(authProvider),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _loadDashboardData,
+            child: switch (_currentMobileTab) {
+              _SupervisorMobileTab.dashboard => _buildMobileDashboardTab(),
+              _SupervisorMobileTab.logs => _buildMobileLogsTab(),
+              _SupervisorMobileTab.requests => _buildMobileRequestsTab(),
+              _SupervisorMobileTab.interns => _buildMobileInternsTab(),
+              _SupervisorMobileTab.profile => _buildMobileProfileTab(
+                authProvider,
+              ),
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildBody() {
     final isSummaryLoading = _isSectionLoading(
       _SupervisorDashboardSection.summary,
@@ -2584,20 +3068,123 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
 
-    return Scaffold(
-      backgroundColor: _canvasColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(authProvider),
-            Expanded(
-              child: _isInitialLoading && !_hasCompletedFirstLoad
-                  ? const Center(child: CircularProgressIndicator())
-                  : _buildBody(),
-            ),
-          ],
-        ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobileLayout = constraints.maxWidth < 960;
+
+        return Scaffold(
+          backgroundColor: _canvasColor,
+          bottomNavigationBar: isMobileLayout
+              ? _SupervisorMobileBottomNavBar(
+                  currentTab: _currentMobileTab,
+                  onChanged: (tab) {
+                    if (tab == _currentMobileTab) return;
+                    setState(() {
+                      _currentMobileTab = tab;
+                    });
+                  },
+                )
+              : null,
+          body: SafeArea(
+            bottom: !isMobileLayout,
+            child: _isInitialLoading && !_hasCompletedFirstLoad
+                ? const Center(child: CircularProgressIndicator())
+                : isMobileLayout
+                ? _buildMobileBody(authProvider)
+                : Column(
+                    children: [
+                      _buildHeader(authProvider),
+                      Expanded(child: _buildBody()),
+                    ],
+                  ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+enum _SupervisorMobileTab {
+  dashboard(
+    title: 'Dashboard',
+    subtitle: 'Summary, counts, and quick actions.',
+    icon: Icons.dashboard_outlined,
+    activeIcon: Icons.dashboard_rounded,
+  ),
+  logs(
+    title: 'Logs',
+    subtitle: 'Review submitted log entries awaiting action.',
+    icon: Icons.fact_check_outlined,
+    activeIcon: Icons.fact_check_rounded,
+  ),
+  requests(
+    title: 'Requests',
+    subtitle: 'Approve or reject student correction requests.',
+    icon: Icons.edit_note_outlined,
+    activeIcon: Icons.edit_note_rounded,
+  ),
+  interns(
+    title: 'Interns',
+    subtitle: 'Open assigned interns and student reports.',
+    icon: Icons.groups_outlined,
+    activeIcon: Icons.groups_rounded,
+  ),
+  profile(
+    title: 'Profile',
+    subtitle: 'Account details and supervisor actions.',
+    icon: Icons.person_outline_rounded,
+    activeIcon: Icons.person_rounded,
+  );
+
+  const _SupervisorMobileTab({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.activeIcon,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final IconData activeIcon;
+}
+
+class _SupervisorMobileBottomNavBar extends StatelessWidget {
+  const _SupervisorMobileBottomNavBar({
+    required this.currentTab,
+    required this.onChanged,
+  });
+
+  final _SupervisorMobileTab currentTab;
+  final ValueChanged<_SupervisorMobileTab> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tabs = _SupervisorMobileTab.values;
+
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      currentIndex: tabs.indexOf(currentTab),
+      selectedItemColor: theme.colorScheme.primary,
+      unselectedItemColor: theme.colorScheme.onSurface.withAlpha(170),
+      selectedLabelStyle: theme.textTheme.labelSmall?.copyWith(
+        fontWeight: FontWeight.w700,
       ),
+      unselectedLabelStyle: theme.textTheme.labelSmall?.copyWith(
+        fontWeight: FontWeight.w600,
+      ),
+      iconSize: 22,
+      onTap: (index) => onChanged(tabs[index]),
+      items: tabs
+          .map(
+            (tab) => BottomNavigationBarItem(
+              icon: Icon(tab.icon),
+              activeIcon: Icon(tab.activeIcon),
+              label: tab.title,
+            ),
+          )
+          .toList(growable: false),
     );
   }
 }
