@@ -2106,6 +2106,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       required bool enabled,
       VoidCallback? onTap,
     }) {
+      final foregroundColor = _theme.isDarkMode
+          ? _headlineColor
+          : iconColor.withValues(alpha: 0.92);
+      final secondaryForegroundColor = _theme.isDarkMode
+          ? _bodyColor
+          : iconColor.withValues(alpha: 0.78);
+
       return Material(
         color: Colors.transparent,
         child: InkWell(
@@ -2152,8 +2159,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         label,
                         style: TextStyle(
                           color: enabled
-                              ? _bodyColor
-                              : _bodyColor.withValues(alpha: 0.72),
+                              ? secondaryForegroundColor
+                              : secondaryForegroundColor.withValues(
+                                  alpha: 0.72,
+                                ),
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
@@ -2163,8 +2172,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         _formatPunchTime(value),
                         style: TextStyle(
                           color: enabled
-                              ? _headlineColor
-                              : _headlineColor.withValues(alpha: 0.7),
+                              ? foregroundColor
+                              : foregroundColor.withValues(alpha: 0.7),
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
                         ),
