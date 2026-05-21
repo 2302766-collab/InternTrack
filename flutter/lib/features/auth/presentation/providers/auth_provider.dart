@@ -184,12 +184,25 @@ class AuthProvider extends ChangeNotifier {
     required String name,
     required String gender,
   }) async {
+    final currentUser = _user;
     final updatedUser = await _authService.updateProfile(
       name: name,
       gender: gender,
     );
 
-    _user = updatedUser;
+    _user = (currentUser ?? updatedUser).copyWith(
+      name: updatedUser.name.isNotEmpty ? updatedUser.name : name,
+      email: updatedUser.email.isNotEmpty
+          ? updatedUser.email
+          : (currentUser?.email ?? ''),
+      role: updatedUser.role.isNotEmpty
+          ? updatedUser.role
+          : (currentUser?.role ?? ''),
+      gender: (updatedUser.gender ?? '').isNotEmpty
+          ? updatedUser.gender
+          : gender,
+      avatarBase64: updatedUser.avatarBase64 ?? currentUser?.avatarBase64,
+    );
     await _tokenService.saveUser(_user!);
     _lastError = null;
     notifyListeners();

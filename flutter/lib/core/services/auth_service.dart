@@ -167,9 +167,15 @@ class AuthService extends BaseService {
           }
 
           final payload = data['data'];
-          final userData = payload is Map<String, dynamic>
-              ? payload['user']
-              : null;
+          Map<String, dynamic>? userData;
+          if (payload is Map<String, dynamic>) {
+            final nestedUser = payload['user'];
+            if (nestedUser is Map<String, dynamic>) {
+              userData = nestedUser;
+            } else {
+              userData = payload;
+            }
+          }
 
           if (userData is! Map<String, dynamic>) {
             throw ApiException(
