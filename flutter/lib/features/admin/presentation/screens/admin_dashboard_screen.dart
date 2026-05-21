@@ -132,6 +132,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     await _loadDashboard(page: page);
   }
 
+  Future<void> _applyStudentFilter(String filter) async {
+    if (_isPageLoading) {
+      return;
+    }
+
+    if (filter == _selectedFilter && _currentPage == 1) {
+      return;
+    }
+
+    setState(() {
+      _selectedFilter = filter;
+    });
+
+    await _loadDashboard(page: 1);
+  }
+
   Future<void> _loadDashboard({required int page}) async {
     final token = context.read<AuthProvider>().token ?? '';
     if (token.isEmpty) {
@@ -164,7 +180,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     try {
       final results = await Future.wait<dynamic>([
-        _studentService.fetchStudents(page: page, perPage: _itemsPerPage),
+        _studentService.fetchStudents(
+          page: page,
+          perPage: _itemsPerPage,
+          filter: _selectedFilter,
+        ),
         _dashboardService.getSummary(
           month: _selectedLogsMonth,
           year: _selectedLogsYear,
@@ -988,6 +1008,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   List<AdminStudentSummary> get _filteredStudents {
+    if (_selectedFilter == _filterAll) {
+      return _students;
+    }
+
     return _students.where(matchesSelectedFilter).toList();
   }
 
@@ -2322,11 +2346,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           ),
                         ),
                         OutlinedButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _selectedFilter = _filterNeedsAttention;
-                            });
-                          },
+                          onPressed: _isPageLoading
+                              ? null
+                              : () =>
+                                    _applyStudentFilter(_filterNeedsAttention),
                           icon: Icon(Icons.filter_alt_outlined),
                           label: Text('Attention Queue'),
                           style: OutlinedButton.styleFrom(
@@ -2474,11 +2497,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             (filter) => ChoiceChip(
               label: Text(filter.label),
               selected: _selectedFilter == filter.key,
-              onSelected: (_) {
-                setState(() {
-                  _selectedFilter = filter.key;
-                });
-              },
+              onSelected: _isPageLoading
+                  ? null
+                  : (_) => _applyStudentFilter(filter.key),
               backgroundColor: const Color(0xFFF8FAFC),
               selectedColor: const Color(0xFFDCEBFF),
               side: BorderSide(

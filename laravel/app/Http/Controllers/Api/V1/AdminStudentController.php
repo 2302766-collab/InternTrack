@@ -14,9 +14,11 @@ class AdminStudentController extends Controller
     {
         $validated = $request->validate([
             'per_page' => ['nullable', 'integer', 'between:10,20'],
+            'filter' => ['nullable', 'string', 'in:all,needs_attention,missing_profile,missing_supervisor,missing_adviser'],
         ]);
 
         $perPage = (int) ($validated['per_page'] ?? 10);
+        $filter = $validated['filter'] ?? 'all';
         $studentRoleId = Role::query()
             ->where('name', 'Student')
             ->value('id');
@@ -45,6 +47,27 @@ class AdminStudentController extends Controller
             ->leftJoin('internship_profiles', 'internship_profiles.student_id', '=', 'users.id')
             ->leftJoinSub($approvedHoursPerProfile, 'approved_log_hours', function ($join): void {
                 $join->on('approved_log_hours.internship_profile_id', '=', 'internship_profiles.id');
+            })
+            ->when($filter === 'needs_attention', function ($query): void {
+                $query->where(function ($innerQuery): void {
+                    $innerQuery
+                        ->whereNull('internship_profiles.id')
+                        ->orWhereNull('internship_profiles.supervisor_id')
+                        ->orWhereNull('internship_profiles.adviser_id');
+                });
+            })
+            ->when($filter === 'missing_profile', function ($query): void {
+                $query->whereNull('internship_profiles.id');
+            })
+            ->when($filter === 'missing_supervisor', function ($query): void {
+                $query
+                    ->whereNotNull('internship_profiles.id')
+                    ->whereNull('internship_profiles.supervisor_id');
+            })
+            ->when($filter === 'missing_adviser', function ($query): void {
+                $query
+                    ->whereNotNull('internship_profiles.id')
+                    ->whereNull('internship_profiles.adviser_id');
             })
             ->select([
                 'users.id as student_id',
