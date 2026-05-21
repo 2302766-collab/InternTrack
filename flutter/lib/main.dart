@@ -29,6 +29,7 @@ import 'features/admin/presentation/screens/student_assignment_management_screen
 import 'features/adviser/presentation/screens/adviser_dashboard_screen.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/presentation/screens/auth_gate_screen.dart';
+import 'features/auth/presentation/screens/landing_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/register_screen.dart';
 import 'features/internship/presentation/screens/internship_profile_screen.dart';
@@ -216,8 +217,7 @@ class InternTrackApp extends StatelessWidget {
       ],
       child: Consumer2<AuthProvider, ThemeController>(
         builder: (context, authProvider, themeController, _) {
-          final isAdminThemeLocked =
-              authProvider.role.toLowerCase() == 'admin';
+          final isAdminThemeLocked = authProvider.role.toLowerCase() == 'admin';
 
           return MaterialApp(
             title: 'InternTrack',
@@ -226,7 +226,8 @@ class InternTrackApp extends StatelessWidget {
             routes: {
               AppRoutes.authGate: (_) => const AuthGateScreen(),
 
-              AppRoutes.home: (_) => const AuthGateScreen(),
+              AppRoutes.home: (_) =>
+                  _guardGuestRoute(authProvider, const LandingScreen()),
 
               AppRoutes.login: (_) =>
                   _guardGuestRoute(authProvider, const LoginScreen()),

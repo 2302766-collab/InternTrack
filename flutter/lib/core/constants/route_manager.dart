@@ -9,14 +9,14 @@ class RouteManager {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     if (!authProvider.isReady) {
-      return AppRoutes.login;
+      return AppRoutes.home;
     }
 
     if (authProvider.isAuthenticated) {
       return authProvider.dashboardRoute;
     }
 
-    return AppRoutes.login;
+    return AppRoutes.home;
   }
 
   static bool canAccessProtectedRoute(BuildContext context) {

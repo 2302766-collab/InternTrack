@@ -21,7 +21,7 @@ class _AuthGateScreenState extends State<AuthGateScreen> {
 
     final nextRoute = authProvider.isAuthenticated
         ? authProvider.dashboardRoute
-        : AppRoutes.login;
+        : AppRoutes.home;
 
     // Defer navigation until after build to avoid setState during build errors.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -38,10 +38,6 @@ class _AuthGateScreenState extends State<AuthGateScreen> {
     final authProvider = context.watch<AuthProvider>();
     _redirectWhenReady(authProvider);
 
-    return const Scaffold(
-      body: Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
