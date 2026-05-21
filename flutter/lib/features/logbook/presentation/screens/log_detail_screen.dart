@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/logbook_service.dart';
 import '../../../../core/theme/theme_utils.dart';
 import '../../../../core/utils/date_formatter.dart';
@@ -36,6 +37,7 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
   final Map<int, LogbookAttachmentFile> _attachmentFiles =
       <int, LogbookAttachmentFile>{};
   final Map<int, String> _attachmentErrors = <int, String>{};
+  final Map<int, ApiErrorType> _attachmentErrorTypes = <int, ApiErrorType>{};
   final Set<int> _loadingAttachmentIds = <int>{};
 
   @override
@@ -61,6 +63,10 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
     setState(() {
       _isLoading = true;
       _error = null;
+      _attachmentFiles.clear();
+      _attachmentErrors.clear();
+      _attachmentErrorTypes.clear();
+      _loadingAttachmentIds.clear();
     });
 
     try {
@@ -107,6 +113,7 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
     setState(() {
       _loadingAttachmentIds.add(attachment.id);
       _attachmentErrors.remove(attachment.id);
+      _attachmentErrorTypes.remove(attachment.id);
     });
 
     try {
@@ -119,14 +126,33 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
 
       setState(() {
         _attachmentFiles[attachment.id] = file;
+        _attachmentErrors.remove(attachment.id);
+        _attachmentErrorTypes.remove(attachment.id);
       });
 
       return file;
-    } catch (e) {
+    } on ApiException catch (e) {
       if (!mounted) return null;
-      final message = e.toString().replaceFirst('Exception: ', '');
+      final message = _friendlyAttachmentErrorMessage(e);
       setState(() {
         _attachmentErrors[attachment.id] = message;
+        _attachmentErrorTypes[attachment.id] = e.errorType;
+      });
+
+      if (!silent) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      }
+
+      return null;
+    } catch (e) {
+      if (!mounted) return null;
+      const message =
+          'Could not load this attachment right now. Please try again.';
+      setState(() {
+        _attachmentErrors[attachment.id] = message;
+        _attachmentErrorTypes[attachment.id] = ApiErrorType.unknown;
       });
 
       if (!silent) {
@@ -279,6 +305,92 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
 
   bool _isPdfAttachment(LogAttachment attachment) {
     return attachment.fileType.toLowerCase() == 'pdf';
+  }
+
+  String _friendlyAttachmentErrorMessage(ApiException exception) {
+    switch (exception.errorType) {
+      case ApiErrorType.notFound:
+        return 'This attachment is no longer available on the server.';
+      case ApiErrorType.forbidden:
+        return 'You no longer have access to this attachment.';
+      case ApiErrorType.networkError:
+      case ApiErrorType.timeout:
+        return 'Could not load this attachment right now. Check your connection and try again.';
+      default:
+        return exception.message;
+    }
+  }
+
+  bool _isAttachmentUnavailable(LogAttachment attachment) {
+    final errorType = _attachmentErrorTypes[attachment.id];
+    return errorType == ApiErrorType.notFound ||
+        errorType == ApiErrorType.forbidden;
+  }
+
+  bool _hasAttachmentFile(LogAttachment attachment) {
+    return _attachmentFiles.containsKey(attachment.id);
+  }
+
+  String _attachmentStatusLabel(LogAttachment attachment) {
+    final isImage = _isImageAttachment(attachment);
+    final isPdf = _isPdfAttachment(attachment);
+
+    if (!isImage && !isPdf) {
+      return '';
+    }
+
+    if (_loadingAttachmentIds.contains(attachment.id)) {
+      return isImage ? 'Loading preview' : 'Loading file';
+    }
+
+    if (_hasAttachmentFile(attachment)) {
+      return isImage ? 'Preview ready' : 'Browser view available';
+    }
+
+    if (_isAttachmentUnavailable(attachment)) {
+      return 'Unavailable';
+    }
+
+    if (_attachmentErrors[attachment.id] != null) {
+      return 'Try again';
+    }
+
+    return isImage ? 'Preview on demand' : 'Open on demand';
+  }
+
+  Color _attachmentStatusBackgroundColor(
+    ThemeData theme,
+    LogAttachment attachment,
+  ) {
+    if (_isAttachmentUnavailable(attachment)) {
+      return const Color(0xFFFDECEC);
+    }
+
+    if (_hasAttachmentFile(attachment)) {
+      return theme.accentPanelColor;
+    }
+
+    if (_loadingAttachmentIds.contains(attachment.id)) {
+      return theme.softPanelColor;
+    }
+
+    return theme.warningPanelColor;
+  }
+
+  Color _attachmentStatusTextColor(ThemeData theme, LogAttachment attachment) {
+    if (_isAttachmentUnavailable(attachment)) {
+      return const Color(0xFFD92D20);
+    }
+
+    if (_hasAttachmentFile(attachment)) {
+      return theme.colorScheme.primary;
+    }
+
+    if (_loadingAttachmentIds.contains(attachment.id)) {
+      return theme.secondaryTextColor;
+    }
+
+    return const Color(0xFFB54708);
   }
 
   Future<void> _previewImage(LogAttachment attachment) async {
@@ -876,22 +988,33 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
     final file = _attachmentFiles[attachment.id];
     final error = _attachmentErrors[attachment.id];
     final isLoading = _loadingAttachmentIds.contains(attachment.id);
+    final isUnavailable = _isAttachmentUnavailable(attachment);
 
     if (!_isImageAttachment(attachment)) {
       return Container(
         width: 84,
         height: 84,
         decoration: BoxDecoration(
-          color: theme.subtlePanelColor,
+          color: isUnavailable
+              ? const Color(0xFFFDECEC)
+              : theme.subtlePanelColor,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: theme.borderSubtleColor),
+          border: Border.all(
+            color: isUnavailable
+                ? const Color(0xFFF3B5AE)
+                : theme.borderSubtleColor,
+          ),
         ),
         child: Icon(
-          _isPdfAttachment(attachment)
+          isUnavailable
+              ? Icons.hide_image_outlined
+              : _isPdfAttachment(attachment)
               ? Icons.picture_as_pdf_rounded
               : Icons.insert_drive_file_rounded,
           size: 34,
-          color: _isPdfAttachment(attachment)
+          color: isUnavailable
+              ? const Color(0xFFD92D20)
+              : _isPdfAttachment(attachment)
               ? const Color(0xFFD92D20)
               : const Color(0xFF667085),
         ),
@@ -948,8 +1071,12 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
     final theme = Theme.of(context);
     final isImage = _isImageAttachment(attachment);
     final isPdf = _isPdfAttachment(attachment);
+    final isUnavailable = _isAttachmentUnavailable(attachment);
+    final hasRetryableError =
+        _attachmentErrors[attachment.id] != null && !isUnavailable;
     final originalName = _shortFileName(attachment.filePath);
     final displayName = _friendlyAttachmentName(attachment, index);
+    final statusLabel = _attachmentStatusLabel(attachment);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -999,24 +1126,28 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                             ),
                           ),
                         ),
-                        if (isImage || isPdf)
+                        if (statusLabel.isNotEmpty)
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: theme.accentPanelColor,
+                              color: _attachmentStatusBackgroundColor(
+                                theme,
+                                attachment,
+                              ),
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
-                              isImage
-                                  ? 'Preview ready'
-                                  : 'Browser view available',
+                              statusLabel,
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: theme.colorScheme.primary,
+                                color: _attachmentStatusTextColor(
+                                  theme,
+                                  attachment,
+                                ),
                               ),
                             ),
                           ),
@@ -1081,7 +1212,9 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
               children: [
                 if (isImage)
                   ElevatedButton.icon(
-                    onPressed: () => _previewImage(attachment),
+                    onPressed: isUnavailable
+                        ? null
+                        : () => _previewImage(attachment),
                     icon: const Icon(Icons.visibility_outlined),
                     label: const Text('Preview'),
                     style: ElevatedButton.styleFrom(
@@ -1092,7 +1225,9 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                   ),
                 if (isPdf)
                   ElevatedButton.icon(
-                    onPressed: () => _previewPdf(attachment),
+                    onPressed: isUnavailable
+                        ? null
+                        : () => _previewPdf(attachment),
                     icon: const Icon(Icons.open_in_new_rounded),
                     label: const Text('View'),
                     style: ElevatedButton.styleFrom(
@@ -1102,9 +1237,11 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                     ),
                   ),
                 OutlinedButton.icon(
-                  onPressed: () => _downloadAttachment(attachment),
+                  onPressed: isUnavailable
+                      ? null
+                      : () => _downloadAttachment(attachment),
                   icon: const Icon(Icons.download_rounded),
-                  label: const Text('Download'),
+                  label: Text(hasRetryableError ? 'Retry' : 'Download'),
                 ),
               ],
             ),
