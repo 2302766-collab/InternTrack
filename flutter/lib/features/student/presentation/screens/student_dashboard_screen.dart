@@ -111,6 +111,27 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   Color get _headlineColor => _theme.primaryTextColor;
   Color get _bodyColor => _theme.secondaryTextColor;
   Color get _topHeaderBorder => _theme.borderSubtleColor;
+  Color get _topHeaderSurface => _theme.panelColor;
+  Color get _topHeaderSoftSurface => _theme.softPanelColor;
+  Color get _topHeaderAvatarSurface => _theme.isDarkMode
+      ? _accentPrimary.withValues(alpha: 0.24)
+      : const Color(0xFFE3EEF7);
+  Color get _infoPanelBackground => _theme.accentPanelColor;
+  Color get _infoPanelForeground => _theme.isDarkMode
+      ? _theme.colorScheme.primaryContainer
+      : OceanBreezePalette.infoForeground;
+
+  Color _tintedSurface(Color accent, {double lightAlpha = 0.10}) {
+    return _theme.isDarkMode
+        ? accent.withValues(alpha: 0.16)
+        : accent.withValues(alpha: lightAlpha);
+  }
+
+  Color _tintedBorder(Color accent, {double lightAlpha = 0.18}) {
+    return _theme.isDarkMode
+        ? accent.withValues(alpha: 0.30)
+        : accent.withValues(alpha: lightAlpha);
+  }
 
   DateTime _now() => (widget.clock ?? DateTime.now)();
 
@@ -1218,7 +1239,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             child: Text(
               label,
               style: TextStyle(
-                color: Color(0xFF6B7F99),
+                color: _bodyColor.withValues(alpha: 0.92),
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -1389,7 +1410,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     width: 320,
                     padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: _topHeaderSurface,
                       borderRadius: BorderRadius.circular(28),
                       border: Border.all(color: _topHeaderBorder),
                       boxShadow: const [
@@ -1411,7 +1432,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                               children: [
                                 CircleAvatar(
                                   radius: 28,
-                                  backgroundColor: const Color(0xFFE3EEF7),
+                                  backgroundColor: _topHeaderAvatarSurface,
                                   backgroundImage: avatar,
                                   child: avatar == null
                                       ? Text(
@@ -1562,7 +1583,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF2FF),
+        color: _tintedSurface(_accentPrimary),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -1584,7 +1605,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: const Color(0xFFF7F9FC),
+      color: _topHeaderSoftSurface,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -1597,7 +1618,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: _topHeaderSurface,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(icon, color: _accentPrimary),
@@ -1635,7 +1656,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: _topHeaderSoftSurface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: _topHeaderBorder),
       ),
@@ -1683,7 +1704,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _topHeaderSurface,
             borderRadius: BorderRadius.circular(14),
           ),
           child: Icon(icon, color: _accentPrimary),
@@ -1749,7 +1770,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             vertical: 14,
           ),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _topHeaderSurface,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: _topHeaderBorder),
             boxShadow: const [
@@ -1822,7 +1843,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF6FAFD),
+                      color: _topHeaderSoftSurface,
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(color: _topHeaderBorder),
                     ),
@@ -1831,7 +1852,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       children: [
                         CircleAvatar(
                           radius: 18,
-                          backgroundColor: const Color(0xFFE3EEF7),
+                          backgroundColor: _topHeaderAvatarSurface,
                           backgroundImage: avatar,
                           child: avatar == null
                               ? Text(
@@ -2100,6 +2121,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               border: Border.all(
                 color: enabled
                     ? iconColor.withValues(alpha: 0.18)
+                    : _theme.isDarkMode
+                    ? _theme.borderSubtleColor
                     : const Color(0x1A0F172A),
               ),
             ),
@@ -2183,7 +2206,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       value: record?.timeInAt,
                       icon: Icons.login_rounded,
                       iconColor: const Color(0xFF027A48),
-                      backgroundColor: const Color(0xFFF3FBF7),
+                      backgroundColor: _tintedSurface(
+                        const Color(0xFF027A48),
+                        lightAlpha: 0.08,
+                      ),
                       enabled: canStartMorning,
                       onTap: () => _submitDtrAction('TIME_IN'),
                     ),
@@ -2195,7 +2221,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       value: record?.lunchOutAt,
                       icon: Icons.logout_rounded,
                       iconColor: const Color(0xFFB54708),
-                      backgroundColor: const Color(0xFFFFF8ED),
+                      backgroundColor: _tintedSurface(
+                        const Color(0xFFB54708),
+                        lightAlpha: 0.10,
+                      ),
                       enabled: canEndMorning,
                       onTap: () => _submitDtrAction('LUNCH_OUT'),
                     ),
@@ -2207,7 +2236,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       value: record?.lunchOutAt,
                       icon: Icons.lunch_dining_outlined,
                       iconColor: const Color(0xFFB54708),
-                      backgroundColor: const Color(0xFFFFF8ED),
+                      backgroundColor: _tintedSurface(
+                        const Color(0xFFB54708),
+                        lightAlpha: 0.10,
+                      ),
                       enabled: canEndMorning,
                       onTap: () => _submitDtrAction('LUNCH_OUT'),
                     ),
@@ -2219,7 +2251,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       value: record?.lunchInAt,
                       icon: Icons.restaurant_rounded,
                       iconColor: const Color(0xFF027A48),
-                      backgroundColor: const Color(0xFFF3FBF7),
+                      backgroundColor: _tintedSurface(
+                        const Color(0xFF027A48),
+                        lightAlpha: 0.08,
+                      ),
                       enabled: canResumeAfternoon,
                       onTap: () => _submitDtrAction('LUNCH_IN'),
                     ),
@@ -2231,7 +2266,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       value: record?.lunchInAt,
                       icon: Icons.login_rounded,
                       iconColor: const Color(0xFF027A48),
-                      backgroundColor: const Color(0xFFF3FBF7),
+                      backgroundColor: _tintedSurface(
+                        const Color(0xFF027A48),
+                        lightAlpha: 0.08,
+                      ),
                       enabled: canResumeAfternoon || canStartAfternoon,
                       onTap: () => _submitDtrAction(
                         canStartAfternoon ? 'TIME_IN' : 'LUNCH_IN',
@@ -2245,7 +2283,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       value: record?.timeOutAt,
                       icon: Icons.logout_rounded,
                       iconColor: const Color(0xFFB54708),
-                      backgroundColor: const Color(0xFFFFF8ED),
+                      backgroundColor: _tintedSurface(
+                        const Color(0xFFB54708),
+                        lightAlpha: 0.10,
+                      ),
                       enabled: canEndAfternoon,
                       onTap: () => _submitDtrAction('TIME_OUT'),
                     ),
@@ -2260,9 +2301,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: OceanBreezePalette.infoBackground,
+                color: _infoPanelBackground,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: OceanBreezePalette.border),
+                border: Border.all(color: _topHeaderBorder),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2270,7 +2311,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   Text(
                     'Morning attendance is closed for today.',
                     style: TextStyle(
-                      color: OceanBreezePalette.infoForeground,
+                      color: _infoPanelForeground,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -2278,7 +2319,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   Text(
                     'Only the afternoon session is available now. If you missed the morning session, send a correction request with your reason for admin and supervisor review.',
                     style: TextStyle(
-                      color: OceanBreezePalette.infoForeground,
+                      color: _infoPanelForeground,
                       fontWeight: FontWeight.w600,
                       height: 1.35,
                     ),
@@ -2291,8 +2332,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     icon: Icon(Icons.edit_note_rounded),
                     label: Text('Request Morning Attendance'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: OceanBreezePalette.infoForeground,
-                      side: BorderSide(color: OceanBreezePalette.border),
+                      foregroundColor: _infoPanelForeground,
+                      side: BorderSide(color: _topHeaderBorder),
                     ),
                   ),
                 ],
@@ -2354,10 +2395,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           value: '$_approvedHours h',
                           helper: 'Accepted by supervisor',
                           icon: Icons.verified_outlined,
-                          tone: const _TileTone(
-                            background: Color(0xFFF3FBF7),
-                            border: Color(0xFFCDEEDC),
-                            icon: Color(0xFF027A48),
+                          tone: _TileTone(
+                            background: _tintedSurface(
+                              const Color(0xFF027A48),
+                              lightAlpha: 0.08,
+                            ),
+                            border: _tintedBorder(const Color(0xFF027A48)),
+                            icon: const Color(0xFF027A48),
                           ),
                         ),
                         _MetricTile(
@@ -2366,10 +2410,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           value: '$_pendingHours h',
                           helper: 'Awaiting review',
                           icon: Icons.pending_actions_outlined,
-                          tone: const _TileTone(
-                            background: Color(0xFFFFF8ED),
-                            border: Color(0xFFFFE1B3),
-                            icon: Color(0xFFB54708),
+                          tone: _TileTone(
+                            background: _tintedSurface(
+                              const Color(0xFFB54708),
+                              lightAlpha: 0.10,
+                            ),
+                            border: _tintedBorder(const Color(0xFFB54708)),
+                            icon: const Color(0xFFB54708),
                           ),
                         ),
                         _MetricTile(
@@ -2378,10 +2425,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           value: '$_rejectedLogsCount',
                           helper: 'Needs correction or resubmission',
                           icon: Icons.report_gmailerrorred_outlined,
-                          tone: const _TileTone(
-                            background: Color(0xFFFFF4F4),
-                            border: Color(0xFFFBCACA),
-                            icon: Color(0xFFB42318),
+                          tone: _TileTone(
+                            background: _tintedSurface(
+                              const Color(0xFFB42318),
+                              lightAlpha: 0.08,
+                            ),
+                            border: _tintedBorder(const Color(0xFFB42318)),
+                            icon: const Color(0xFFB42318),
                           ),
                         ),
                         _MetricTile(
@@ -2390,10 +2440,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           value: _daysRemaining?.toString() ?? 'N/A',
                           helper: 'Until internship end date',
                           icon: Icons.calendar_month_outlined,
-                          tone: const _TileTone(
-                            background: Color(0xFFF5F8FF),
-                            border: Color(0xFFD6E1FF),
-                            icon: Color(0xFF325EA8),
+                          tone: _TileTone(
+                            background: _tintedSurface(
+                              const Color(0xFF325EA8),
+                              lightAlpha: 0.08,
+                            ),
+                            border: _tintedBorder(const Color(0xFF325EA8)),
+                            icon: const Color(0xFF325EA8),
                           ),
                         ),
                       ],
@@ -2460,7 +2513,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               icon: Icons.business_center_outlined,
               label: 'Profile Active',
               color: const Color(0xFF027A48),
-              background: const Color(0xFFE8F7EE),
+              background: _tintedSurface(
+                const Color(0xFF027A48),
+                lightAlpha: 0.08,
+              ),
             ),
             _SummaryChip(
               icon: Icons.person_pin_circle_outlined,
@@ -2471,8 +2527,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   ? const Color(0xFF027A48)
                   : const Color(0xFFB54708),
               background: supervisorAssigned
-                  ? const Color(0xFFE8F7EE)
-                  : const Color(0xFFFFF4E5),
+                  ? _tintedSurface(const Color(0xFF027A48), lightAlpha: 0.08)
+                  : _tintedSurface(const Color(0xFFB54708), lightAlpha: 0.10),
             ),
             _SummaryChip(
               icon: Icons.school_outlined,
@@ -2481,8 +2537,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   ? const Color(0xFF027A48)
                   : const Color(0xFFB54708),
               background: adviserAssigned
-                  ? const Color(0xFFE8F7EE)
-                  : const Color(0xFFFFF4E5),
+                  ? _tintedSurface(const Color(0xFF027A48), lightAlpha: 0.08)
+                  : _tintedSurface(const Color(0xFFB54708), lightAlpha: 0.10),
             ),
           ],
         ),
@@ -2526,14 +2582,17 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     final progressBadgeTone = switch (_paceDeltaAfterPending) {
       int value when value < 0 => (
-        const Color(0xFFFFF4E5),
+        _tintedSurface(const Color(0xFFB54708), lightAlpha: 0.10),
         const Color(0xFFB54708),
       ),
       int value when value > 0 => (
-        const Color(0xFFE8F7EE),
+        _tintedSurface(const Color(0xFF027A48), lightAlpha: 0.08),
         const Color(0xFF027A48),
       ),
-      _ => (const Color(0xFFEAF2FF), const Color(0xFF325EA8)),
+      _ => (
+        _tintedSurface(const Color(0xFF325EA8), lightAlpha: 0.08),
+        const Color(0xFF325EA8),
+      ),
     };
 
     return DashboardInfoCard(
@@ -2609,9 +2668,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       child: LinearProgressIndicator(
                         minHeight: 12,
                         value: progressRatio,
-                        backgroundColor: const Color(0xFFD8E2EC),
+                        backgroundColor:
+                            _theme.progressIndicatorTheme.linearTrackColor,
                         valueColor: const AlwaysStoppedAnimation<Color>(
-                          Color(0xFF0F4C5C),
+                          _accentPrimary,
                         ),
                       ),
                     ),
