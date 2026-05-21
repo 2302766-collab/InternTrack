@@ -114,6 +114,27 @@ void main() {
       },
     );
 
+    test('refreshes provided login user when syncUser is enabled', () async {
+      final tokenService = _FakeTokenService();
+      final authService = _FakeAuthService(
+        user: const AppUser(
+          id: 1,
+          name: 'Updated Student',
+          email: 'student@example.test',
+          role: 'Student',
+          gender: 'Female',
+        ),
+      );
+      final provider = AuthProvider(tokenService, authService: authService);
+
+      await provider.setToken('good-token', user: _student, syncUser: true);
+
+      expect(provider.isAuthenticated, isTrue);
+      expect(provider.user?.name, 'Updated Student');
+      expect(provider.user?.gender, 'Female');
+      expect(tokenService.storedUser?.name, 'Updated Student');
+    });
+
     test(
       'initialization falls back to logged out state when token restore throws',
       () async {

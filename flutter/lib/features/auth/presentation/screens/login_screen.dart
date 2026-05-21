@@ -105,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final authProvider = context.read<AuthProvider>();
       _log('Persisting login session');
-      await authProvider.setToken(token, user: user);
+      await authProvider.setToken(token, user: user, syncUser: true);
 
       if (!mounted) return;
 

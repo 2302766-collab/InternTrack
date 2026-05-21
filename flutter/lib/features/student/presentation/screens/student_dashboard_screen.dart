@@ -26,6 +26,7 @@ import '../../../../shared/models/student_report.dart';
 import '../../../../shared/widgets/dashboard_info_card.dart';
 import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
+import '../../../../shared/widgets/profile_edit_dialog.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../widgets/student_scaffold.dart';
 
@@ -1228,6 +1229,21 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         ),
                         const SizedBox(height: 16),
                         _buildProfileActionTile(
+                          icon: Icons.person_outline_rounded,
+                          title: 'Edit profile details',
+                          subtitle:
+                              'Update your display name and gender details.',
+                          onTap: () async {
+                            Navigator.of(dialogContext).pop();
+                            await showProfileEditDialog(
+                              context,
+                              title: 'Edit student profile',
+                              user: authProvider.user,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        _buildProfileActionTile(
                           icon: Icons.edit_outlined,
                           title: 'Change profile photo',
                           subtitle:
@@ -1805,11 +1821,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        timerColumn,
-        const SizedBox(height: 18),
-        actionButtons,
-      ],
+      children: [timerColumn, const SizedBox(height: 18), actionButtons],
     );
   }
 

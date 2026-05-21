@@ -149,6 +149,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
 
     expect(tester.takeException(), isNull);
+    expect(find.text('Edit profile details'), findsOneWidget);
     expect(find.text('Change profile photo'), findsOneWidget);
   });
 

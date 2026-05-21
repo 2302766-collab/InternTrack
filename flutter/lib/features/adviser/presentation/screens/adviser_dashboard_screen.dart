@@ -15,6 +15,7 @@ import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/intern_list_item.dart';
 import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
+import '../../../../shared/widgets/profile_edit_dialog.dart';
 import '../../../../shared/widgets/settings_shortcut_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../supervisor/presentation/screens/intern_detail_screen.dart';
@@ -550,6 +551,21 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                           ],
                         ),
                         const SizedBox(height: 18),
+                        _buildProfileActionTile(
+                          icon: Icons.person_outline_rounded,
+                          title: 'Edit profile details',
+                          subtitle:
+                              'Update your display name and gender details.',
+                          onTap: () async {
+                            Navigator.of(dialogContext).pop();
+                            await showProfileEditDialog(
+                              context,
+                              title: 'Edit adviser profile',
+                              user: authProvider.user,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 10),
                         _buildProfileActionTile(
                           icon: Icons.edit_outlined,
                           title: 'Change profile photo',

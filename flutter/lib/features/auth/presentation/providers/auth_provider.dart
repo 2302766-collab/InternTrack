@@ -92,7 +92,11 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> setToken(String token, {AppUser? user}) async {
+  Future<void> setToken(
+    String token, {
+    AppUser? user,
+    bool syncUser = false,
+  }) async {
     _log(
       'setToken() start tokenLength=${token.length} userProvided=${user != null}',
     );
@@ -105,7 +109,7 @@ class AuthProvider extends ChangeNotifier {
     }
     _lastError = null;
 
-    if (_user == null) {
+    if (_user == null || syncUser) {
       _log('setToken() missing user payload; syncing from server');
       final synced = await _syncUserFromServer(silentOnError: true);
       if (!synced && _shouldClearSessionOnSyncFailure()) {

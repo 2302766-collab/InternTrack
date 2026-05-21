@@ -26,6 +26,7 @@ import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/edit_request.dart';
 import '../../../../shared/widgets/dtr_export_dialog.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
+import '../../../../shared/widgets/profile_edit_dialog.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -1187,6 +1188,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           ],
                         ),
                         const SizedBox(height: 18),
+                        buildProfileActionTile(
+                          icon: Icons.person_outline_rounded,
+                          title: 'Edit profile details',
+                          subtitle:
+                              'Update your display name and gender details.',
+                          onTap: () async {
+                            Navigator.of(dialogContext).pop();
+                            await showProfileEditDialog(
+                              context,
+                              title: 'Edit administrator profile',
+                              user: authProvider.user,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 10),
                         buildProfileActionTile(
                           icon: Icons.edit_outlined,
                           title: 'Change profile photo',

@@ -20,6 +20,7 @@ import '../../../../shared/models/supervisor_dashboard_summary.dart';
 import '../../../../shared/models/supervisor_log_item.dart';
 import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
+import '../../../../shared/widgets/profile_edit_dialog.dart';
 import '../../../../shared/widgets/settings_shortcut_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'intern_list_screen.dart';
@@ -646,6 +647,21 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           ],
                         ),
                         const SizedBox(height: 18),
+                        _buildProfileActionTile(
+                          icon: Icons.person_outline_rounded,
+                          title: 'Edit profile details',
+                          subtitle:
+                              'Update your display name and gender details.',
+                          onTap: () async {
+                            Navigator.of(dialogContext).pop();
+                            await showProfileEditDialog(
+                              context,
+                              title: 'Edit supervisor profile',
+                              user: authProvider.user,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 10),
                         _buildProfileActionTile(
                           icon: Icons.edit_outlined,
                           title: 'Change profile photo',
@@ -1988,9 +2004,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Edit request approved.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Edit request approved.')));
       await _refreshEditRequests();
     } catch (e) {
       if (!mounted) return;
@@ -2095,9 +2111,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Edit request rejected.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Edit request rejected.')));
       await _refreshEditRequests();
     } catch (e) {
       if (!mounted) return;
@@ -2289,7 +2305,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             runSpacing: 12,
             children: [
               FilledButton.icon(
-                onPressed: isProcessing ? null : () => _approveEditRequest(request),
+                onPressed: isProcessing
+                    ? null
+                    : () => _approveEditRequest(request),
                 icon: isProcessing
                     ? const SizedBox(
                         width: 16,
@@ -2303,7 +2321,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 label: const Text('Approve'),
               ),
               OutlinedButton.icon(
-                onPressed: isProcessing ? null : () => _rejectEditRequest(request),
+                onPressed: isProcessing
+                    ? null
+                    : () => _rejectEditRequest(request),
                 icon: const Icon(Icons.close_rounded),
                 label: const Text('Reject'),
                 style: OutlinedButton.styleFrom(
@@ -2319,7 +2339,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Widget _buildEditRequestsPanel() {
-    final isLoading = _isSectionLoading(_SupervisorDashboardSection.editRequests);
+    final isLoading = _isSectionLoading(
+      _SupervisorDashboardSection.editRequests,
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -2350,14 +2372,12 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             const SizedBox(height: 6),
             const Text(
               'Review requested log and attendance corrections from your assigned students.',
-              style: TextStyle(
-                fontSize: 13.5,
-                height: 1.45,
-                color: _bodyColor,
-              ),
+              style: TextStyle(fontSize: 13.5, height: 1.45, color: _bodyColor),
             ),
             const SizedBox(height: 18),
-            if (isLoading && _pendingEditRequests.isEmpty && _editRequestError == null)
+            if (isLoading &&
+                _pendingEditRequests.isEmpty &&
+                _editRequestError == null)
               const Center(child: CircularProgressIndicator())
             else if (_editRequestError != null && _pendingEditRequests.isEmpty)
               DashboardInlineNotice(
