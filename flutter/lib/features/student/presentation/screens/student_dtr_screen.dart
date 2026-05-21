@@ -23,12 +23,18 @@ class StudentDtrScreen extends StatefulWidget {
   State<StudentDtrScreen> createState() => _StudentDtrScreenState();
 }
 
+enum _DtrViewMode { weekly, monthly }
+
 class _StudentDtrScreenState extends State<StudentDtrScreen> {
   late final DtrService _dtrService;
 
   DailyTimeRecord? _record;
   MonthlyDtrSummary? _monthlySummary;
+  final Map<String, MonthlyDtrSummary> _monthlySummaryCache =
+      <String, MonthlyDtrSummary>{};
   late DateTime _selectedMonth;
+  late DateTime _selectedWeekStart;
+  _DtrViewMode _viewMode = _DtrViewMode.monthly;
   bool _didLoad = false;
   bool _isLoading = true;
   bool _isMonthlyLoading = true;
@@ -43,6 +49,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     super.initState();
     final now = DateTime.now();
     _selectedMonth = DateTime(now.year, now.month);
+    _selectedWeekStart = _startOfWeek(now);
   }
 
   @override
@@ -110,7 +117,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     });
 
     try {
-      final summary = await _dtrService.getMonthlyRecord(
+      final summary = await _fetchMonthlySummary(
         month: _selectedMonth.month,
         year: _selectedMonth.year,
       );
@@ -132,6 +139,42 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     }
   }
 
+  Future<MonthlyDtrSummary> _fetchMonthlySummary({
+    required int month,
+    required int year,
+    bool forceRefresh = false,
+  }) async {
+    final key = _monthCacheKey(year: year, month: month);
+    if (!forceRefresh) {
+      final cached = _monthlySummaryCache[key];
+      if (cached != null) {
+        return cached;
+      }
+    }
+
+    final summary = await _dtrService.getMonthlyRecord(
+      month: month,
+      year: year,
+    );
+    _monthlySummaryCache[key] = summary;
+    return summary;
+  }
+
+  Future<void> _ensureWeeklyRangeLoaded(DateTime weekStart) async {
+    final weekEnd = weekStart.add(const Duration(days: 6));
+    final monthsToLoad = <DateTime>{
+      DateTime(weekStart.year, weekStart.month),
+      DateTime(weekEnd.year, weekEnd.month),
+    };
+
+    for (final monthDate in monthsToLoad) {
+      await _fetchMonthlySummary(month: monthDate.month, year: monthDate.year);
+    }
+  }
+
+  String _monthCacheKey({required int year, required int month}) =>
+      '$year-${month.toString().padLeft(2, '0')}';
+
   Future<void> _pickMonth() async {
     final picked = await showDatePicker(
       context: context,
@@ -150,6 +193,50 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     await _loadMonthlyRecord();
   }
 
+  Future<void> _pickWeekDate() async {
+    final initialDate = _selectedWeekStart;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2020, 1, 1),
+      lastDate: DateTime(2100, 12, 31),
+      helpText: 'Select week',
+    );
+
+    if (picked == null) return;
+
+    final weekStart = _startOfWeek(picked);
+    setState(() {
+      _selectedWeekStart = weekStart;
+      _selectedMonth = DateTime(weekStart.year, weekStart.month);
+      _isMonthlyLoading = true;
+      _monthlyErrorMessage = null;
+    });
+
+    try {
+      await _ensureWeeklyRangeLoaded(weekStart);
+      if (!mounted) return;
+      setState(() {
+        _monthlySummary =
+            _monthlySummaryCache[_monthCacheKey(
+              year: _selectedMonth.year,
+              month: _selectedMonth.month,
+            )];
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _monthlyErrorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isMonthlyLoading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _shiftMonth(int delta) async {
     setState(() {
       _selectedMonth = DateTime(
@@ -158,6 +245,39 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
       );
     });
     await _loadMonthlyRecord();
+  }
+
+  Future<void> _shiftWeek(int delta) async {
+    final nextWeekStart = _selectedWeekStart.add(Duration(days: 7 * delta));
+    setState(() {
+      _selectedWeekStart = nextWeekStart;
+      _selectedMonth = DateTime(nextWeekStart.year, nextWeekStart.month);
+      _isMonthlyLoading = true;
+      _monthlyErrorMessage = null;
+    });
+
+    try {
+      await _ensureWeeklyRangeLoaded(nextWeekStart);
+      if (!mounted) return;
+      setState(() {
+        _monthlySummary =
+            _monthlySummaryCache[_monthCacheKey(
+              year: _selectedMonth.year,
+              month: _selectedMonth.month,
+            )];
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _monthlyErrorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isMonthlyLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _exportSelectedMonth({required bool pdf}) async {
@@ -175,15 +295,24 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     });
 
     try {
-      final file = pdf
-          ? await _dtrService.exportPdf(
-              month: _selectedMonth.month,
-              year: _selectedMonth.year,
-            )
-          : await _dtrService.exportExcel(
-              month: _selectedMonth.month,
-              year: _selectedMonth.year,
-            );
+      final file = await switch ((_viewMode, pdf)) {
+        (_DtrViewMode.weekly, true) => _dtrService.exportPdf(
+          startDate: _selectedWeekStart,
+          endDate: _selectedWeekStart.add(const Duration(days: 6)),
+        ),
+        (_DtrViewMode.weekly, false) => _dtrService.exportExcel(
+          startDate: _selectedWeekStart,
+          endDate: _selectedWeekStart.add(const Duration(days: 6)),
+        ),
+        (_, true) => _dtrService.exportPdf(
+          month: _selectedMonth.month,
+          year: _selectedMonth.year,
+        ),
+        (_, false) => _dtrService.exportExcel(
+          month: _selectedMonth.month,
+          year: _selectedMonth.year,
+        ),
+      };
 
       if (!mounted) return;
 
@@ -251,12 +380,58 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
 
   Widget _buildTableToolbar(MonthlyDtrSummary? summary) {
     final theme = Theme.of(context);
+    final isWeekly = _viewMode == _DtrViewMode.weekly;
 
     return Wrap(
       spacing: 12,
       runSpacing: 12,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: theme.subtlePanelColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: theme.borderSubtleColor),
+          ),
+          child: SegmentedButton<_DtrViewMode>(
+            segments: const <ButtonSegment<_DtrViewMode>>[
+              ButtonSegment<_DtrViewMode>(
+                value: _DtrViewMode.weekly,
+                label: Text('Weekly'),
+              ),
+              ButtonSegment<_DtrViewMode>(
+                value: _DtrViewMode.monthly,
+                label: Text('Monthly'),
+              ),
+            ],
+            selected: <_DtrViewMode>{_viewMode},
+            onSelectionChanged: _isMonthlyLoading
+                ? null
+                : (selection) async {
+                    final nextMode = selection.first;
+                    setState(() {
+                      _viewMode = nextMode;
+                    });
+                    if (nextMode == _DtrViewMode.weekly) {
+                      await _ensureWeeklyRangeLoaded(_selectedWeekStart);
+                      if (!mounted) return;
+                      setState(() {
+                        _selectedMonth = DateTime(
+                          _selectedWeekStart.year,
+                          _selectedWeekStart.month,
+                        );
+                        _monthlySummary =
+                            _monthlySummaryCache[_monthCacheKey(
+                              year: _selectedMonth.year,
+                              month: _selectedMonth.month,
+                            )];
+                      });
+                    }
+                  },
+            showSelectedIcon: false,
+          ),
+        ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
@@ -268,12 +443,16 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                onPressed: _isMonthlyLoading ? null : () => _shiftMonth(-1),
+                onPressed: _isMonthlyLoading
+                    ? null
+                    : () => isWeekly ? _shiftWeek(-1) : _shiftMonth(-1),
                 icon: const Icon(Icons.chevron_left_rounded),
                 visualDensity: VisualDensity.compact,
               ),
               InkWell(
-                onTap: _isMonthlyLoading ? null : _pickMonth,
+                onTap: _isMonthlyLoading
+                    ? null
+                    : () => isWeekly ? _pickWeekDate() : _pickMonth(),
                 borderRadius: BorderRadius.circular(12),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -281,8 +460,10 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                     vertical: 4,
                   ),
                   child: Text(
-                    summary?.monthYear ??
-                        DateFormat('MMMM yyyy').format(_selectedMonth),
+                    isWeekly
+                        ? _weeklyRangeLabel()
+                        : summary?.monthYear ??
+                              DateFormat('MMMM yyyy').format(_selectedMonth),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -292,7 +473,9 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                 ),
               ),
               IconButton(
-                onPressed: _isMonthlyLoading ? null : () => _shiftMonth(1),
+                onPressed: _isMonthlyLoading
+                    ? null
+                    : () => isWeekly ? _shiftWeek(1) : _shiftMonth(1),
                 icon: const Icon(Icons.chevron_right_rounded),
                 visualDensity: VisualDensity.compact,
               ),
@@ -416,8 +599,11 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     );
   }
 
-  String _weekdayLabel(MonthlyDtrSummary summary, MonthlyDtrRow row) {
-    final date = DateTime(summary.year, summary.month, row.day);
+  String _weekdayLabelForRow(MonthlyDtrRow row) {
+    final date = DateTime.tryParse(row.date);
+    if (date == null) {
+      return row.date;
+    }
     return DateFormat('EEE, MMM d').format(date);
   }
 
@@ -450,6 +636,77 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     final normalizedToday = DateTime(today.year, today.month, today.day);
     final normalizedRow = DateTime(parsed.year, parsed.month, parsed.day);
     return normalizedRow.isAfter(normalizedToday);
+  }
+
+  DateTime _startOfWeek(DateTime value) {
+    final normalized = DateTime(value.year, value.month, value.day);
+    return normalized.subtract(
+      Duration(days: normalized.weekday - DateTime.monday),
+    );
+  }
+
+  String _weeklyRangeLabel() {
+    final end = _selectedWeekStart.add(const Duration(days: 6));
+    final sameMonth =
+        _selectedWeekStart.month == end.month &&
+        _selectedWeekStart.year == end.year;
+
+    if (sameMonth) {
+      return '${DateFormat('MMM').format(_selectedWeekStart)} '
+          '${_selectedWeekStart.day} - ${end.day}, ${end.year}';
+    }
+
+    return '${DateFormat('MMM d').format(_selectedWeekStart)} - '
+        '${DateFormat('MMM d, yyyy').format(end)}';
+  }
+
+  List<MonthlyDtrRow> _visibleRows(MonthlyDtrSummary summary) {
+    if (_viewMode == _DtrViewMode.monthly) {
+      return summary.rows;
+    }
+
+    final rowsByDate = <String, MonthlyDtrRow>{};
+    for (var i = 0; i < 7; i++) {
+      final date = _selectedWeekStart.add(Duration(days: i));
+      final key = DateFormat('yyyy-MM-dd').format(date);
+      final monthSummary =
+          _monthlySummaryCache[_monthCacheKey(
+            year: date.year,
+            month: date.month,
+          )];
+      MonthlyDtrRow? matchingRow;
+      if (monthSummary != null) {
+        for (final row in monthSummary.rows) {
+          if (row.date == key) {
+            matchingRow = row;
+            break;
+          }
+        }
+      }
+      rowsByDate[key] = matchingRow ?? _emptyRowForDate(date);
+    }
+
+    return rowsByDate.values.toList()..sort((a, b) => a.date.compareTo(b.date));
+  }
+
+  MonthlyDtrRow _emptyRowForDate(DateTime date) {
+    final key = DateFormat('yyyy-MM-dd').format(date);
+    return MonthlyDtrRow(
+      date: key,
+      dailyTimeRecordId: null,
+      day: date.day,
+      timeInAt: null,
+      lunchOutAt: null,
+      lunchInAt: null,
+      timeOutAt: null,
+      amArrival: '',
+      amDeparture: '',
+      pmArrival: '',
+      pmDeparture: '',
+      undertimeHours: '',
+      undertimeMinutes: '',
+      status: null,
+    );
   }
 
   String _formatTimeField(DateTime? value) {
@@ -818,6 +1075,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
 
   Widget _buildTable(MonthlyDtrSummary summary) {
     final theme = Theme.of(context);
+    final visibleRows = _visibleRows(summary);
     const dayWidth = 78.0;
     const dateWidth = 136.0;
     const timeWidth = 106.0;
@@ -935,7 +1193,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                     ),
                   ],
                 ),
-                for (final row in summary.rows)
+                for (final row in visibleRows)
                   Row(
                     children: [
                       bodyCell(
@@ -954,7 +1212,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                         width: dateWidth,
                         shaded: row.day.isEven,
                         child: Text(
-                          _weekdayLabel(summary, row),
+                          _weekdayLabelForRow(row),
                           style: TextStyle(
                             color: theme.primaryTextColor,
                             fontWeight: FontWeight.w600,
@@ -1105,7 +1363,9 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Monthly attendance view with AM and PM indicators.',
+            _viewMode == _DtrViewMode.weekly
+                ? 'Weekly attendance view with AM and PM indicators.'
+                : 'Monthly attendance view with AM and PM indicators.',
             style: TextStyle(fontSize: 14, color: theme.secondaryTextColor),
           ),
           const SizedBox(height: 6),
