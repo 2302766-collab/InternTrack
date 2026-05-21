@@ -650,12 +650,13 @@ void main() {
       await _pumpDashboardReady(tester);
 
       expect(find.text('Your afternoon session is active.'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Lunch Out'), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Time Out'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Lunch Out'));
       await _pumpDashboardReady(tester);
 
-      expect(dtrService.lastAction, 'timeOut');
-      expect(dtrService.lunchOutCalls, 0);
+      expect(dtrService.lastAction, 'lunchOut');
+      expect(dtrService.lunchOutCalls, 1);
 
       await _disposeRenderedTree(tester);
     },
