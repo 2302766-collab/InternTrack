@@ -34,7 +34,7 @@ class AdviserInternAlertTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.id', $profile->id)
             ->assertJsonPath('data.0.alert_status', 'NO_LOGS_YET')
-            ->assertJsonPath('data.0.alert.message', 'No logs submitted yet for this active internship.')
+            ->assertJsonPath('data.0.alert.message', 'No logs submitted after 11 working days.')
             ->assertJsonPath('data.0.alert.meta.server_date', '2026-04-20');
     }
 
