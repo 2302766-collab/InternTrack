@@ -1,15 +1,11 @@
 # INTERNTRACK
-## Comprehensive Manual Test Cases by Module
+## Expanded Manual Test Cases by Module
 
-Document purpose:
-- Provide a fuller manual test case set for the current InternTrack system.
-- Organize coverage by module and role.
-- Use the required fields: `Test Case ID`, `Test Case Title`, `Description`, `Precondition`, `Test Data`, `Test Step`, `Expected Result`, `Actual Result`, and `Test Result`.
-
-Execution note:
-- `Actual Result`: `Pending execution`
-- `Test Result`: `Not Run`
-- Update those two fields during actual testing.
+Document note:
+- This version expands coverage for the whole system by module.
+- It includes both success and failure or reverse test cases.
+- `Actual Result` is set to `Pending execution`.
+- `Test Result` is set to `Not Run`.
 
 ---
 
@@ -17,142 +13,196 @@ Execution note:
 
 ### TC-AUTH-01
 Test Case ID: TC-AUTH-01
-Test Case Title: Successful Student Registration
-Description: Verify that a new student can create an account using valid registration data.
-Precondition: The email address is not yet registered in the system.
-Test Data: Name `Juan Dela Cruz`; Email `juan@example.com`; Password `Password123`; Confirm Password `Password123`
+TestCase Title: Successful Student Registration
+Descrption: Verify that a new student can register using valid data.
+Precondition: The email address is not yet registered.
+Test data: Name `Juan Dela Cruz`; Email `juan@example.com`; Password `Password123`; Confirm Password `Password123`
 Test Step:
 1. Open the app.
 2. Navigate to `Create Account`.
-3. Enter valid name, email, password, and confirmation.
+3. Enter valid registration data.
 4. Tap `Register`.
-Expected Result: Registration succeeds and the user is redirected to the login screen with a success message.
+Expected Result: Registration succeeds and the user is redirected to the login screen.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-AUTH-02
 Test Case ID: TC-AUTH-02
-Test Case Title: Duplicate Email Registration
-Description: Verify that the system blocks registration when the email already exists.
-Precondition: An account already uses the test email.
-Test Data: Name `Juan Dela Cruz`; Email `juan@example.com`; Password `Password123`
+TestCase Title: Registration Using Existing Email
+Descrption: Verify that registration fails when the email is already used.
+Precondition: An existing account already uses `juan@example.com`.
+Test data: Name `Juan Dela Cruz`; Email `juan@example.com`; Password `Password123`
 Test Step:
 1. Open the registration screen.
-2. Enter valid details using an existing email.
+2. Enter valid values using an existing email.
 3. Submit the form.
-Expected Result: Registration is rejected and an email-already-registered validation message is shown.
+Expected Result: Registration is rejected and an email already exists message is shown.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-AUTH-03
 Test Case ID: TC-AUTH-03
-Test Case Title: Invalid Email Format During Registration
-Description: Verify that registration requires a properly formatted email address.
-Precondition: User is on the registration screen.
-Test Data: Email `juanexample.com`
+TestCase Title: Registration with Invalid Email Format
+Descrption: Verify that registration does not allow an invalid email format.
+Precondition: User is on the registration form.
+Test data: Email `juanexample.com`
 Test Step:
-1. Enter a valid full name.
+1. Fill in a valid full name.
 2. Enter an invalid email format.
-3. Enter valid password and confirmation values.
-4. Tap `Register`.
-Expected Result: The form does not submit and the email field shows a validation error.
+3. Enter valid password fields.
+4. Submit the form.
+Expected Result: The form is not submitted and the email field shows validation feedback.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-AUTH-04
 Test Case ID: TC-AUTH-04
-Test Case Title: Password Confirmation Mismatch
-Description: Verify that registration is blocked when the password and confirmation do not match.
-Precondition: User is on the registration screen.
-Test Data: Password `Password123`; Confirm Password `Password124`
+TestCase Title: Registration with Blank Required Fields
+Descrption: Verify that registration fails when required fields are blank.
+Precondition: User is on the registration form.
+Test data: Blank name; blank email; blank password
 Test Step:
-1. Fill in valid name and email values.
-2. Enter different password and confirm password values.
-3. Submit the form.
-Expected Result: Registration is blocked and a password mismatch validation message is shown.
+1. Open `Create Account`.
+2. Leave one or more required fields empty.
+3. Tap `Register`.
+Expected Result: Validation errors are shown and registration is blocked.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-AUTH-05
 Test Case ID: TC-AUTH-05
-Test Case Title: Successful Login by Valid User
-Description: Verify that a registered user can log in successfully using correct credentials.
-Precondition: A valid user account exists.
-Test Data: Email `student@example.com`; Password `Password123`
+TestCase Title: Registration with Short Password
+Descrption: Verify that registration rejects a password shorter than the minimum required length.
+Precondition: User is on the registration form.
+Test data: Password `Pass12`; Confirm Password `Pass12`
 Test Step:
-1. Open the login screen.
-2. Enter valid credentials.
-3. Tap `Login`.
-Expected Result: Login succeeds, the token is stored, and the user is redirected to the correct dashboard.
+1. Enter valid name and email.
+2. Enter a short password.
+3. Submit the form.
+Expected Result: Registration is blocked and a password length validation message is shown.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-AUTH-06
 Test Case ID: TC-AUTH-06
-Test Case Title: Login with Invalid Password
-Description: Verify that the system rejects login when the password is incorrect.
-Precondition: A valid user account exists.
-Test Data: Email `student@example.com`; Password `WrongPass123`
+TestCase Title: Registration with Password Mismatch
+Descrption: Verify that registration fails when password and confirmation do not match.
+Precondition: User is on the registration form.
+Test data: Password `Password123`; Confirm Password `Password124`
 Test Step:
-1. Open the login screen.
-2. Enter a valid email and invalid password.
-3. Tap `Login`.
-Expected Result: Login fails and the UI displays an invalid credentials message.
+1. Enter valid name and email.
+2. Enter mismatched password values.
+3. Tap `Register`.
+Expected Result: Registration is blocked and a password mismatch message is shown.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-AUTH-07
 Test Case ID: TC-AUTH-07
-Test Case Title: Role-Based Redirect After Login
-Description: Verify that student, supervisor, adviser, and admin users land on their own dashboard after login.
-Precondition: Valid accounts exist for all supported roles.
-Test Data: Student, Supervisor, Adviser, and Admin credentials
+TestCase Title: Successful Login
+Descrption: Verify that a valid user can log in successfully.
+Precondition: A registered user account exists.
+Test data: Email `student@example.com`; Password `Password123`
 Test Step:
-1. Log in as a Student account.
-2. Observe the landing page.
-3. Repeat for Supervisor, Adviser, and Admin accounts.
-Expected Result: Each role is redirected to its corresponding dashboard.
+1. Open the login screen.
+2. Enter valid credentials.
+3. Tap `Login`.
+Expected Result: Login succeeds and the user is redirected to the proper dashboard.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-AUTH-08
 Test Case ID: TC-AUTH-08
-Test Case Title: Auth Gate Restores Active Session
-Description: Verify that the app restores an existing authenticated session on relaunch.
-Precondition: A valid token is already stored on the device.
-Test Data: Stored token for each role
+TestCase Title: Login with Wrong Password
+Descrption: Verify that login fails when the password is incorrect.
+Precondition: A registered user account exists.
+Test data: Email `student@example.com`; Password `WrongPass123`
 Test Step:
-1. Log in successfully.
-2. Close the app completely.
-3. Reopen the app.
-Expected Result: The app bypasses guest screens and opens the proper protected dashboard.
+1. Open the login screen.
+2. Enter a valid email and incorrect password.
+3. Tap `Login`.
+Expected Result: Login fails and an invalid credentials message is shown.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-AUTH-09
 Test Case ID: TC-AUTH-09
-Test Case Title: Logout Clears Session
-Description: Verify that logout removes the authenticated session.
-Precondition: User is logged in.
-Test Data: Any valid active session
+TestCase Title: Login with Unregistered Email
+Descrption: Verify that login fails when the email is not registered.
+Precondition: The test email does not exist in the system.
+Test data: Email `nouser@example.com`; Password `Password123`
 Test Step:
-1. Open the app while logged in.
-2. Tap the logout action.
-3. Reopen the app or revisit a protected route.
-Expected Result: The session is cleared and the user is returned to the login screen.
+1. Open the login screen.
+2. Enter an unregistered email and valid password format.
+3. Tap `Login`.
+Expected Result: Login is rejected and the user remains on the login screen.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-AUTH-10
 Test Case ID: TC-AUTH-10
-Test Case Title: Guest Route Guard Blocks Login Screen for Authenticated User
-Description: Verify that an authenticated user cannot stay on guest-only routes like login or registration.
-Precondition: User is already authenticated.
-Test Data: Valid stored session
+TestCase Title: Login with Blank Fields
+Descrption: Verify that login cannot proceed with missing required fields.
+Precondition: User is on the login screen.
+Test data: Blank email; blank password
 Test Step:
-1. Log in to the system.
-2. Attempt to open the `Login` or `Register` route directly.
-Expected Result: The app redirects the user back to the correct dashboard.
+1. Leave email and or password blank.
+2. Tap `Login`.
+Expected Result: Validation messages are shown and login is blocked.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-AUTH-11
+Test Case ID: TC-AUTH-11
+TestCase Title: Role-Based Redirect After Login
+Descrption: Verify that each role opens the correct dashboard after login.
+Precondition: Valid Student, Supervisor, Adviser, and Admin accounts exist.
+Test data: Credentials for all four roles
+Test Step:
+1. Log in as Student.
+2. Observe the landing page.
+3. Repeat for Supervisor, Adviser, and Admin.
+Expected Result: Each user is routed to the dashboard assigned to their role.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-AUTH-12
+Test Case ID: TC-AUTH-12
+TestCase Title: Restore Session on App Relaunch
+Descrption: Verify that an authenticated session is restored after reopening the app.
+Precondition: A valid token is stored locally.
+Test data: Existing active session
+Test Step:
+1. Log in successfully.
+2. Close the app completely.
+3. Reopen the app.
+Expected Result: The app bypasses guest pages and opens the correct protected dashboard.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-AUTH-13
+Test Case ID: TC-AUTH-13
+TestCase Title: Logout Clears Session
+Descrption: Verify that logout removes the current authenticated session.
+Precondition: User is logged in.
+Test data: Valid active session
+Test Step:
+1. Tap the logout action.
+2. Attempt to reopen a protected page.
+Expected Result: The session is cleared and the user is sent back to the login screen.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-AUTH-14
+Test Case ID: TC-AUTH-14
+TestCase Title: Protected Route Access After Logout
+Descrption: Verify that a logged-out user cannot access protected routes using browser refresh or manual route entry.
+Precondition: User has already logged out.
+Test data: Protected route such as `/student-dashboard`
+Test Step:
+1. Logout from the app.
+2. Try to reopen a protected route directly.
+Expected Result: Access is denied and the login screen is shown.
 Actual Result: Pending execution
 Test Result: Not Run
 
@@ -162,72 +212,97 @@ Test Result: Not Run
 
 ### TC-ACC-01
 Test Case ID: TC-ACC-01
-Test Case Title: View Current User Profile
-Description: Verify that an authenticated user can retrieve their own account profile.
-Precondition: User is logged in.
-Test Data: Any valid authenticated account
+TestCase Title: View Current User Profile
+Descrption: Verify that a logged-in user can view their profile information.
+Precondition: User is authenticated.
+Test data: Any valid account
 Test Step:
 1. Log in to the app.
-2. Open the settings or profile area.
-3. Load current user information.
-Expected Result: The app displays the correct logged-in user details.
+2. Open settings or profile.
+3. Load account data.
+Expected Result: The correct user profile information is displayed.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-ACC-02
 Test Case ID: TC-ACC-02
-Test Case Title: Update User Profile Information
-Description: Verify that an authenticated user can update editable profile information.
-Precondition: User is logged in.
-Test Data: Updated name `Juan Updated`; Updated gender `Male`
+TestCase Title: Update User Profile
+Descrption: Verify that a user can update their editable profile fields.
+Precondition: User is authenticated.
+Test data: Updated name `Juan Updated`; Gender `Male`
 Test Step:
 1. Open profile settings.
-2. Change editable profile fields.
+2. Edit profile fields.
 3. Save the changes.
-4. Reload the profile view.
-Expected Result: Updated profile data is saved and shown correctly after refresh.
+4. Reload the page.
+Expected Result: The profile updates are saved and displayed correctly.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-ACC-03
 Test Case ID: TC-ACC-03
-Test Case Title: Upload Avatar Image
-Description: Verify that a user can upload a valid avatar image.
-Precondition: User is logged in and has access to an image file.
-Test Data: Valid image file `avatar.jpg`
+TestCase Title: Update Profile with Blank Name
+Descrption: Verify that the profile update is blocked when a required field like name is blank.
+Precondition: User is on the profile update screen.
+Test data: Blank name
 Test Step:
-1. Open the profile settings area.
-2. Choose an avatar image.
-3. Save the upload.
-Expected Result: The avatar is uploaded successfully and displayed in the UI.
+1. Delete the current name value.
+2. Tap save.
+Expected Result: The update is blocked and a validation message is shown.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-ACC-04
 Test Case ID: TC-ACC-04
-Test Case Title: Reject Invalid Avatar Upload
-Description: Verify that unsupported or invalid avatar uploads are rejected.
-Precondition: User is logged in.
-Test Data: Unsupported file `avatar.txt`
+TestCase Title: Upload Valid Avatar Image
+Descrption: Verify that a valid avatar file can be uploaded successfully.
+Precondition: User is authenticated and has a valid image file.
+Test data: File `avatar.jpg`
 Test Step:
-1. Open avatar update.
-2. Select an unsupported file type.
+1. Open the avatar update control.
+2. Choose a valid image file.
 3. Submit the upload.
-Expected Result: The upload is rejected and an error message is shown.
+Expected Result: The avatar is uploaded and displayed in the app.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-ACC-05
 Test Case ID: TC-ACC-05
-Test Case Title: Theme Preference Persists
-Description: Verify that theme changes made in settings persist across app restarts.
-Precondition: User is logged in and settings screen is accessible.
-Test Data: Theme mode `Dark` or `Light`
+TestCase Title: Upload Unsupported Avatar File
+Descrption: Verify that unsupported avatar file types are rejected.
+Precondition: User is authenticated.
+Test data: File `avatar.txt`
+Test Step:
+1. Open avatar upload.
+2. Choose an unsupported file type.
+3. Submit.
+Expected Result: The upload is rejected and an error is shown.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-ACC-06
+Test Case ID: TC-ACC-06
+TestCase Title: Persist Theme Preference
+Descrption: Verify that theme preference remains saved after app restart.
+Precondition: Settings screen is accessible.
+Test data: Theme mode `Dark`
 Test Step:
 1. Open settings.
-2. Change the theme mode.
+2. Change the theme.
 3. Close and reopen the app.
-Expected Result: The selected theme remains applied after relaunch.
+Expected Result: The chosen theme remains active after relaunch.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-ACC-07
+Test Case ID: TC-ACC-07
+TestCase Title: Access Settings While Logged Out
+Descrption: Verify that a logged-out user cannot access settings.
+Precondition: User is not authenticated.
+Test data: Settings route
+Test Step:
+1. Open the settings route directly while logged out.
+Expected Result: The user is redirected to the login screen.
 Actual Result: Pending execution
 Test Result: Not Run
 
@@ -237,53 +312,79 @@ Test Result: Not Run
 
 ### TC-NOTIF-01
 Test Case ID: TC-NOTIF-01
-Test Case Title: View Notification List
-Description: Verify that a logged-in user can view their notifications.
-Precondition: The user has at least one notification.
-Test Data: Read and unread notification records
+TestCase Title: View Notification List
+Descrption: Verify that a user can view their own notifications.
+Precondition: The user has existing notifications.
+Test data: Read and unread notifications
 Test Step:
 1. Log in to the app.
-2. Open the notifications list.
-Expected Result: The user sees only their own notifications ordered by most recent first.
+2. Open the notification list.
+Expected Result: Only the current user's notifications are displayed, ordered by newest first.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-NOTIF-02
 Test Case ID: TC-NOTIF-02
-Test Case Title: Mark Notification as Read
-Description: Verify that a user can mark their own unread notification as read.
-Precondition: The user has at least one unread notification.
-Test Data: Valid owned notification ID
+TestCase Title: Notification List When No Notifications Exist
+Descrption: Verify that the app handles an empty notification list correctly.
+Precondition: The user has no notifications.
+Test data: Empty notification set
 Test Step:
-1. Open the notification list.
-2. Tap or trigger `Mark as Read` on an unread item.
-3. Refresh the list if needed.
-Expected Result: The notification state changes to read and the unread count decreases.
+1. Log in as a user with no notifications.
+2. Open the notification list.
+Expected Result: The app shows an empty state without errors.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-NOTIF-03
 Test Case ID: TC-NOTIF-03
-Test Case Title: Notification Detail Redirect for Student Log Alert
-Description: Verify that a student notification tied to a log routes the user to the correct target screen.
-Precondition: Student is logged in and receives a notification referencing a log entry.
-Test Data: Notification linked to a student log ID
+TestCase Title: Mark Owned Notification as Read
+Descrption: Verify that the user can mark their own unread notification as read.
+Precondition: The user has an unread notification.
+Test data: Valid owned notification ID
 Test Step:
-1. Open the notification list.
-2. Tap the log-related notification.
-Expected Result: The app opens the relevant logbook or log detail context for the referenced log.
+1. Open the notifications list.
+2. Mark one unread notification as read.
+3. Refresh the list.
+Expected Result: The notification changes to read and unread count decreases.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-NOTIF-04
 Test Case ID: TC-NOTIF-04
-Test Case Title: Prevent Cross-User Notification Update
-Description: Verify that a user cannot update another user's notification state.
-Precondition: Two users exist and the target notification belongs to another account.
-Test Data: Notification ID owned by a different user
+TestCase Title: Mark Already Read Notification
+Descrption: Verify that marking an already read notification does not cause an error or duplicate state issue.
+Precondition: The user has at least one already read notification.
+Test data: Already read notification ID
 Test Step:
-1. Authenticate as User B.
-2. Attempt to mark User A's notification as read through the API or app flow.
+1. Open notifications.
+2. Mark an already read notification again if the UI allows it.
+Expected Result: The system keeps the notification in read state and no incorrect count change occurs.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-NOTIF-05
+Test Case ID: TC-NOTIF-05
+TestCase Title: Open Notification Linked to Log
+Descrption: Verify that tapping a log-related notification opens the related screen.
+Precondition: Student has a notification linked to a log entry.
+Test data: Notification containing a log reference
+Test Step:
+1. Open notifications.
+2. Tap the log-related item.
+Expected Result: The app opens the correct logbook or log detail screen.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-NOTIF-06
+Test Case ID: TC-NOTIF-06
+TestCase Title: Read Another User's Notification
+Descrption: Verify that a user cannot update another user's notification.
+Precondition: Two users exist and the target notification belongs to another user.
+Test data: Foreign notification ID
+Test Step:
+1. Log in as User B.
+2. Attempt to mark User A's notification as read.
 Expected Result: The action is denied and the target notification remains unchanged.
 Actual Result: Pending execution
 Test Result: Not Run
@@ -294,71 +395,98 @@ Test Result: Not Run
 
 ### TC-PROF-01
 Test Case ID: TC-PROF-01
-Test Case Title: Load Supervisor Options
-Description: Verify that a student can retrieve the list of valid supervisors before creating a profile.
+TestCase Title: Load Supervisor List
+Descrption: Verify that the student can retrieve valid supervisors.
 Precondition: At least one supervisor account exists.
-Test Data: None
+Test data: None
 Test Step:
-1. Log in as a student.
-2. Open the internship profile screen.
-3. Load the supervisor selection list.
-Expected Result: Only valid supervisor accounts are shown as selectable options.
+1. Log in as Student.
+2. Open internship profile.
+3. Load supervisor options.
+Expected Result: Only users with supervisor role appear in the list.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-PROF-02
 Test Case ID: TC-PROF-02
-Test Case Title: Create Internship Profile with Valid Data
-Description: Verify that a student can create an internship profile successfully.
-Precondition: Student account has no existing internship profile.
-Test Data: Company `Acme Corp`; Address `Tacloban City`; Required Hours `486`; Start `2026-06-01`; End `2026-09-30`; Supervisor ID valid
+TestCase Title: Create Internship Profile Successfully
+Descrption: Verify that a student can create an internship profile with complete valid data.
+Precondition: Student has no internship profile yet.
+Test data: Company `Acme Corp`; Address `Tacloban City`; Required Hours `486`; Start `2026-06-01`; End `2026-09-30`; Valid supervisor ID
 Test Step:
-1. Open internship profile.
-2. Enter complete valid internship information.
+1. Open internship profile form.
+2. Fill all required fields.
 3. Submit the form.
-Expected Result: The internship profile is created and shown in the UI.
+Expected Result: The profile is created successfully and visible on reload.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-PROF-03
 Test Case ID: TC-PROF-03
-Test Case Title: Update Internship Profile
-Description: Verify that a student can update an existing internship profile.
-Precondition: Student already has an internship profile.
-Test Data: Updated company `Acme Revised Corp`; Required Hours `600`
+TestCase Title: Create Internship Profile with Missing Fields
+Descrption: Verify that profile creation fails when required fields are missing.
+Precondition: Student is on the internship profile form.
+Test data: Blank company name; blank start date
 Test Step:
-1. Open the existing internship profile.
-2. Edit one or more fields.
-3. Save the changes.
-4. Reload the screen.
-Expected Result: The updated internship profile values persist after refresh.
+1. Leave one or more required fields blank.
+2. Submit the form.
+Expected Result: Validation errors are shown and the profile is not created.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-PROF-04
 Test Case ID: TC-PROF-04
-Test Case Title: Reject Non-Supervisor Assignment in Internship Profile
-Description: Verify that a student cannot assign a non-supervisor user as supervisor.
-Precondition: A non-supervisor account exists.
-Test Data: Internship payload using a Student or Adviser ID as supervisor
+TestCase Title: Create Internship Profile with Invalid Supervisor
+Descrption: Verify that a non-supervisor account cannot be assigned as supervisor.
+Precondition: A non-supervisor user exists.
+Test data: Adviser ID or Student ID used as supervisor
 Test Step:
-1. Open internship profile creation or update.
-2. Submit data using an invalid supervisor ID.
+1. Open internship profile form.
+2. Enter valid internship data.
+3. Select an invalid supervisor ID.
+4. Submit.
 Expected Result: The request fails validation and the profile is not saved.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-PROF-05
 Test Case ID: TC-PROF-05
-Test Case Title: Required Internship Fields Validation
-Description: Verify that required internship profile fields cannot be left blank.
-Precondition: Student is on the internship profile form.
-Test Data: Blank company name or blank start date
+TestCase Title: Update Internship Profile Successfully
+Descrption: Verify that a student can update an existing profile.
+Precondition: Student already has an internship profile.
+Test data: Updated company `Acme Revised Corp`; Required Hours `600`
 Test Step:
-1. Open the internship profile form.
-2. Leave one required field blank.
-3. Attempt to save.
-Expected Result: Validation messages are displayed and the profile is not submitted.
+1. Open the existing profile.
+2. Change one or more fields.
+3. Save changes.
+4. Reload the screen.
+Expected Result: The updated values are saved and displayed.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-PROF-06
+Test Case ID: TC-PROF-06
+TestCase Title: Update Internship Profile with Invalid Date Range
+Descrption: Verify that profile update fails when end date is earlier than start date.
+Precondition: Student already has an internship profile.
+Test data: Start `2026-09-30`; End `2026-06-01`
+Test Step:
+1. Open profile edit.
+2. Enter an invalid date range.
+3. Save changes.
+Expected Result: The update is rejected and the invalid dates are not saved.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-PROF-07
+Test Case ID: TC-PROF-07
+TestCase Title: Student Without Login Accesses Internship Profile
+Descrption: Verify that unauthenticated users cannot access the internship profile screen or API.
+Precondition: User is logged out.
+Test data: Internship profile route
+Test Step:
+1. Try to open the internship profile screen or endpoint while logged out.
+Expected Result: The user is redirected to login or receives an unauthenticated response.
 Actual Result: Pending execution
 Test Result: Not Run
 
@@ -368,104 +496,177 @@ Test Result: Not Run
 
 ### TC-DTR-01
 Test Case ID: TC-DTR-01
-Test Case Title: View Today's DTR Initial State
-Description: Verify that a student sees the correct starting DTR state when no record exists for the day.
-Precondition: No DTR exists for the student for the current day.
-Test Data: None
+TestCase Title: View Initial DTR State
+Descrption: Verify that the DTR screen shows the correct initial state when no record exists.
+Precondition: No DTR exists for the current day.
+Test data: None
 Test Step:
-1. Log in as a student.
+1. Log in as Student.
 2. Open the DTR screen.
-Expected Result: The screen shows `Not Started` and the next available action is `Time In`.
+Expected Result: `Not Started` state is shown and `Time In` is available.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-DTR-02
 Test Case ID: TC-DTR-02
-Test Case Title: Successful Time In
-Description: Verify that a student can record a valid time-in action.
-Precondition: No DTR exists yet for the current day.
-Test Data: Current date and system time
+TestCase Title: Successful Time In
+Descrption: Verify that a student can record `Time In`.
+Precondition: No DTR exists yet for today.
+Test data: Current system date and time
 Test Step:
 1. Open the DTR screen.
 2. Tap `Time In`.
-Expected Result: The time-in action is saved and the DTR state changes to working.
+Expected Result: The system records time in and updates the status to working.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-DTR-03
 Test Case ID: TC-DTR-03
-Test Case Title: Successful Lunch Out and Lunch In Sequence
-Description: Verify that lunch break transitions work in the correct order.
-Precondition: Student has already completed `Time In`.
-Test Data: Current date and time
+TestCase Title: Successful Lunch Out
+Descrption: Verify that the student can record lunch out after time in.
+Precondition: The student has already recorded time in.
+Test data: Current date and time
 Test Step:
 1. Tap `Lunch Out`.
-2. Confirm the state changes.
-3. Tap `Lunch In`.
-Expected Result: The DTR state changes to `On Break` after lunch out and returns to `Working` after lunch in.
+Expected Result: The DTR status changes to on break.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-DTR-04
 Test Case ID: TC-DTR-04
-Test Case Title: Successful Time Out Completion
-Description: Verify that a student can complete the DTR cycle with a valid time-out action.
-Precondition: Student has already completed `Time In` and is currently in a valid state to time out.
-Test Data: Current date and time
+TestCase Title: Successful Lunch In
+Descrption: Verify that the student can record lunch in after lunch out.
+Precondition: The student is currently on break.
+Test data: Current date and time
 Test Step:
-1. Tap `Time Out`.
-2. Refresh the DTR view.
-Expected Result: The day record becomes completed and total rendered work time is updated.
+1. Tap `Lunch In`.
+Expected Result: The DTR status changes back to working.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-DTR-05
 Test Case ID: TC-DTR-05
-Test Case Title: Reject Lunch Out Before Time In
-Description: Verify that invalid DTR action order is blocked.
-Precondition: No `Time In` exists for the day.
-Test Data: Attempt action `Lunch Out`
+TestCase Title: Successful Time Out
+Descrption: Verify that the student can record time out and complete the workday.
+Precondition: The student is in a valid state to time out.
+Test data: Current date and time
 Test Step:
-1. Try to execute `Lunch Out` before `Time In`.
-Expected Result: The action is rejected and an explanatory validation or conflict message is returned.
+1. Tap `Time Out`.
+2. Refresh the DTR screen.
+Expected Result: The DTR is marked completed and total work time is displayed.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-DTR-06
 Test Case ID: TC-DTR-06
-Test Case Title: Reject Time Out Before Required Prior Steps
-Description: Verify that a student cannot time out before entering a valid working state.
-Precondition: The DTR sequence is incomplete or invalid.
-Test Data: Attempt action `Time Out` before `Time In` or before `Lunch In` after a break
+TestCase Title: Lunch Out Before Time In
+Descrption: Verify that lunch out is rejected if time in has not been recorded.
+Precondition: No time in exists for today.
+Test data: Attempt `Lunch Out`
 Test Step:
-1. Attempt a premature `Time Out`.
-Expected Result: The request is rejected and the DTR record remains unchanged.
+1. Try to perform `Lunch Out`.
+Expected Result: The action is blocked and an error is shown.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-DTR-07
 Test Case ID: TC-DTR-07
-Test Case Title: View Monthly DTR Summary
-Description: Verify that a student can retrieve monthly DTR data.
-Precondition: DTR records exist within the target month.
-Test Data: Current month with at least one completed record
+TestCase Title: Lunch In Before Lunch Out
+Descrption: Verify that lunch in is rejected when lunch out has not happened.
+Precondition: The student has timed in but has not gone to lunch.
+Test data: Attempt `Lunch In`
 Test Step:
-1. Open the monthly DTR summary view.
-2. Select or load the current month.
-Expected Result: The system displays the correct monthly DTR entries and totals.
+1. Try to perform `Lunch In`.
+Expected Result: The action is rejected and DTR state remains unchanged.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-DTR-08
 Test Case ID: TC-DTR-08
-Test Case Title: Student Export DTR to PDF
-Description: Verify that a student can export their own DTR to PDF.
-Precondition: DTR entries exist for the target period.
-Test Data: Valid month with completed records
+TestCase Title: Time Out Before Time In
+Descrption: Verify that time out is rejected if no time in exists.
+Precondition: No DTR action exists yet today.
+Test data: Attempt `Time Out`
 Test Step:
-1. Open the DTR screen.
+1. Try to perform `Time Out`.
+Expected Result: The action is rejected and no DTR record is completed.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-DTR-09
+Test Case ID: TC-DTR-09
+TestCase Title: Time Out While Still on Lunch Break
+Descrption: Verify that time out is rejected when lunch in has not been recorded yet.
+Precondition: Student has recorded lunch out but not lunch in.
+Test data: Attempt `Time Out`
+Test Step:
+1. Try to perform `Time Out`.
+Expected Result: The request is rejected and the student remains in the on break state.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-DTR-10
+Test Case ID: TC-DTR-10
+TestCase Title: Monthly DTR Summary Loads
+Descrption: Verify that monthly DTR data can be retrieved and displayed.
+Precondition: DTR records exist for the selected month.
+Test data: Current month with records
+Test Step:
+1. Open monthly DTR summary.
+2. Load the target month.
+Expected Result: DTR entries and totals for the month are displayed correctly.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-DTR-11
+Test Case ID: TC-DTR-11
+TestCase Title: Monthly DTR Summary with No Records
+Descrption: Verify that the system handles a month with no DTR records.
+Precondition: The selected month has no DTR entries.
+Test data: Month with zero records
+Test Step:
+1. Open monthly DTR summary.
+2. Select a month with no entries.
+Expected Result: The system shows an empty state and no computation error occurs.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-DTR-12
+Test Case ID: TC-DTR-12
+TestCase Title: Export Student DTR to PDF
+Descrption: Verify that the student can export DTR to PDF.
+Precondition: DTR records exist for the target period.
+Test data: Valid month
+Test Step:
+1. Open the DTR module.
 2. Choose `Export PDF`.
-Expected Result: A PDF file is generated or downloaded successfully for the student.
+Expected Result: A PDF file is generated or downloaded successfully.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-DTR-13
+Test Case ID: TC-DTR-13
+TestCase Title: Export Student DTR to Excel
+Descrption: Verify that the student can export DTR to Excel.
+Precondition: DTR records exist for the target period.
+Test data: Valid month
+Test Step:
+1. Open the DTR module.
+2. Choose `Export Excel`.
+Expected Result: An Excel file is generated or downloaded successfully.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-DTR-14
+Test Case ID: TC-DTR-14
+TestCase Title: Export DTR Without Records
+Descrption: Verify the system behavior when the user exports DTR for a period with no records.
+Precondition: Selected month has no DTR entries.
+Test data: Month with zero records
+Test Step:
+1. Open export options.
+2. Export DTR for an empty month.
+Expected Result: The system either generates an empty report correctly or shows a clear no data message.
 Actual Result: Pending execution
 Test Result: Not Run
 
@@ -475,136 +676,204 @@ Test Result: Not Run
 
 ### TC-LOG-01
 Test Case ID: TC-LOG-01
-Test Case Title: View Student Log List
-Description: Verify that a student can view their own logbook entries.
-Precondition: Student has at least one existing log entry.
-Test Data: Student-owned logs across different dates
+TestCase Title: View Student Log List
+Descrption: Verify that the student can see their own logs.
+Precondition: Student has existing log entries.
+Test data: Student-owned logs
 Test Step:
-1. Log in as a student.
+1. Log in as Student.
 2. Open the logbook screen.
-Expected Result: Only the student's own logs are displayed with their correct details.
+Expected Result: Only the student's own logs are displayed.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-LOG-02
 Test Case ID: TC-LOG-02
-Test Case Title: Submit New Log Entry
-Description: Verify that a student can create a valid log entry.
-Precondition: Student has an internship profile and access to the log submission screen.
-Test Data: Date `2026-05-20`; Time In `08:00`; Time Out `17:00`; Hours `8`; Narrative `Performed QA testing tasks`
+TestCase Title: View Empty Logbook
+Descrption: Verify that the app handles a student with no logs.
+Precondition: Student has no log entries yet.
+Test data: Empty log list
 Test Step:
-1. Open the log submission screen.
-2. Enter valid log information.
-3. Submit the log.
-Expected Result: The log is saved successfully and appears in the logbook list.
+1. Log in as a student with no logs.
+2. Open the logbook.
+Expected Result: An empty state is shown without errors.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-LOG-03
 Test Case ID: TC-LOG-03
-Test Case Title: View Log Detail
-Description: Verify that a student can open a specific log entry and view its details.
-Precondition: Student has at least one saved log.
-Test Data: Existing log ID
+TestCase Title: Submit New Log Successfully
+Descrption: Verify that the student can create a new valid log entry.
+Precondition: Student has an internship profile.
+Test data: Date `2026-05-20`; Time In `08:00`; Time Out `17:00`; Hours `8`; Narrative `Performed QA testing tasks`
 Test Step:
-1. Open the logbook list.
-2. Select a log entry.
-Expected Result: The system displays the selected log's complete details.
+1. Open log submission.
+2. Enter complete valid data.
+3. Submit.
+Expected Result: The log is saved successfully and appears in the logbook list.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-LOG-04
 Test Case ID: TC-LOG-04
-Test Case Title: Edit Pending Log Entry
-Description: Verify that a student can update a pending log entry.
-Precondition: Student owns a log whose status allows editing.
-Test Data: Updated narrative `Performed documentation and testing tasks`
+TestCase Title: Submit Log with Missing Required Fields
+Descrption: Verify that log submission fails when required fields are incomplete.
+Precondition: Student is on the log submission form.
+Test data: Blank narrative; missing hours
 Test Step:
-1. Open a pending log entry.
-2. Choose the edit action.
-3. Update one or more fields.
-4. Save the changes.
-Expected Result: The log updates successfully and the new values appear in the detail view.
+1. Leave one or more required fields blank.
+2. Submit the form.
+Expected Result: Validation messages are shown and the log is not saved.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-LOG-05
 Test Case ID: TC-LOG-05
-Test Case Title: Validate Required Log Fields
-Description: Verify that required log fields must be completed before submission.
+TestCase Title: Submit Log with Invalid Time Range
+Descrption: Verify that a log cannot be submitted when time out is earlier than time in.
 Precondition: Student is on the log submission form.
-Test Data: Blank narrative or missing time values
+Test data: Time In `17:00`; Time Out `08:00`
 Test Step:
-1. Leave one required field blank.
-2. Try to submit the log.
-Expected Result: The form blocks submission and shows validation messages.
+1. Enter an invalid time range.
+2. Submit the log.
+Expected Result: The log is rejected and the invalid time range is not saved.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-LOG-06
 Test Case ID: TC-LOG-06
-Test Case Title: Upload Valid Attachment to Log
-Description: Verify that a student can upload a supported proof attachment to a log.
-Precondition: Student owns a log that allows proof upload.
-Test Data: File `proof.jpg` or `proof.pdf`
+TestCase Title: View Log Detail
+Descrption: Verify that the student can open and view log details.
+Precondition: Student has at least one log.
+Test data: Existing log ID
 Test Step:
-1. Open the log detail screen.
-2. Choose `Upload Attachment`.
-3. Select a supported file.
-4. Submit the upload.
-Expected Result: The attachment uploads successfully and is associated with the log.
+1. Open the logbook.
+2. Select a log entry.
+Expected Result: The selected log detail page opens with complete log information.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-LOG-07
 Test Case ID: TC-LOG-07
-Test Case Title: Reject Unsupported Attachment Type
-Description: Verify that unsupported log attachment file types are rejected.
-Precondition: Student owns a log that allows proof upload.
-Test Data: File `proof.exe`
+TestCase Title: Edit Pending Log Successfully
+Descrption: Verify that the student can edit a log that is still editable.
+Precondition: Student owns an editable log.
+Test data: Updated narrative `Performed testing and documentation`
 Test Step:
-1. Open a log entry.
-2. Attempt to upload an unsupported file.
-Expected Result: The upload is rejected and an appropriate error is shown.
+1. Open a pending log.
+2. Tap edit.
+3. Update one or more fields.
+4. Save.
+Expected Result: The changes are saved and visible in the log detail.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-LOG-08
 Test Case ID: TC-LOG-08
-Test Case Title: Prevent Duplicate Proof Attachment
-Description: Verify that the system does not allow adding a second proof file when one already exists.
-Precondition: Student log already has one uploaded proof attachment.
-Test Data: Another valid image or PDF file
+TestCase Title: Edit Log with Invalid Data
+Descrption: Verify that log editing fails when invalid values are entered.
+Precondition: Student owns an editable log.
+Test data: Blank narrative or invalid hours
 Test Step:
-1. Open a log with an existing attachment.
-2. Attempt a second proof upload.
-Expected Result: The second upload is blocked and the original attachment remains intact.
+1. Open an editable log.
+2. Enter invalid data.
+3. Save changes.
+Expected Result: Validation appears and the invalid update is not saved.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-LOG-09
 Test Case ID: TC-LOG-09
-Test Case Title: Download Student-Owned Log Attachment
-Description: Verify that a student can download an attachment belonging to their own log.
-Precondition: Student owns a log with an uploaded attachment.
-Test Data: Existing owned attachment ID
+TestCase Title: Upload Valid JPG Attachment
+Descrption: Verify that the student can upload a valid JPG proof attachment.
+Precondition: Student owns a log that allows proof upload.
+Test data: File `proof.jpg`
 Test Step:
-1. Open the log detail view.
-2. Tap the attachment download action.
-Expected Result: The attachment is downloaded or opened successfully.
+1. Open log detail.
+2. Choose `Upload Attachment`.
+3. Select `proof.jpg`.
+4. Submit.
+Expected Result: The JPG attachment uploads successfully.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-LOG-10
 Test Case ID: TC-LOG-10
-Test Case Title: Prevent Access to Another Student's Log
-Description: Verify that a student cannot view another student's log entry.
-Precondition: Two student accounts exist with separate log entries.
-Test Data: Log ID owned by another student
+TestCase Title: Upload Valid PDF Attachment
+Descrption: Verify that the student can upload a valid PDF proof attachment.
+Precondition: Student owns a log that allows proof upload.
+Test data: File `proof.pdf`
+Test Step:
+1. Open log detail.
+2. Choose `Upload Attachment`.
+3. Select `proof.pdf`.
+4. Submit.
+Expected Result: The PDF attachment uploads successfully.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-LOG-11
+Test Case ID: TC-LOG-11
+TestCase Title: Upload Unsupported Attachment Type
+Descrption: Verify that unsupported file types are rejected during attachment upload.
+Precondition: Student owns a log that allows proof upload.
+Test data: File `proof.exe`
+Test Step:
+1. Open log detail.
+2. Attempt to upload an unsupported file.
+Expected Result: The upload is rejected and an error is shown.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-LOG-12
+Test Case ID: TC-LOG-12
+TestCase Title: Upload Duplicate Proof Attachment
+Descrption: Verify that the system prevents adding a second proof attachment when one already exists.
+Precondition: The selected log already has one proof attachment.
+Test data: Another valid file `proof2.jpg`
+Test Step:
+1. Open a log with an existing proof.
+2. Attempt to upload a second proof file.
+Expected Result: The second upload is blocked.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-LOG-13
+Test Case ID: TC-LOG-13
+TestCase Title: Download Owned Attachment
+Descrption: Verify that the student can download their own attachment.
+Precondition: Student owns a log with an attachment.
+Test data: Valid owned attachment ID
+Test Step:
+1. Open log detail.
+2. Tap the attachment to download or open it.
+Expected Result: The attachment downloads or opens successfully.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-LOG-14
+Test Case ID: TC-LOG-14
+TestCase Title: View Another Student's Log
+Descrption: Verify that a student cannot access another student's log entry.
+Precondition: Two student accounts exist with different logs.
+Test data: Foreign log ID
 Test Step:
 1. Log in as Student B.
-2. Attempt to open Student A's log directly through API or deep link flow.
-Expected Result: Access is denied and no other student's log data is exposed.
+2. Attempt to open Student A's log.
+Expected Result: Access is denied and other student data is not exposed.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-LOG-15
+Test Case ID: TC-LOG-15
+TestCase Title: Download Another Student's Attachment
+Descrption: Verify that a student cannot download another student's proof attachment.
+Precondition: Another student has a log attachment.
+Test data: Foreign attachment ID
+Test Step:
+1. Log in as Student B.
+2. Attempt to access Student A's attachment.
+Expected Result: Access is denied and the file is not served.
 Actual Result: Pending execution
 Test Result: Not Run
 
@@ -614,71 +883,124 @@ Test Result: Not Run
 
 ### TC-EDIT-01
 Test Case ID: TC-EDIT-01
-Test Case Title: Submit Log Edit Request
-Description: Verify that a student can request an edit for an existing log entry.
-Precondition: Student owns a log eligible for edit request submission.
-Test Data: Reason `Need to correct logged hours`
+TestCase Title: Submit Log Edit Request Successfully
+Descrption: Verify that a student can submit a valid log edit request.
+Precondition: Student owns a log eligible for edit request.
+Test data: Reason `Need to correct logged hours`
 Test Step:
 1. Open the target log.
-2. Choose `Request Edit`.
-3. Enter the request reason.
+2. Tap `Request Edit`.
+3. Enter a reason.
 4. Submit.
-Expected Result: The edit request is saved and a confirmation message is shown.
+Expected Result: The edit request is saved successfully.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-EDIT-02
 Test Case ID: TC-EDIT-02
-Test Case Title: Submit DTR Edit Request
-Description: Verify that a student can request an edit for DTR data.
-Precondition: Student has an existing DTR record to be corrected.
-Test Data: Reason `Forgot to time out on 2026-05-20`
+TestCase Title: Submit Log Edit Request Without Reason
+Descrption: Verify that a log edit request is blocked when required justification is missing.
+Precondition: Student owns an eligible log.
+Test data: Blank reason
 Test Step:
-1. Open DTR-related correction or request flow.
-2. Enter the needed correction reason.
-3. Submit the edit request.
-Expected Result: The DTR edit request is recorded successfully.
+1. Open `Request Edit`.
+2. Leave the reason blank.
+3. Submit.
+Expected Result: Validation is shown and the request is not created.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-EDIT-03
 Test Case ID: TC-EDIT-03
-Test Case Title: View Pending Edit Requests in Admin Module
-Description: Verify that admin users can view submitted edit requests.
-Precondition: At least one edit request exists in the system.
-Test Data: Submitted log or DTR edit request
+TestCase Title: Submit DTR Edit Request Successfully
+Descrption: Verify that a student can request correction for DTR data.
+Precondition: Student has an existing DTR record.
+Test data: Reason `Forgot to time out on 2026-05-20`
 Test Step:
-1. Log in as an admin.
-2. Open the edit request management area.
-Expected Result: The pending edit request list is displayed with relevant request details.
+1. Open the DTR correction flow.
+2. Enter a reason.
+3. Submit.
+Expected Result: The DTR edit request is saved successfully.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-EDIT-04
 Test Case ID: TC-EDIT-04
-Test Case Title: Approve Edit Request
-Description: Verify that an admin can approve a submitted edit request.
-Precondition: A pending edit request exists.
-Test Data: Pending edit request ID
+TestCase Title: Submit DTR Edit Request Without Reason
+Descrption: Verify that a DTR edit request fails without a valid reason.
+Precondition: Student has an editable DTR-related request path.
+Test data: Blank reason
 Test Step:
-1. Open the edit request list as admin.
-2. Select a pending request.
-3. Approve the request.
-Expected Result: The request status changes to approved and related follow-up behavior is triggered.
+1. Open the DTR edit request flow.
+2. Leave the reason blank.
+3. Submit.
+Expected Result: The request is rejected and a validation message appears.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-EDIT-05
 Test Case ID: TC-EDIT-05
-Test Case Title: Reject Edit Request
-Description: Verify that an admin can reject a submitted edit request.
-Precondition: A pending edit request exists.
-Test Data: Pending edit request ID; Rejection note if supported
+TestCase Title: Admin View Pending Edit Requests
+Descrption: Verify that admin users can load pending edit requests.
+Precondition: At least one edit request exists.
+Test data: Pending edit request records
 Test Step:
-1. Open the edit request list as admin.
+1. Log in as Admin.
+2. Open edit request management.
+Expected Result: Pending requests are listed correctly.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-EDIT-06
+Test Case ID: TC-EDIT-06
+TestCase Title: Approve Edit Request
+Descrption: Verify that admin can approve a pending edit request.
+Precondition: A pending edit request exists.
+Test data: Pending request ID
+Test Step:
+1. Open edit request management.
 2. Select a pending request.
-3. Reject the request.
-Expected Result: The request status changes to rejected and the decision is reflected in the system.
+3. Approve it.
+Expected Result: The request status changes to approved.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-EDIT-07
+Test Case ID: TC-EDIT-07
+TestCase Title: Reject Edit Request
+Descrption: Verify that admin can reject a pending edit request.
+Precondition: A pending edit request exists.
+Test data: Pending request ID
+Test Step:
+1. Open edit request management.
+2. Select a pending request.
+3. Reject it.
+Expected Result: The request status changes to rejected.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-EDIT-08
+Test Case ID: TC-EDIT-08
+TestCase Title: Approve Already Finalized Edit Request
+Descrption: Verify that an already approved or rejected request cannot be processed again.
+Precondition: The request is already finalized.
+Test data: Finalized request ID
+Test Step:
+1. Attempt to approve or reject the same request again.
+Expected Result: The system blocks the repeated action and preserves the final status.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-EDIT-09
+Test Case ID: TC-EDIT-09
+TestCase Title: Non-Admin Access to Edit Request Management
+Descrption: Verify that students, supervisors, and advisers cannot access admin edit request controls.
+Precondition: Non-admin account is logged in.
+Test data: Admin edit request route or endpoint
+Test Step:
+1. Log in as a non-admin user.
+2. Attempt to access edit request management.
+Expected Result: Access is denied.
 Actual Result: Pending execution
 Test Result: Not Run
 
@@ -688,69 +1010,158 @@ Test Result: Not Run
 
 ### TC-REP-01
 Test Case ID: TC-REP-01
-Test Case Title: View Student Progress Report
-Description: Verify that a student can view their own internship progress report.
-Precondition: Student has internship profile and related DTR or log data.
-Test Data: Student with active internship records
+TestCase Title: Student View Own Report
+Descrption: Verify that a student can load their own report data.
+Precondition: Student has internship-related data.
+Test data: Student account with logs or DTR records
 Test Step:
-1. Log in as a student.
-2. Open the report screen.
-Expected Result: The report loads successfully and shows the student's own progress metrics.
+1. Log in as Student.
+2. Open the report page.
+Expected Result: The student's report is displayed successfully.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-REP-02
 Test Case ID: TC-REP-02
-Test Case Title: Supervisor View of Assigned Student Report
-Description: Verify that a supervisor can view the report of an assigned student.
-Precondition: Supervisor is assigned to at least one student.
-Test Data: Assigned student ID
+TestCase Title: Student Report with No Available Data
+Descrption: Verify that the report page handles a student with little or no reportable data.
+Precondition: Student has no completed logs or DTR records.
+Test data: Student account with minimal data
 Test Step:
-1. Log in as a supervisor.
-2. Open the assigned intern list.
-3. Select a student and open the report.
-Expected Result: The supervisor sees the report data for the selected assigned student.
+1. Open the report page.
+Expected Result: The page shows a safe empty or zero state without crashing.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-REP-03
 Test Case ID: TC-REP-03
-Test Case Title: Adviser View of Assigned Student Report
-Description: Verify that an adviser can view the report of a student assigned to them.
-Precondition: Adviser has at least one assigned student.
-Test Data: Assigned student ID
+TestCase Title: Supervisor View Assigned Student Report
+Descrption: Verify that a supervisor can view the report of an assigned student.
+Precondition: Supervisor has an assigned student.
+Test data: Assigned student ID
 Test Step:
-1. Log in as an adviser.
-2. Open the intern list.
+1. Log in as Supervisor.
+2. Open intern list.
 3. Select an assigned student.
-4. Open the report.
-Expected Result: The adviser sees the correct report data for the chosen student.
+4. Open report.
+Expected Result: The report is displayed for the chosen assigned student.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-REP-04
 Test Case ID: TC-REP-04
-Test Case Title: Supervisor Export Student DTR to PDF
-Description: Verify that a supervisor can export the DTR of an assigned student.
-Precondition: Supervisor is assigned to the target student and DTR data exists.
-Test Data: Assigned student ID; target month
+TestCase Title: Supervisor View Unassigned Student Report
+Descrption: Verify that a supervisor cannot view a report for an unassigned student.
+Precondition: Another student exists outside the supervisor assignment.
+Test data: Unassigned student ID
 Test Step:
-1. Open the selected student's detail or report view.
-2. Choose `Export DTR PDF`.
-Expected Result: A PDF export is generated successfully for the selected assigned student.
+1. Log in as Supervisor.
+2. Attempt to open a report for an unassigned student.
+Expected Result: Access is denied.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-REP-05
 Test Case ID: TC-REP-05
-Test Case Title: Adviser Export Student DTR to Excel
-Description: Verify that an adviser can export the DTR of an assigned student to Excel.
-Precondition: Adviser is assigned to the target student and DTR data exists.
-Test Data: Assigned student ID; target month
+TestCase Title: Adviser View Assigned Student Report
+Descrption: Verify that an adviser can view the report of an assigned student.
+Precondition: Adviser has an assigned student.
+Test data: Assigned student ID
 Test Step:
-1. Open the chosen student's record.
-2. Choose `Export DTR Excel`.
-Expected Result: An Excel export is generated successfully for the selected assigned student.
+1. Log in as Adviser.
+2. Open intern list.
+3. Select an assigned student.
+4. Open report.
+Expected Result: The selected student's report is displayed.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-REP-06
+Test Case ID: TC-REP-06
+TestCase Title: Adviser View Unassigned Student Report
+Descrption: Verify that an adviser cannot access reports for unassigned students.
+Precondition: An unassigned or differently assigned student exists.
+Test data: Unassigned student ID
+Test Step:
+1. Log in as Adviser.
+2. Attempt to open the student's report.
+Expected Result: Access is denied.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-REP-07
+Test Case ID: TC-REP-07
+TestCase Title: Supervisor Export Assigned Student DTR to PDF
+Descrption: Verify that a supervisor can export PDF for an assigned student's DTR.
+Precondition: Assigned student has DTR records.
+Test data: Assigned student ID; target month
+Test Step:
+1. Open assigned student details.
+2. Choose PDF export.
+Expected Result: The export succeeds and the file is generated.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-REP-08
+Test Case ID: TC-REP-08
+TestCase Title: Supervisor Export Unassigned Student DTR
+Descrption: Verify that a supervisor cannot export DTR for an unassigned student.
+Precondition: An unassigned student exists.
+Test data: Unassigned student ID
+Test Step:
+1. Attempt to export the unassigned student's DTR.
+Expected Result: Access is denied and no file is generated.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-REP-09
+Test Case ID: TC-REP-09
+TestCase Title: Adviser Export Assigned Student DTR to Excel
+Descrption: Verify that an adviser can export an assigned student's DTR to Excel.
+Precondition: Assigned student has DTR data.
+Test data: Assigned student ID; target month
+Test Step:
+1. Open the assigned student's details.
+2. Choose Excel export.
+Expected Result: Excel export succeeds.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-REP-10
+Test Case ID: TC-REP-10
+TestCase Title: Adviser Export Unassigned Student DTR
+Descrption: Verify that an adviser cannot export another student's DTR when not assigned.
+Precondition: An unassigned student exists.
+Test data: Unassigned student ID
+Test Step:
+1. Attempt to export the student's DTR.
+Expected Result: Access is denied and no file is returned.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-REP-11
+Test Case ID: TC-REP-11
+TestCase Title: Admin Export Student DTR to PDF
+Descrption: Verify that an admin can export student DTR when needed.
+Precondition: Student with DTR records exists.
+Test data: Student ID; target month
+Test Step:
+1. Log in as Admin.
+2. Open the relevant student record or export function.
+3. Export to PDF.
+Expected Result: The PDF file is generated successfully.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-REP-12
+Test Case ID: TC-REP-12
+TestCase Title: Export Report with No Matching Data
+Descrption: Verify that export handles empty datasets safely.
+Precondition: The selected student or month has no available data.
+Test data: Empty month or empty student record
+Test Step:
+1. Trigger export for a period with no data.
+Expected Result: The system returns a clear no data response or a valid empty report.
 Actual Result: Pending execution
 Test Result: Not Run
 
@@ -760,79 +1171,101 @@ Test Result: Not Run
 
 ### TC-SUPD-01
 Test Case ID: TC-SUPD-01
-Test Case Title: View Supervisor Dashboard Summary
-Description: Verify that a supervisor can view dashboard summary data for assigned interns and pending items.
-Precondition: Supervisor account is logged in.
-Test Data: Supervisor with assigned interns and at least one pending log
+TestCase Title: View Supervisor Dashboard
+Descrption: Verify that a supervisor can load dashboard summary data.
+Precondition: Supervisor is logged in.
+Test data: Supervisor with assigned interns
 Test Step:
-1. Log in as a supervisor.
-2. Open the supervisor dashboard.
-Expected Result: The dashboard loads summary metrics relevant to the supervisor's assigned interns.
+1. Log in as Supervisor.
+2. Open the dashboard.
+Expected Result: Dashboard metrics and pending counts are displayed.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-SUPD-02
 Test Case ID: TC-SUPD-02
-Test Case Title: View Assigned Intern List
-Description: Verify that a supervisor can view only students assigned to them.
-Precondition: Supervisor has one or more assigned interns.
-Test Data: Assigned and unassigned student records
+TestCase Title: View Assigned Intern List
+Descrption: Verify that a supervisor can view only their assigned interns.
+Precondition: Supervisor has assigned interns.
+Test data: Assigned and unassigned students
 Test Step:
-1. Open the intern list as supervisor.
-2. Review the returned students.
-Expected Result: Only the supervisor's assigned interns are listed.
+1. Open the intern list.
+Expected Result: Only assigned interns are listed.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-SUPD-03
 Test Case ID: TC-SUPD-03
-Test Case Title: Open Intern Detail Page
-Description: Verify that a supervisor can view detailed information for an assigned intern.
-Precondition: Supervisor has at least one assigned student.
-Test Data: Assigned student ID
+TestCase Title: Assigned Intern List with No Interns
+Descrption: Verify that the intern list handles a supervisor with no assigned interns.
+Precondition: Supervisor has no assigned students.
+Test data: Empty assignment set
 Test Step:
-1. Open the supervisor intern list.
-2. Select one assigned student.
-Expected Result: The intern detail page loads with correct profile, progress, and related data.
+1. Open the intern list.
+Expected Result: The system shows an empty state without error.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-SUPD-04
 Test Case ID: TC-SUPD-04
-Test Case Title: View Intern Progress Data
-Description: Verify that a supervisor can view progress information for an assigned intern.
-Precondition: Assigned student has reportable progress records.
-Test Data: Assigned student ID with completed logs or DTR entries
+TestCase Title: View Assigned Intern Detail
+Descrption: Verify that a supervisor can open details for an assigned intern.
+Precondition: Supervisor has at least one assigned student.
+Test data: Assigned student ID
 Test Step:
-1. Open the intern detail page.
-2. Load the progress section.
-Expected Result: The progress information is displayed accurately for the selected student.
+1. Open intern list.
+2. Select an assigned student.
+Expected Result: The selected intern detail page loads correctly.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-SUPD-05
 Test Case ID: TC-SUPD-05
-Test Case Title: Prevent Supervisor Access to Unassigned Intern Detail
-Description: Verify that a supervisor cannot access a student who is not assigned to them.
-Precondition: Another student exists outside the supervisor's assignment set.
-Test Data: Unassigned student ID
+TestCase Title: View Unassigned Intern Detail
+Descrption: Verify that a supervisor cannot access details for an unassigned student.
+Precondition: Another student exists outside the supervisor's assignment.
+Test data: Unassigned student ID
 Test Step:
-1. Log in as a supervisor.
-2. Attempt to open an unassigned student's detail record.
-Expected Result: Access is denied and the other student's data is not shown.
+1. Attempt to open the unassigned student's details.
+Expected Result: Access is denied.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-SUPD-06
 Test Case ID: TC-SUPD-06
-Test Case Title: Supervisor Pagination or Load More for Intern List
-Description: Verify that intern listing remains usable when the supervisor has many assigned students.
-Precondition: Supervisor has enough assigned students to trigger pagination or scrolling behavior.
-Test Data: More than one page of assigned students
+TestCase Title: View Assigned Intern Progress
+Descrption: Verify that a supervisor can load progress data for an assigned intern.
+Precondition: Assigned student has progress records.
+Test data: Assigned student ID
 Test Step:
-1. Open the intern list.
-2. Navigate through list pagination or load additional entries.
-Expected Result: Additional intern records load correctly without duplication or missing entries.
+1. Open an assigned student's details.
+2. View the progress section.
+Expected Result: Progress information is displayed correctly.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-SUPD-07
+Test Case ID: TC-SUPD-07
+TestCase Title: View Progress for Student with No Records
+Descrption: Verify that progress view handles students with no progress records yet.
+Precondition: Assigned student has no logs or DTR records.
+Test data: Assigned student ID with no progress data
+Test Step:
+1. Open the student's progress view.
+Expected Result: The system shows a safe empty or zero-progress state.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-SUPD-08
+Test Case ID: TC-SUPD-08
+TestCase Title: Non-Supervisor Access to Supervisor Dashboard
+Descrption: Verify that non-supervisor users cannot open supervisor-only dashboard screens.
+Precondition: Student, Adviser, or Admin is logged in.
+Test data: Supervisor dashboard route
+Test Step:
+1. Log in as a non-supervisor.
+2. Attempt to open the supervisor dashboard.
+Expected Result: The app redirects the user away from the supervisor dashboard.
 Actual Result: Pending execution
 Test Result: Not Run
 
@@ -842,81 +1275,127 @@ Test Result: Not Run
 
 ### TC-SUPL-01
 Test Case ID: TC-SUPL-01
-Test Case Title: View Pending Log Queue
-Description: Verify that a supervisor can see logs pending their review.
-Precondition: At least one assigned student has a pending log.
-Test Data: Pending log items for assigned students
+TestCase Title: View Pending Log Queue
+Descrption: Verify that a supervisor can view pending logs for assigned students.
+Precondition: Assigned students have pending logs.
+Test data: Pending log queue
 Test Step:
-1. Log in as a supervisor.
+1. Log in as Supervisor.
 2. Open the log review queue.
-Expected Result: The queue shows reviewable logs for assigned students only.
+Expected Result: Pending logs for assigned interns are displayed.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-SUPL-02
 Test Case ID: TC-SUPL-02
-Test Case Title: Open Log Review Detail
-Description: Verify that a supervisor can open a pending log and inspect its full content.
-Precondition: A pending assigned-student log exists.
-Test Data: Pending log ID
+TestCase Title: Empty Pending Log Queue
+Descrption: Verify that the queue handles a supervisor with no pending logs.
+Precondition: No pending logs exist for the supervisor.
+Test data: Empty review queue
 Test Step:
-1. Select a log from the queue.
-2. Open the detail page.
-Expected Result: The selected log details, timestamps, and attachments are shown correctly.
+1. Open the log review queue.
+Expected Result: An empty state is shown with no errors.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-SUPL-03
 Test Case ID: TC-SUPL-03
-Test Case Title: Approve Pending Log
-Description: Verify that a supervisor can approve a student's pending log entry.
-Precondition: Pending log exists for an assigned student.
-Test Data: Pending log ID
+TestCase Title: Open Pending Log Detail
+Descrption: Verify that a supervisor can view the detail of a pending log.
+Precondition: At least one pending log exists for an assigned student.
+Test data: Pending log ID
 Test Step:
-1. Open the log detail page.
-2. Tap `Approve`.
-3. Confirm the action if prompted.
-Expected Result: The log status changes to approved and the student receives the corresponding update.
+1. Select a pending log from the queue.
+Expected Result: The full log detail page opens with related information.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-SUPL-04
 Test Case ID: TC-SUPL-04
-Test Case Title: Reject Pending Log
-Description: Verify that a supervisor can reject a student's pending log entry.
+TestCase Title: Approve Pending Log
+Descrption: Verify that a supervisor can approve a pending log.
 Precondition: Pending log exists for an assigned student.
-Test Data: Pending log ID; Rejection reason if supported
+Test data: Pending log ID
 Test Step:
-1. Open the log detail page.
-2. Tap `Reject`.
-3. Provide a reason if required.
-4. Confirm the action.
-Expected Result: The log status changes to rejected and the student receives the corresponding update.
+1. Open the pending log.
+2. Tap `Approve`.
+3. Confirm if prompted.
+Expected Result: The log status changes to approved.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-SUPL-05
 Test Case ID: TC-SUPL-05
-Test Case Title: Download Log Attachment During Review
-Description: Verify that a supervisor can open or download the proof attachment of an assigned student's log.
-Precondition: The pending or reviewed log contains an attachment.
-Test Data: Valid attachment ID under an assigned student's log
+TestCase Title: Reject Pending Log
+Descrption: Verify that a supervisor can reject a pending log.
+Precondition: Pending log exists for an assigned student.
+Test data: Pending log ID
 Test Step:
-1. Open the log detail page.
-2. Trigger attachment download.
-Expected Result: The attachment downloads or opens successfully.
+1. Open the pending log.
+2. Tap `Reject`.
+3. Confirm if prompted.
+Expected Result: The log status changes to rejected.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-SUPL-06
 Test Case ID: TC-SUPL-06
-Test Case Title: Prevent Re-Review of Already Finalized Log
-Description: Verify that a finalized log cannot be processed again improperly.
-Precondition: The target log has already been approved or rejected.
-Test Data: Finalized log ID
+TestCase Title: Approve Already Finalized Log
+Descrption: Verify that a finalized log cannot be approved again.
+Precondition: The log has already been approved or rejected.
+Test data: Finalized log ID
 Test Step:
-1. Open or submit another approval or rejection action for the finalized log.
-Expected Result: The system blocks the invalid repeat review action and preserves the finalized state.
+1. Attempt to approve the finalized log again.
+Expected Result: The repeated review action is blocked.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-SUPL-07
+Test Case ID: TC-SUPL-07
+TestCase Title: Reject Already Finalized Log
+Descrption: Verify that a finalized log cannot be rejected again.
+Precondition: The log has already been approved or rejected.
+Test data: Finalized log ID
+Test Step:
+1. Attempt to reject the finalized log again.
+Expected Result: The repeated review action is blocked.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-SUPL-08
+Test Case ID: TC-SUPL-08
+TestCase Title: Review Unassigned Student Log
+Descrption: Verify that a supervisor cannot review logs for students who are not assigned to them.
+Precondition: Another student's pending log exists outside the assignment.
+Test data: Unassigned student's log ID
+Test Step:
+1. Attempt to open or review the foreign log.
+Expected Result: Access is denied.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-SUPL-09
+Test Case ID: TC-SUPL-09
+TestCase Title: Download Attachment During Review
+Descrption: Verify that the supervisor can download an attachment from an assigned student's log.
+Precondition: Assigned student's log contains an attachment.
+Test data: Valid attachment ID
+Test Step:
+1. Open log detail.
+2. Download the attachment.
+Expected Result: The file downloads or opens successfully.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-SUPL-10
+Test Case ID: TC-SUPL-10
+TestCase Title: Download Attachment from Unassigned Student Log
+Descrption: Verify that a supervisor cannot access an attachment from an unassigned student's log.
+Precondition: Another student's log attachment exists.
+Test data: Foreign attachment ID
+Test Step:
+1. Attempt to download the attachment.
+Expected Result: Access is denied and the file is not served.
 Actual Result: Pending execution
 Test Result: Not Run
 
@@ -926,66 +1405,114 @@ Test Result: Not Run
 
 ### TC-ADV-01
 Test Case ID: TC-ADV-01
-Test Case Title: View Adviser Intern List
-Description: Verify that an adviser can view students assigned to them.
-Precondition: Adviser has at least one assigned student.
-Test Data: Adviser with assigned interns
+TestCase Title: View Adviser Intern List
+Descrption: Verify that an adviser can view assigned students.
+Precondition: Adviser has assigned students.
+Test data: Adviser assignment data
 Test Step:
-1. Log in as an adviser.
-2. Open the intern listing view.
-Expected Result: Only students assigned to the adviser are listed.
+1. Log in as Adviser.
+2. Open the intern list.
+Expected Result: Only assigned students are displayed.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-ADV-02
 Test Case ID: TC-ADV-02
-Test Case Title: Open Adviser Intern Detail
-Description: Verify that an adviser can inspect detailed information for an assigned intern.
-Precondition: Adviser has at least one assigned intern.
-Test Data: Assigned student ID
+TestCase Title: Adviser Intern List with No Assignments
+Descrption: Verify that the adviser intern list handles zero assignments.
+Precondition: Adviser has no assigned students.
+Test data: Empty assignment list
 Test Step:
-1. Open the adviser intern list.
-2. Select an assigned student.
-Expected Result: The chosen student's detail data loads correctly.
+1. Open the intern list.
+Expected Result: An empty state is shown correctly.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-ADV-03
 Test Case ID: TC-ADV-03
-Test Case Title: View Student Log as Adviser
-Description: Verify that an adviser can open a log entry tied to an assigned student.
-Precondition: Assigned student has at least one log record.
-Test Data: Log ID belonging to an assigned student
+TestCase Title: Open Assigned Intern Detail
+Descrption: Verify that an adviser can open an assigned student's details.
+Precondition: Adviser has at least one assigned student.
+Test data: Assigned student ID
 Test Step:
-1. Open the assigned student's details.
-2. Open one of the student's logs.
-Expected Result: The adviser can view the log content without modification controls outside their role.
+1. Open the adviser intern list.
+2. Select an assigned student.
+Expected Result: The student's details are displayed correctly.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-ADV-04
 Test Case ID: TC-ADV-04
-Test Case Title: Download Assigned Student Attachment as Adviser
-Description: Verify that an adviser can access proof attachments related to an assigned student's log.
-Precondition: Assigned student's log contains an attachment.
-Test Data: Log attachment ID for an assigned student
+TestCase Title: Open Unassigned Intern Detail
+Descrption: Verify that an adviser cannot access an unassigned student's details.
+Precondition: Another student exists outside the adviser's assignment.
+Test data: Unassigned student ID
 Test Step:
-1. Open the student's log detail as adviser.
-2. Download the attachment.
-Expected Result: The attachment is downloaded or opened successfully.
+1. Attempt to open the student detail.
+Expected Result: Access is denied.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-ADV-05
 Test Case ID: TC-ADV-05
-Test Case Title: Prevent Adviser Access to Unassigned Student
-Description: Verify that an adviser cannot view students outside their own assignment list.
-Precondition: Another student exists who is assigned to a different adviser or none.
-Test Data: Unassigned student ID
+TestCase Title: View Assigned Student Log
+Descrption: Verify that an adviser can open a log from an assigned student.
+Precondition: Assigned student has at least one log.
+Test data: Assigned student's log ID
 Test Step:
-1. Log in as an adviser.
-2. Attempt to open the unassigned student's detail or report.
-Expected Result: Access is denied and no unauthorized student information is shown.
+1. Open assigned student details.
+2. Select a log entry.
+Expected Result: The adviser can view the log details.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-ADV-06
+Test Case ID: TC-ADV-06
+TestCase Title: View Unassigned Student Log
+Descrption: Verify that an adviser cannot access log details from an unassigned student.
+Precondition: Another student's log exists outside adviser assignment.
+Test data: Foreign log ID
+Test Step:
+1. Attempt to open the foreign log.
+Expected Result: Access is denied.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-ADV-07
+Test Case ID: TC-ADV-07
+TestCase Title: Download Assigned Student Attachment
+Descrption: Verify that an adviser can download proof attachments from an assigned student's log.
+Precondition: Assigned student's log has an attachment.
+Test data: Valid attachment ID
+Test Step:
+1. Open the log detail.
+2. Download the attachment.
+Expected Result: The attachment downloads successfully.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-ADV-08
+Test Case ID: TC-ADV-08
+TestCase Title: Download Unassigned Student Attachment
+Descrption: Verify that an adviser cannot download attachments from an unassigned student's log.
+Precondition: Another student's attachment exists outside the adviser assignment.
+Test data: Foreign attachment ID
+Test Step:
+1. Attempt to download the foreign attachment.
+Expected Result: Access is denied.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-ADV-09
+Test Case ID: TC-ADV-09
+TestCase Title: Non-Adviser User Opens Adviser Module
+Descrption: Verify that non-adviser users cannot access adviser-only intern monitoring.
+Precondition: Student, Supervisor, or Admin account is logged in.
+Test data: Adviser module route
+Test Step:
+1. Log in as a non-adviser role.
+2. Attempt to open adviser intern monitoring.
+Expected Result: Access is denied or the user is redirected away.
 Actual Result: Pending execution
 Test Result: Not Run
 
@@ -995,219 +1522,385 @@ Test Result: Not Run
 
 ### TC-ADMIN-01
 Test Case ID: TC-ADMIN-01
-Test Case Title: View Admin Dashboard Metrics
-Description: Verify that an admin can access overall dashboard metrics.
-Precondition: Admin account exists and is logged in.
-Test Data: Existing records for users, students, logs, or pending items
+TestCase Title: View Admin Dashboard Metrics
+Descrption: Verify that admin can view overall dashboard metrics.
+Precondition: Admin is logged in.
+Test data: Existing users, students, and logs
 Test Step:
-1. Log in as admin.
-2. Open the admin dashboard.
-Expected Result: The dashboard loads and displays summary metrics correctly.
+1. Log in as Admin.
+2. Open admin dashboard.
+Expected Result: Dashboard metrics load correctly.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-ADMIN-02
 Test Case ID: TC-ADMIN-02
-Test Case Title: View Student List
-Description: Verify that an admin can retrieve the full student list.
-Precondition: Multiple student records exist.
-Test Data: Existing students across different statuses
+TestCase Title: View Student Listing
+Descrption: Verify that admin can load the student list.
+Precondition: Student records exist.
+Test data: Multiple student records
 Test Step:
-1. Open the admin student management area.
-2. Load the student list.
-Expected Result: The student list loads successfully with relevant student information.
+1. Open admin student listing.
+Expected Result: Student records are displayed successfully.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-ADMIN-03
 Test Case ID: TC-ADMIN-03
-Test Case Title: View User Management List
-Description: Verify that an admin can view the user management listing.
-Precondition: Users exist for at least two roles.
-Test Data: Student, Supervisor, Adviser, and Admin user records
+TestCase Title: View User Management List
+Descrption: Verify that admin can load the user management page.
+Precondition: User records exist for multiple roles.
+Test data: Admin, Student, Supervisor, Adviser records
 Test Step:
-1. Open the user management view.
-2. Load users.
-Expected Result: The user list displays existing accounts with their correct roles.
+1. Open user management.
+Expected Result: All users are displayed with correct role information.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-ADMIN-04
 Test Case ID: TC-ADMIN-04
-Test Case Title: Create New User Account
-Description: Verify that an admin can create a new user account.
-Precondition: Admin is logged in and the target email is unused.
-Test Data: Name `Maria Admin`; Email `maria.supervisor@example.com`; Role `Supervisor`; Password `Password123`
+TestCase Title: Create User Successfully
+Descrption: Verify that admin can create a new user with valid details.
+Precondition: The target email is unused.
+Test data: Name `Maria Supervisor`; Email `maria.supervisor@example.com`; Role `Supervisor`; Password `Password123`
 Test Step:
-1. Open user management.
-2. Choose `Add User`.
-3. Enter valid account details.
-4. Save.
-Expected Result: The new user account is created successfully and appears in the user list.
+1. Open `Add User`.
+2. Enter valid data.
+3. Save the user.
+Expected Result: The new user is created and appears in the list.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-ADMIN-05
 Test Case ID: TC-ADMIN-05
-Test Case Title: Prevent Duplicate User Creation
-Description: Verify that the admin cannot create a user using an existing email address.
+TestCase Title: Create User with Duplicate Email
+Descrption: Verify that admin cannot create a user using an existing email.
 Precondition: A user already exists with the target email.
-Test Data: Existing email `maria.supervisor@example.com`
+Test data: Email `maria.supervisor@example.com`
 Test Step:
 1. Open `Add User`.
-2. Enter the duplicate email.
+2. Enter a duplicate email.
 3. Save.
-Expected Result: User creation is rejected and an email uniqueness validation message is shown.
+Expected Result: User creation is rejected and email uniqueness validation is shown.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-ADMIN-06
 Test Case ID: TC-ADMIN-06
-Test Case Title: Delete User Account
-Description: Verify that an admin can delete a selected user account when allowed by system rules.
-Precondition: A deletable user exists.
-Test Data: Target user ID
+TestCase Title: Create User with Missing Required Data
+Descrption: Verify that admin cannot create a user when required fields are empty.
+Precondition: Admin is on the add user form.
+Test data: Blank email or blank password
 Test Step:
-1. Open user management.
-2. Select a user.
-3. Trigger delete and confirm.
-Expected Result: The account is removed and no longer appears in the user listing.
+1. Leave one or more required fields blank.
+2. Save the form.
+Expected Result: Validation messages are shown and the user is not created.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-ADMIN-07
 Test Case ID: TC-ADMIN-07
-Test Case Title: Assign Adviser to Student
-Description: Verify that an admin can assign an adviser to a student.
-Precondition: Student and adviser accounts exist.
-Test Data: Student ID; Adviser ID
+TestCase Title: Delete User Successfully
+Descrption: Verify that admin can delete a deletable user account.
+Precondition: A deletable user exists.
+Test data: Target user ID
 Test Step:
-1. Open student assignment management.
-2. Select a student.
-3. Assign an adviser.
-4. Save.
-Expected Result: The adviser assignment is stored successfully for the student.
+1. Open user management.
+2. Choose a user.
+3. Delete and confirm.
+Expected Result: The selected user is removed from the list.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-ADMIN-08
 Test Case ID: TC-ADMIN-08
-Test Case Title: Assign Supervisor to Student
-Description: Verify that an admin can assign a supervisor to a student.
-Precondition: Student and supervisor accounts exist.
-Test Data: Student ID; Supervisor ID
+TestCase Title: Delete Nonexistent User
+Descrption: Verify that the system handles deletion of an invalid or nonexistent user ID safely.
+Precondition: Admin is authenticated.
+Test data: Invalid user ID
 Test Step:
-1. Open student assignment management.
-2. Select a student.
-3. Assign a supervisor.
-4. Save.
-Expected Result: The supervisor assignment is stored successfully for the student.
+1. Attempt to delete a nonexistent user.
+Expected Result: The request fails gracefully and no unrelated records are affected.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-ADMIN-09
 Test Case ID: TC-ADMIN-09
-Test Case Title: View Current Adviser Assignment for Student
-Description: Verify that an admin can retrieve the current adviser assigned to a student.
-Precondition: Student already has an assigned adviser.
-Test Data: Student ID
+TestCase Title: Assign Adviser to Student Successfully
+Descrption: Verify that admin can assign an adviser to a student.
+Precondition: Student and adviser records exist.
+Test data: Student ID; Adviser ID
 Test Step:
-1. Open the selected student's assignment information.
-2. Load current adviser data.
-Expected Result: The system displays the correct assigned adviser.
+1. Open student assignment management.
+2. Select a student.
+3. Assign an adviser.
+4. Save.
+Expected Result: Adviser assignment is saved successfully.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-ADMIN-10
 Test Case ID: TC-ADMIN-10
-Test Case Title: View Current Supervisor Assignment for Student
-Description: Verify that an admin can retrieve the current supervisor assigned to a student.
-Precondition: Student already has an assigned supervisor.
-Test Data: Student ID
+TestCase Title: Assign Supervisor to Student Successfully
+Descrption: Verify that admin can assign a supervisor to a student.
+Precondition: Student and supervisor records exist.
+Test data: Student ID; Supervisor ID
 Test Step:
-1. Open the selected student's assignment information.
-2. Load current supervisor data.
-Expected Result: The system displays the correct assigned supervisor.
+1. Open assignment management.
+2. Select a student.
+3. Assign a supervisor.
+4. Save.
+Expected Result: Supervisor assignment is saved successfully.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-ADMIN-11
+Test Case ID: TC-ADMIN-11
+TestCase Title: Assign Invalid Adviser Role to Student
+Descrption: Verify that admin cannot assign a user who is not an adviser into the adviser slot.
+Precondition: A non-adviser user exists.
+Test data: Student ID; Student or Supervisor ID as adviser
+Test Step:
+1. Attempt to assign an invalid user as adviser.
+2. Save changes.
+Expected Result: The system rejects the assignment.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-ADMIN-12
+Test Case ID: TC-ADMIN-12
+TestCase Title: Assign Invalid Supervisor Role to Student
+Descrption: Verify that admin cannot assign a non-supervisor user as supervisor.
+Precondition: A non-supervisor user exists.
+Test data: Student ID; Adviser or Student ID as supervisor
+Test Step:
+1. Attempt to assign an invalid user as supervisor.
+2. Save changes.
+Expected Result: The assignment is rejected.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-ADMIN-13
+Test Case ID: TC-ADMIN-13
+TestCase Title: View Current Adviser Assignment
+Descrption: Verify that admin can retrieve a student's current adviser assignment.
+Precondition: Student already has an adviser assigned.
+Test data: Student ID
+Test Step:
+1. Open the student's assignment record.
+2. Load adviser information.
+Expected Result: The correct adviser is displayed.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-ADMIN-14
+Test Case ID: TC-ADMIN-14
+TestCase Title: View Current Supervisor Assignment
+Descrption: Verify that admin can retrieve a student's current supervisor assignment.
+Precondition: Student already has a supervisor assigned.
+Test data: Student ID
+Test Step:
+1. Open the student's assignment record.
+2. Load supervisor information.
+Expected Result: The correct supervisor is displayed.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-ADMIN-15
+Test Case ID: TC-ADMIN-15
+TestCase Title: Non-Admin Access to Admin Dashboard
+Descrption: Verify that non-admin users cannot open admin-only pages or endpoints.
+Precondition: Student, Supervisor, or Adviser account is logged in.
+Test data: Admin dashboard route or endpoint
+Test Step:
+1. Log in as a non-admin role.
+2. Attempt to access admin dashboard or admin management pages.
+Expected Result: Access is denied or redirected away.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ---
 
-## MODULE 13 - ROLE-BASED ACCESS, SECURITY, AND API FOUNDATION
+## MODULE 13 - ROLE-BASED ACCESS CONTROL AND ROUTE GUARDS
+
+### TC-RBAC-01
+Test Case ID: TC-RBAC-01
+TestCase Title: Student Cannot Access Supervisor Endpoint
+Descrption: Verify that a student account cannot call supervisor-only endpoints.
+Precondition: Student is logged in.
+Test data: `GET /api/v1/supervisor/logs`
+Test Step:
+1. Authenticate as Student.
+2. Attempt to access the supervisor endpoint.
+Expected Result: Access is denied.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-RBAC-02
+Test Case ID: TC-RBAC-02
+TestCase Title: Student Cannot Access Admin Endpoint
+Descrption: Verify that a student account cannot call admin-only endpoints.
+Precondition: Student is logged in.
+Test data: `GET /api/v1/admin/dashboard`
+Test Step:
+1. Authenticate as Student.
+2. Attempt to open the admin dashboard endpoint.
+Expected Result: Access is denied.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-RBAC-03
+Test Case ID: TC-RBAC-03
+TestCase Title: Adviser Cannot Create Student Log
+Descrption: Verify that an adviser cannot use student-only log submission endpoints.
+Precondition: Adviser is logged in.
+Test data: `POST /api/v1/student/logs`
+Test Step:
+1. Authenticate as Adviser.
+2. Submit a student log payload.
+Expected Result: Access is denied and no log is created.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-RBAC-04
+Test Case ID: TC-RBAC-04
+TestCase Title: Supervisor Cannot Access Admin User Management
+Descrption: Verify that supervisors cannot access admin user management endpoints.
+Precondition: Supervisor is logged in.
+Test data: `GET /api/v1/admin/users`
+Test Step:
+1. Authenticate as Supervisor.
+2. Attempt to open admin user management.
+Expected Result: Access is denied.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-RBAC-05
+Test Case ID: TC-RBAC-05
+TestCase Title: Role Route Guard Redirects Wrong Role
+Descrption: Verify that the Flutter role guard redirects users who open another role's route.
+Precondition: User is logged in under any role.
+Test data: Student opens supervisor dashboard route
+Test Step:
+1. Log in as Student.
+2. Navigate directly to a supervisor or admin route.
+Expected Result: The app redirects the user back to the correct dashboard for their role.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-RBAC-06
+Test Case ID: TC-RBAC-06
+TestCase Title: Guest Cannot Access Protected Route
+Descrption: Verify that unauthenticated users cannot open protected screens.
+Precondition: User is logged out.
+Test data: Protected route such as `/settings`
+Test Step:
+1. Open a protected route directly while logged out.
+Expected Result: The login screen is shown instead of the protected screen.
+Actual Result: Pending execution
+Test Result: Not Run
+
+---
+
+## MODULE 14 - API FOUNDATION, SECURITY, AND SYSTEM RESILIENCE
 
 ### TC-SEC-01
 Test Case ID: TC-SEC-01
-Test Case Title: Student Cannot Access Supervisor Endpoints
-Description: Verify that student accounts are blocked from supervisor-only routes.
-Precondition: Student account is logged in.
-Test Data: `GET /api/v1/supervisor/logs`
+TestCase Title: Public Health Endpoint Responds Successfully
+Descrption: Verify that the public health endpoint is accessible without login.
+Precondition: API server is running.
+Test data: `GET /api/v1/health`
 Test Step:
-1. Authenticate as a student.
-2. Attempt to access a supervisor-only endpoint.
-Expected Result: Access is denied with an authorization error and no supervisor data is returned.
+1. Send a request to the health endpoint without authentication.
+Expected Result: The endpoint responds successfully with API status information.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-SEC-02
 Test Case ID: TC-SEC-02
-Test Case Title: Adviser Cannot Create Student Logs
-Description: Verify that adviser accounts cannot use student-only log creation endpoints.
-Precondition: Adviser account is logged in.
-Test Data: `POST /api/v1/student/logs`
+TestCase Title: Protected Endpoint Without Token
+Descrption: Verify that protected endpoints reject unauthenticated requests.
+Precondition: No valid token is attached to the request.
+Test data: `GET /api/v1/notifications`
 Test Step:
-1. Authenticate as an adviser.
-2. Attempt to submit a student log payload.
-Expected Result: Access is denied and the log is not created.
+1. Call a protected endpoint without a token.
+Expected Result: The request is rejected as unauthenticated.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-SEC-03
 Test Case ID: TC-SEC-03
-Test Case Title: Admin Route Guard Blocks Non-Admin UI Access
-Description: Verify that non-admin users are redirected away from admin-only screens.
-Precondition: Student, Supervisor, or Adviser user is logged in.
-Test Data: Attempt to open admin dashboard route
+TestCase Title: Protected Endpoint with Invalid Token
+Descrption: Verify that requests using an invalid token are rejected.
+Precondition: An invalid or expired token is available.
+Test data: Invalid bearer token
 Test Step:
-1. Log in as a non-admin user.
-2. Attempt to navigate directly to the admin dashboard or assignment screen.
-Expected Result: The app redirects the user to their own dashboard instead of showing admin content.
+1. Call a protected endpoint using the invalid token.
+Expected Result: Access is denied and the user is treated as unauthenticated.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-SEC-04
 Test Case ID: TC-SEC-04
-Test Case Title: Protected Endpoint Requires Authentication
-Description: Verify that protected API endpoints cannot be accessed without a valid token.
-Precondition: User is logged out or request is sent without authentication headers.
-Test Data: `GET /api/v1/notifications`
+TestCase Title: Input Sanitization on Text Field
+Descrption: Verify that unsafe script-like input is sanitized or rejected.
+Precondition: User can submit a text field such as log narrative or profile value.
+Test data: `<script>alert('x')</script>`
 Test Step:
-1. Send a request to a protected endpoint without a token.
-Expected Result: The request is rejected with an unauthenticated response.
+1. Enter the payload into a supported text field.
+2. Submit the form.
+3. Reload the saved data if accepted.
+Expected Result: Unsafe script content is sanitized or rejected and never rendered as executable code.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-SEC-05
 Test Case ID: TC-SEC-05
-Test Case Title: Health Endpoint Remains Publicly Accessible
-Description: Verify that the API health endpoint is accessible without authentication.
-Precondition: API server is running.
-Test Data: `GET /api/v1/health`
+TestCase Title: Rate Limit on Login Attempts
+Descrption: Verify that repeated login attempts are throttled when limits are exceeded.
+Precondition: Login endpoint is available.
+Test data: More than the allowed number of rapid invalid login attempts
 Test Step:
-1. Send a request to the health endpoint without logging in.
-Expected Result: The endpoint responds successfully with the API health payload.
+1. Repeatedly submit invalid login credentials.
+2. Continue until the threshold is exceeded.
+Expected Result: The system throttles requests and returns a limit message.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-SEC-06
 Test Case ID: TC-SEC-06
-Test Case Title: Input Sanitization Blocks Unsafe Payload
-Description: Verify that unsafe script-like input is sanitized or rejected in text fields.
-Precondition: User can submit a text-bearing form such as log narrative or profile field.
-Test Data: `<script>alert('x')</script>`
+TestCase Title: Rate Limit on Attachment Upload
+Descrption: Verify that repeated attachment uploads are throttled when limits are exceeded.
+Precondition: Student owns a log eligible for uploads.
+Test data: More than the allowed number of upload attempts in a short time
 Test Step:
-1. Enter the unsafe payload into a text field.
-2. Submit the form.
-3. Reload the saved record if submission succeeds.
-Expected Result: Unsafe input is sanitized or rejected, and executable script content is not rendered back to users.
+1. Repeatedly trigger attachment upload requests.
+2. Continue beyond the allowed limit.
+Expected Result: The endpoint applies throttling and returns a limit response.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-SEC-07
+Test Case ID: TC-SEC-07
+TestCase Title: API Handles Not Found Record Gracefully
+Descrption: Verify that requests for nonexistent records return safe not found responses.
+Precondition: User is authenticated.
+Test data: Nonexistent log ID or user ID
+Test Step:
+1. Request a record using an invalid ID that does not exist.
+Expected Result: The API returns a safe not found response without exposing internal details.
+Actual Result: Pending execution
+Test Result: Not Run
+
+### TC-SEC-08
+Test Case ID: TC-SEC-08
+TestCase Title: API Response on Server Error Path
+Descrption: Verify that the system returns controlled error behavior when an internal failure occurs.
+Precondition: A safe non-production test setup is available to simulate failure.
+Test data: Forced backend error scenario
+Test Step:
+1. Trigger a controlled server-side failure scenario.
+2. Observe the client and API behavior.
+Expected Result: The system returns a controlled error response and does not expose sensitive stack information to the user.
 Actual Result: Pending execution
 Test Result: Not Run

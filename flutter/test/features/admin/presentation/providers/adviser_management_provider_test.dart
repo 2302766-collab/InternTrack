@@ -95,6 +95,17 @@ void main() {
       expect(provider.isLoading, isFalse);
     });
 
+    test('loadAdvisers handles unexpected errors', () async {
+      fakeService.fetchAdvisersHandler = () async => throw StateError('boom');
+
+      await provider.loadAdvisers();
+
+      expect(provider.advisers, isEmpty);
+      expect(provider.errorMessage, contains('Failed to load advisers:'));
+      expect(provider.errorMessage, contains('boom'));
+      expect(provider.isLoading, isFalse);
+    });
+
     test('loadStudentAdviser sets assignment', () async {
       final assignment = StudentAdviserAssignment(
         studentId: 1,
@@ -122,6 +133,20 @@ void main() {
 
       expect(result, isNull);
       expect(provider.errorMessage, 'Student not found');
+    });
+
+    test('returns null on unexpected adviser-load failure', () async {
+      fakeService.getStudentAdviserHandler = (_) async =>
+          throw StateError('broken adviser lookup');
+
+      final result = await provider.loadStudentAdviser(1);
+
+      expect(result, isNull);
+      expect(
+        provider.errorMessage,
+        contains('Failed to load student adviser:'),
+      );
+      expect(provider.errorMessage, contains('broken adviser lookup'));
     });
 
     test('assignAdviser success sets success message', () async {
@@ -186,6 +211,38 @@ void main() {
       expect(provider.errorMessage, 'Selected user is not an adviser');
       expect(provider.successMessage, isNull);
       expect(provider.isAssigning, isFalse);
+    });
+
+    test('handles unexpected error on assignment failure', () async {
+      fakeService.assignAdviserHandler =
+          ({required studentId, adviserId}) async =>
+              throw StateError('assignment crashed');
+
+      final result = await provider.assignAdviser(studentId: 1, adviserId: 1);
+
+      expect(result, isFalse);
+      expect(provider.errorMessage, contains('Failed to assign adviser:'));
+      expect(provider.errorMessage, contains('assignment crashed'));
+      expect(provider.successMessage, isNull);
+      expect(provider.isAssigning, isFalse);
+    });
+
+    test('updateService swaps provider dependency', () async {
+      final replacement = FakeAdviserManagementService(
+        fetchAdvisersHandler: () async => <AdviserInfo>[
+          AdviserInfo(
+            id: 9,
+            name: 'Replacement Adviser',
+            email: 'new@test.com',
+          ),
+        ],
+      );
+
+      provider.updateService(replacement);
+      await provider.loadAdvisers();
+
+      expect(provider.advisers, hasLength(1));
+      expect(provider.advisers.single.name, 'Replacement Adviser');
     });
 
     test('clearMessages clears error and success messages', () async {

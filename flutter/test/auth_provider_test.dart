@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dio/dio.dart';
+import 'package:intern_track_app/core/constants/app_routes.dart';
 import 'package:intern_track_app/core/exceptions/api_exception.dart';
 import 'package:intern_track_app/core/services/auth_service.dart';
 import 'package:intern_track_app/core/services/api_client.dart';
@@ -134,6 +137,124 @@ void main() {
         expect(tokenService.cleared, isTrue);
       },
     );
+
+    test(
+      'refreshAuthState clears session when synced token is unauthorized',
+      () async {
+        final tokenService = _FakeTokenService('stored-token', _student);
+        final authService = _FakeAuthService(
+          error: ApiException(
+            message: 'Unauthenticated.',
+            errorType: ApiErrorType.unauthorized,
+          ),
+        );
+        final provider = AuthProvider(tokenService, authService: authService);
+
+        await provider.initialize();
+        await provider.refreshAuthState();
+
+        expect(provider.isAuthenticated, isFalse);
+        expect(provider.token, isNull);
+        expect(provider.user, isNull);
+        expect(tokenService.cleared, isTrue);
+      },
+    );
+
+    test('logout clears local session even when server logout fails', () async {
+      final tokenService = _FakeTokenService('stored-token', _student);
+      final authService = _FakeAuthService(
+        user: _student,
+        logoutError: ApiException(
+          message: 'Token already expired.',
+          errorType: ApiErrorType.unauthorized,
+        ),
+      );
+      final provider = AuthProvider(tokenService, authService: authService);
+
+      await provider.initialize();
+      await provider.logout();
+
+      expect(provider.isAuthenticated, isFalse);
+      expect(provider.token, isNull);
+      expect(provider.user, isNull);
+      expect(tokenService.cleared, isTrue);
+    });
+
+    test('dashboardRoute matches each supported role', () async {
+      final adminProvider = AuthProvider(
+        _FakeTokenService(),
+        authService: _FakeAuthService(),
+      );
+      await adminProvider.setToken(
+        'admin-token',
+        user: const AppUser(
+          id: 10,
+          name: 'Admin',
+          email: 'admin@test',
+          role: 'Admin',
+        ),
+      );
+
+      final supervisorProvider = AuthProvider(
+        _FakeTokenService(),
+        authService: _FakeAuthService(),
+      );
+      await supervisorProvider.setToken(
+        'supervisor-token',
+        user: const AppUser(
+          id: 11,
+          name: 'Supervisor',
+          email: 'supervisor@test',
+          role: 'Supervisor',
+        ),
+      );
+
+      final adviserProvider = AuthProvider(
+        _FakeTokenService(),
+        authService: _FakeAuthService(),
+      );
+      await adviserProvider.setToken(
+        'adviser-token',
+        user: const AppUser(
+          id: 12,
+          name: 'Adviser',
+          email: 'adviser@test',
+          role: 'Adviser',
+        ),
+      );
+
+      expect(adminProvider.dashboardRoute, AppRoutes.adminDashboard);
+      expect(supervisorProvider.dashboardRoute, AppRoutes.supervisorDashboard);
+      expect(adviserProvider.dashboardRoute, AppRoutes.adviserDashboard);
+      expect(
+        AuthProvider(
+          _FakeTokenService(),
+          authService: _FakeAuthService(),
+        ).dashboardRoute,
+        AppRoutes.studentDashboard,
+      );
+    });
+
+    test('updateAvatarBytes clears avatar when bytes are empty', () async {
+      final tokenService = _FakeTokenService('stored-token', _student);
+      final authService = _FakeAuthService(
+        user: _student,
+        updateAvatarHandler: (_) async => const AppUser(
+          id: 1,
+          name: 'Student User',
+          email: 'student@example.test',
+          role: 'Student',
+        ),
+      );
+      final provider = AuthProvider(tokenService, authService: authService);
+
+      await provider.initialize();
+      await provider.updateAvatarBytes(Uint8List(0));
+
+      expect(provider.user?.avatarBase64, isNull);
+      expect(tokenService.storedUser?.avatarBase64, isNull);
+      expect(authService.lastAvatarBase64, isNull);
+    });
   });
 }
 
@@ -199,16 +320,43 @@ class _FakeTokenService extends TokenService {
 }
 
 class _FakeAuthService extends AuthService {
-  _FakeAuthService({this.user, this.error}) : super(ApiClient(dio: Dio()));
+  _FakeAuthService({
+    this.user,
+    this.error,
+    this.logoutError,
+    this.updateAvatarHandler,
+  }) : super(ApiClient(dio: Dio()));
 
   final AppUser? user;
   final Object? error;
+  final Object? logoutError;
+  final Future<AppUser> Function(String? avatarBase64)? updateAvatarHandler;
+  String? lastAvatarBase64;
 
   @override
   Future<AppUser> getAuthenticatedUser() async {
     final error = this.error;
     if (error != null) {
       throw error;
+    }
+
+    return user!;
+  }
+
+  @override
+  Future<void> logout() async {
+    final logoutError = this.logoutError;
+    if (logoutError != null) {
+      throw logoutError;
+    }
+  }
+
+  @override
+  Future<AppUser> updateAvatarBase64(String? avatarBase64) async {
+    lastAvatarBase64 = avatarBase64;
+    final handler = updateAvatarHandler;
+    if (handler != null) {
+      return handler(avatarBase64);
     }
 
     return user!;
