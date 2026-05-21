@@ -2106,12 +2106,28 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       required bool enabled,
       VoidCallback? onTap,
     }) {
+      final tileSurface = _theme.isDarkMode
+          ? (enabled
+                ? backgroundColor
+                : backgroundColor.withValues(alpha: 0.62))
+          : Color.alphaBlend(
+              backgroundColor.withValues(alpha: enabled ? 0.34 : 0.18),
+              Colors.white,
+            );
+      final tileBorderColor = enabled
+          ? _tintedBorder(iconColor, lightAlpha: 0.28)
+          : (_theme.isDarkMode
+                ? _theme.borderSubtleColor
+                : const Color(0x220F172A));
+      final iconSurface = _theme.isDarkMode
+          ? iconColor.withValues(alpha: enabled ? 0.12 : 0.08)
+          : iconColor.withValues(alpha: enabled ? 0.14 : 0.09);
       final foregroundColor = _theme.isDarkMode
           ? _headlineColor
-          : iconColor.withValues(alpha: 0.92);
+          : const Color(0xFF17324D);
       final secondaryForegroundColor = _theme.isDarkMode
           ? _bodyColor
-          : iconColor.withValues(alpha: 0.78);
+          : iconColor.withValues(alpha: 0.96);
 
       return Material(
         color: Colors.transparent,
@@ -2121,17 +2137,20 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           child: Ink(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: enabled
-                  ? backgroundColor
-                  : backgroundColor.withValues(alpha: 0.62),
+              color: tileSurface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: enabled
-                    ? iconColor.withValues(alpha: 0.18)
-                    : _theme.isDarkMode
-                    ? _theme.borderSubtleColor
-                    : const Color(0x1A0F172A),
+                color: tileBorderColor,
               ),
+              boxShadow: _theme.isDarkMode
+                  ? const []
+                  : [
+                      BoxShadow(
+                        color: iconColor.withValues(alpha: enabled ? 0.10 : 0.05),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
             ),
             child: Row(
               children: [
@@ -2139,7 +2158,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: enabled ? 0.12 : 0.08),
+                    color: iconSurface,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -2510,10 +2529,77 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         profile.supervisorName?.trim().isNotEmpty == true ||
         profile.supervisorId != null;
     final adviserAssigned = profile.adviserId != null;
+    final summaryAccent = adviserAssigned && supervisorAssigned
+        ? const Color(0xFF027A48)
+        : const Color(0xFFB54708);
+    final summarySurface = _theme.isDarkMode
+        ? summaryAccent.withValues(alpha: 0.18)
+        : Color.alphaBlend(
+            summaryAccent.withValues(alpha: 0.10),
+            Colors.white,
+          );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: summarySurface,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: _tintedBorder(summaryAccent, lightAlpha: 0.22),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: _theme.isDarkMode
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : summaryAccent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  Icons.apartment_rounded,
+                  color: summaryAccent,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      profile.companyName,
+                      style: TextStyle(
+                        color: _headlineColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Your active internship setup and assignment status at a glance.',
+                      style: TextStyle(
+                        color: _bodyColor,
+                        fontSize: 13,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -2551,25 +2637,65 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        _SummaryRow(label: 'Company', value: profile.companyName),
-        _SummaryRow(label: 'Required Hours', value: '${profile.requiredHours}'),
-        _SummaryRow(
-          label: 'Schedule',
-          value:
-              '${_formatDisplayDate(profile.startDate)} to ${_formatDisplayDate(profile.endDate)}',
-        ),
-        _SummaryRow(
-          label: 'Supervisor',
-          value: supervisorAssigned
-              ? (profile.supervisorName?.trim().isNotEmpty == true
-                    ? profile.supervisorName!
-                    : 'Assigned')
-              : 'Not assigned',
-        ),
-        _SummaryRow(
-          label: 'Adviser',
-          value: adviserAssigned ? 'Assigned' : 'Not assigned',
+        const SizedBox(height: 14),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 420;
+            final tileWidth = isWide
+                ? (constraints.maxWidth - 12) / 2
+                : constraints.maxWidth;
+
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _SummaryDetailTile(
+                  width: tileWidth,
+                  icon: Icons.business_outlined,
+                  label: 'Company',
+                  value: profile.companyName,
+                  accent: const Color(0xFF123C73),
+                ),
+                _SummaryDetailTile(
+                  width: tileWidth,
+                  icon: Icons.schedule_rounded,
+                  label: 'Required Hours',
+                  value: '${profile.requiredHours}',
+                  accent: const Color(0xFF0F766E),
+                ),
+                _SummaryDetailTile(
+                  width: tileWidth,
+                  icon: Icons.calendar_month_rounded,
+                  label: 'Schedule',
+                  value:
+                      '${_formatDisplayDate(profile.startDate)} to ${_formatDisplayDate(profile.endDate)}',
+                  accent: const Color(0xFF175CD3),
+                ),
+                _SummaryDetailTile(
+                  width: tileWidth,
+                  icon: Icons.person_pin_circle_outlined,
+                  label: 'Supervisor',
+                  value: supervisorAssigned
+                      ? (profile.supervisorName?.trim().isNotEmpty == true
+                            ? profile.supervisorName!
+                            : 'Assigned')
+                      : 'Not assigned',
+                  accent: supervisorAssigned
+                      ? const Color(0xFF027A48)
+                      : const Color(0xFFB54708),
+                ),
+                _SummaryDetailTile(
+                  width: constraints.maxWidth,
+                  icon: Icons.school_outlined,
+                  label: 'Adviser',
+                  value: adviserAssigned ? 'Assigned' : 'Not assigned',
+                  accent: adviserAssigned
+                      ? const Color(0xFF027A48)
+                      : const Color(0xFFB54708),
+                ),
+              ],
+            );
+          },
         ),
         if (_profileError != null) ...[
           const SizedBox(height: 12),
@@ -3053,33 +3179,79 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   }
 }
 
-class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, required this.value});
+class _SummaryDetailTile extends StatelessWidget {
+  const _SummaryDetailTile({
+    required this.width,
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
 
+  final double width;
+  final IconData icon;
   final String label;
   final String value;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: RichText(
-        text: TextSpan(
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: Theme.of(context).secondaryTextColor,
-            height: 1.4,
-          ),
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: TextStyle(
-                color: Theme.of(context).primaryTextColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            TextSpan(text: value),
-          ],
+    final theme = Theme.of(context);
+    final surface = theme.isDarkMode
+        ? accent.withValues(alpha: 0.14)
+        : Color.alphaBlend(accent.withValues(alpha: 0.08), Colors.white);
+
+    return Container(
+      width: width,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: theme.isDarkMode
+              ? accent.withValues(alpha: 0.24)
+              : accent.withValues(alpha: 0.16),
         ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: theme.isDarkMode ? 0.18 : 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 18, color: accent),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: theme.secondaryTextColor,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: theme.primaryTextColor,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
