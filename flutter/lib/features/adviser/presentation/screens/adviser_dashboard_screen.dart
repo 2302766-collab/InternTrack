@@ -1439,10 +1439,6 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
 
         final profileSection = Row(
           children: [
-            const SettingsShortcutButton(),
-            const SizedBox(width: 8),
-            NotificationBellButton(token: authProvider.token ?? ''),
-            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: isCompact
@@ -1471,6 +1467,10 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                 ],
               ),
             ),
+            const SizedBox(width: 10),
+            const SettingsShortcutButton(),
+            const SizedBox(width: 8),
+            NotificationBellButton(token: authProvider.token ?? ''),
             const SizedBox(width: 14),
             InkWell(
               key: _profileMenuAnchorKey,
@@ -1539,6 +1539,14 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
             ),
           ),
         );
+        final mobileProfileCluster = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            mobileActions,
+            const SizedBox(width: 10),
+            Flexible(child: mobileProfileSection),
+          ],
+        );
 
         return Container(
           padding: EdgeInsets.fromLTRB(
@@ -1555,10 +1563,6 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
               ? Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [const Spacer(), mobileActions],
-                    ),
                     const SizedBox(height: 8),
                     Text(
                       'Academic Adviser Dashboard',
@@ -1592,7 +1596,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                     const SizedBox(height: 14),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: mobileProfileSection,
+                      child: mobileProfileCluster,
                     ),
                   ],
                 )
