@@ -2692,7 +2692,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(width: 8),
           RichText(
             text: TextSpan(
-              style: DefaultTextStyle.of(context).style,
+              style: DefaultTextStyle.of(
+                context,
+              ).style.copyWith(decoration: TextDecoration.none),
               children: [
                 TextSpan(
                   text: '$label: ',
@@ -2700,6 +2702,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: _textSecondary,
+                    decoration: TextDecoration.none,
                   ),
                 ),
                 TextSpan(
@@ -2708,6 +2711,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: _textPrimary,
+                    decoration: TextDecoration.none,
                   ),
                 ),
               ],
