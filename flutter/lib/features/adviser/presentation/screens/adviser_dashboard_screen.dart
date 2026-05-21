@@ -36,6 +36,7 @@ class AdviserDashboardScreen extends StatefulWidget {
 class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   static const double _maxContentWidth = 1360;
   static const int _staleLogThresholdDays = 3;
+  static const int _internProgressItemsPerPage = 6;
   static const Color _heroStart = OceanBreezePalette.midnight;
   static const Color _accentPrimary = OceanBreezePalette.deepSea;
   static const Color _accentSecondary = OceanBreezePalette.tide;
@@ -60,6 +61,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   _DashboardFilter _selectedFilter = _DashboardFilter.all;
   _DashboardSort _selectedSort = _DashboardSort.mostUrgent;
   _DashboardSurfaceView _selectedView = _DashboardSurfaceView.main;
+  int _internProgressPage = 1;
   List<InternListItem> _interns = <InternListItem>[];
   ThemeData get _theme => Theme.of(context);
   Color get _canvasColor => _theme.scaffoldBackgroundColor;
@@ -638,6 +640,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   void _setFilter(_DashboardFilter filter, {bool focusResults = false}) {
     setState(() {
       _selectedFilter = filter;
+      _internProgressPage = 1;
     });
 
     if (focusResults) {
@@ -648,6 +651,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   void _setSort(_DashboardSort sort, {bool focusResults = false}) {
     setState(() {
       _selectedSort = sort;
+      _internProgressPage = 1;
     });
 
     if (focusResults) {
@@ -1186,6 +1190,52 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
     });
 
     return interns;
+  }
+
+  int _internProgressLastPage(int totalItems) {
+    if (totalItems <= 0) {
+      return 1;
+    }
+
+    return ((totalItems - 1) ~/ _internProgressItemsPerPage) + 1;
+  }
+
+  List<InternListItem> _paginatedInterns(List<InternListItem> interns) {
+    if (interns.isEmpty) {
+      return interns;
+    }
+
+    final lastPage = _internProgressLastPage(interns.length);
+    final page = _internProgressPage.clamp(1, lastPage);
+    final start = (page - 1) * _internProgressItemsPerPage;
+    final end = (start + _internProgressItemsPerPage).clamp(0, interns.length);
+    return interns.sublist(start, end);
+  }
+
+  void _goToInternProgressPage(int page) {
+    final filtered = _visibleInterns(_referenceDate());
+    final lastPage = _internProgressLastPage(filtered.length);
+    final nextPage = page.clamp(1, lastPage);
+    if (nextPage == _internProgressPage) {
+      return;
+    }
+
+    setState(() {
+      _internProgressPage = nextPage;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final targetContext = _internProgressKey.currentContext;
+      if (targetContext != null) {
+        await Scrollable.ensureVisible(
+          targetContext,
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+          alignment: 0.04,
+        );
+      }
+    });
   }
 
   List<_AdviserAlert> _buildAlerts(DateTime referenceDate) {
@@ -2788,7 +2838,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
 
   Widget _buildControlsHeader(
     double contentWidth,
-    int visibleCount,
+    int filteredCount,
     int totalCount,
   ) {
     return Container(
@@ -2816,6 +2866,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
             onChanged: (value) {
               setState(() {
                 _searchQuery = value.trim();
+                _internProgressPage = 1;
               });
             },
             decoration: InputDecoration(
@@ -2828,6 +2879,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                         _searchController.clear();
                         setState(() {
                           _searchQuery = '';
+                          _internProgressPage = 1;
                         });
                       },
                       icon: Icon(Icons.close_rounded),
@@ -2881,7 +2933,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(
-                    'Showing $visibleCount of $totalCount interns',
+                    'Showing $filteredCount of $totalCount interns',
                     style: TextStyle(
                       fontSize: isCompact ? 12.5 : 13,
                       fontWeight: FontWeight.w700,
@@ -2896,6 +2948,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                         setState(() {
                           _selectedFilter = _DashboardFilter.all;
                           _searchQuery = '';
+                          _internProgressPage = 1;
                         });
                       },
                       icon: Icon(Icons.restart_alt_rounded),
@@ -3053,6 +3106,17 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
     List<InternListItem> visibleInterns,
     DateTime referenceDate,
   ) {
+    final totalFiltered = visibleInterns.length;
+    final lastPage = _internProgressLastPage(totalFiltered);
+    final currentPage = _internProgressPage.clamp(1, lastPage);
+    final paginatedInterns = _paginatedInterns(visibleInterns);
+    final startItem = totalFiltered == 0
+        ? 0
+        : ((currentPage - 1) * _internProgressItemsPerPage) + 1;
+    final endItem = totalFiltered == 0
+        ? 0
+        : (startItem + paginatedInterns.length - 1);
+
     return Container(
       key: _internProgressKey,
       decoration: BoxDecoration(
@@ -3159,7 +3223,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                     'No interns matched the current search and filter settings.',
                   )
                 : Column(
-                    children: visibleInterns.map((detail) {
+                    children: paginatedInterns.map((detail) {
                       final progress = _progressValue(detail);
                       final status = _statusLabel(detail);
                       final secondaryStatus = _secondaryStatusLabel(detail);
@@ -3416,6 +3480,100 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                     }).toList(),
                   ),
           ),
+          if (totalFiltered > _internProgressItemsPerPage)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isCompact = constraints.maxWidth < 640;
+                  final pages = List<int>.generate(lastPage, (index) => index + 1);
+
+                  final controls = Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 10,
+                    children: [
+                      IconButton(
+                        onPressed: currentPage > 1
+                            ? () => _goToInternProgressPage(currentPage - 1)
+                            : null,
+                        icon: const Icon(Icons.chevron_left_rounded),
+                      ),
+                      ...pages.map((page) {
+                        final selected = page == currentPage;
+                        return InkWell(
+                          onTap: () => _goToInternProgressPage(page),
+                          borderRadius: BorderRadius.circular(999),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? const Color(0xFF0F4C5C)
+                                  : const Color(0xFFF4F7FA),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: selected
+                                    ? const Color(0xFF0F4C5C)
+                                    : const Color(0xFFD7E0EA),
+                              ),
+                            ),
+                            child: Text(
+                              '$page',
+                              style: TextStyle(
+                                color: selected
+                                    ? Colors.white
+                                    : const Color(0xFF355070),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                      IconButton(
+                        onPressed: currentPage < lastPage
+                            ? () => _goToInternProgressPage(currentPage + 1)
+                            : null,
+                        icon: const Icon(Icons.chevron_right_rounded),
+                      ),
+                    ],
+                  );
+
+                  return isCompact
+                      ? Column(
+                          children: [
+                            controls,
+                            const SizedBox(height: 8),
+                            Text(
+                              '$startItem-$endItem of $totalFiltered interns',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF68768A),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Text(
+                              '$startItem-$endItem of $totalFiltered interns',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF68768A),
+                              ),
+                            ),
+                            const Spacer(),
+                            controls,
+                          ],
+                        );
+                },
+              ),
+            ),
         ],
       ),
     );
@@ -3619,7 +3777,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                           ),
                           child: _buildControlsHeader(
                             contentWidth,
-                            visibleInterns.length,
+                            filteredInterns.length,
                             totalInterns,
                           ),
                         ),
@@ -3643,7 +3801,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                         ),
                         child: _buildControlsHeader(
                           contentWidth,
-                          visibleInterns.length,
+                          filteredInterns.length,
                           totalInterns,
                         ),
                       ),
