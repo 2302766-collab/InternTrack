@@ -510,98 +510,98 @@ Test Result: Not Run
 ### TC-DTR-02
 Test Case ID: TC-DTR-02
 TestCase Title: Successful Time In
-Descrption: Verify that a student can record `Time In`.
+Descrption: Verify that a student can record `Time In` and create today's DTR record.
 Precondition: No DTR exists yet for today.
 Test data: Current system date and time
 Test Step:
 1. Open the DTR screen.
 2. Tap `Time In`.
-Expected Result: The system records time in and updates the status to working.
+Expected Result: The system creates today's DTR record, saves `time_in_at` and `am_time_in_at`, sets the status to `WORKING`, shows `Working` as the current state label, and sets the next action to `LUNCH_OUT`.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-DTR-03
 Test Case ID: TC-DTR-03
 TestCase Title: Successful Lunch Out
-Descrption: Verify that the student can record lunch out after time in.
+Descrption: Verify that the student can record `Lunch Out` after `Time In`.
 Precondition: The student has already recorded time in.
 Test data: Current date and time
 Test Step:
 1. Tap `Lunch Out`.
-Expected Result: The DTR status changes to on break.
+Expected Result: The system saves `lunch_out_at` and `am_time_out_at`, computes `first_work_minutes` and `total_work_minutes` for the morning session, changes the status to `ON_BREAK`, shows `On Break` as the current state label, and sets the next action to `LUNCH_IN`.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-DTR-04
 Test Case ID: TC-DTR-04
 TestCase Title: Successful Lunch In
-Descrption: Verify that the student can record lunch in after lunch out.
+Descrption: Verify that the student can record `Lunch In` after `Lunch Out`.
 Precondition: The student is currently on break.
 Test data: Current date and time
 Test Step:
 1. Tap `Lunch In`.
-Expected Result: The DTR status changes back to working.
+Expected Result: The system saves `lunch_in_at` and `pm_time_in_at`, changes the status back to `WORKING`, shows `Working` as the current state label, and sets the next action to `TIME_OUT`.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-DTR-05
 Test Case ID: TC-DTR-05
 TestCase Title: Successful Time Out
-Descrption: Verify that the student can record time out and complete the workday.
-Precondition: The student is in a valid state to time out.
+Descrption: Verify that the student can record `Time Out` and complete the whole DTR cycle.
+Precondition: The student already recorded `Time In`, `Lunch Out`, and `Lunch In`.
 Test data: Current date and time
 Test Step:
 1. Tap `Time Out`.
 2. Refresh the DTR screen.
-Expected Result: The DTR is marked completed and total work time is displayed.
+Expected Result: The system saves `time_out_at` and `pm_time_out_at`, computes `second_work_minutes` and final `total_work_minutes`, changes the status to `COMPLETED`, shows `Completed` as the current state label, and clears the next action.
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-DTR-06
 Test Case ID: TC-DTR-06
 TestCase Title: Lunch Out Before Time In
-Descrption: Verify that lunch out is rejected if time in has not been recorded.
+Descrption: Verify that `Lunch Out` is rejected if `Time In` has not been recorded first.
 Precondition: No time in exists for today.
 Test data: Attempt `Lunch Out`
 Test Step:
 1. Try to perform `Lunch Out`.
-Expected Result: The action is blocked and an error is shown.
+Expected Result: The request is rejected with a conflict response and the message `Time In must be recorded before Lunch Out.`
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-DTR-07
 Test Case ID: TC-DTR-07
 TestCase Title: Lunch In Before Lunch Out
-Descrption: Verify that lunch in is rejected when lunch out has not happened.
-Precondition: The student has timed in but has not gone to lunch.
+Descrption: Verify that `Lunch In` is rejected when `Lunch Out` has not been recorded yet.
+Precondition: The student has recorded `Time In` but has not recorded `Lunch Out`.
 Test data: Attempt `Lunch In`
 Test Step:
 1. Try to perform `Lunch In`.
-Expected Result: The action is rejected and DTR state remains unchanged.
+Expected Result: The request is rejected with a conflict response and the message `Lunch Out must be recorded before Lunch In.`
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-DTR-08
 Test Case ID: TC-DTR-08
 TestCase Title: Time Out Before Time In
-Descrption: Verify that time out is rejected if no time in exists.
+Descrption: Verify that `Time Out` is rejected when the student has not yet reached the required `Lunch In` step.
 Precondition: No DTR action exists yet today.
 Test data: Attempt `Time Out`
 Test Step:
 1. Try to perform `Time Out`.
-Expected Result: The action is rejected and no DTR record is completed.
+Expected Result: The request is rejected with a conflict response and the message `Lunch In must be recorded before Time Out.`
 Actual Result: Pending execution
 Test Result: Not Run
 
 ### TC-DTR-09
 Test Case ID: TC-DTR-09
 TestCase Title: Time Out While Still on Lunch Break
-Descrption: Verify that time out is rejected when lunch in has not been recorded yet.
-Precondition: Student has recorded lunch out but not lunch in.
+Descrption: Verify that `Time Out` is rejected when `Lunch In` has not been recorded yet.
+Precondition: Student has recorded `Time In` and `Lunch Out` but not `Lunch In`.
 Test data: Attempt `Time Out`
 Test Step:
 1. Try to perform `Time Out`.
-Expected Result: The request is rejected and the student remains in the on break state.
+Expected Result: The request is rejected with a conflict response and the message `Lunch In must be recorded before Time Out.` The record remains in `ON_BREAK` state.
 Actual Result: Pending execution
 Test Result: Not Run
 
