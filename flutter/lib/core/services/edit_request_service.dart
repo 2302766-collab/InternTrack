@@ -34,11 +34,12 @@ class EditRequestService extends BaseService {
   }
 
   Future<EditRequestItem> requestDtrEdit({
-    required int dailyTimeRecordId,
-    required String timeInAt,
-    required String lunchOutAt,
-    required String lunchInAt,
-    required String timeOutAt,
+    int? dailyTimeRecordId,
+    required String date,
+    String? timeInAt,
+    String? lunchOutAt,
+    String? lunchInAt,
+    String? timeOutAt,
     required String reason,
   }) async {
     try {
@@ -46,6 +47,7 @@ class EditRequestService extends BaseService {
         path: '/student/dtr/edit-request',
         data: {
           'daily_time_record_id': dailyTimeRecordId,
+          'date': date,
           'time_in_at': timeInAt,
           'lunch_out_at': lunchOutAt,
           'lunch_in_at': lunchInAt,
@@ -61,9 +63,55 @@ class EditRequestService extends BaseService {
   }
 
   Future<List<EditRequestItem>> fetchAdminEditRequests() async {
+    return _fetchPendingRequests(path: '/admin/edit-requests');
+  }
+
+  Future<List<EditRequestItem>> fetchSupervisorEditRequests() async {
+    return _fetchPendingRequests(path: '/supervisor/edit-requests');
+  }
+
+  Future<EditRequestItem> approveRequest({
+    required int requestId,
+    String? comment,
+    String role = 'admin',
+  }) async {
+    try {
+      return await _apiClient.patch<EditRequestItem>(
+        path: '/$role/edit-requests/$requestId/approve',
+        data: {
+          if ((comment ?? '').trim().isNotEmpty) 'comment': comment!.trim(),
+        },
+        converter: _parseEditRequest,
+      );
+    } on ApiException catch (e) {
+      handleApiError(e);
+      rethrow;
+    }
+  }
+
+  Future<EditRequestItem> rejectRequest({
+    required int requestId,
+    required String comment,
+    String role = 'admin',
+  }) async {
+    try {
+      return await _apiClient.patch<EditRequestItem>(
+        path: '/$role/edit-requests/$requestId/reject',
+        data: {'comment': comment.trim()},
+        converter: _parseEditRequest,
+      );
+    } on ApiException catch (e) {
+      handleApiError(e);
+      rethrow;
+    }
+  }
+
+  Future<List<EditRequestItem>> _fetchPendingRequests({
+    required String path,
+  }) async {
     try {
       return await _apiClient.get<List<EditRequestItem>>(
-        path: '/admin/edit-requests',
+        path: path,
         converter: (payload) {
           if (payload is! Map<String, dynamic>) {
             throw ApiException(
@@ -82,40 +130,6 @@ class EditRequestService extends BaseService {
               .map(EditRequestItem.fromJson)
               .toList();
         },
-      );
-    } on ApiException catch (e) {
-      handleApiError(e);
-      rethrow;
-    }
-  }
-
-  Future<EditRequestItem> approveRequest({
-    required int requestId,
-    String? comment,
-  }) async {
-    try {
-      return await _apiClient.patch<EditRequestItem>(
-        path: '/admin/edit-requests/$requestId/approve',
-        data: {
-          if ((comment ?? '').trim().isNotEmpty) 'comment': comment!.trim(),
-        },
-        converter: _parseEditRequest,
-      );
-    } on ApiException catch (e) {
-      handleApiError(e);
-      rethrow;
-    }
-  }
-
-  Future<EditRequestItem> rejectRequest({
-    required int requestId,
-    required String comment,
-  }) async {
-    try {
-      return await _apiClient.patch<EditRequestItem>(
-        path: '/admin/edit-requests/$requestId/reject',
-        data: {'comment': comment.trim()},
-        converter: _parseEditRequest,
       );
     } on ApiException catch (e) {
       handleApiError(e);

@@ -21,7 +21,6 @@ class _LogEditScreenState extends State<LogEditScreen> {
   late final TextEditingController _dateController;
   late final TextEditingController _hoursController;
   late final TextEditingController _taskController;
-  late final TextEditingController _reasonController;
 
   bool _autoValidate = false;
   bool _isSaving = false;
@@ -36,12 +35,10 @@ class _LogEditScreenState extends State<LogEditScreen> {
       text: widget.log.hoursRendered.toString(),
     );
     _taskController = TextEditingController(text: widget.log.taskDescription);
-    _reasonController = TextEditingController();
 
     _dateController.addListener(() => _clearFieldError('date'));
     _hoursController.addListener(() => _clearFieldError('hours'));
     _taskController.addListener(() => _clearFieldError('task'));
-    _reasonController.addListener(() => _clearFieldError('reason'));
   }
 
   @override
@@ -49,7 +46,6 @@ class _LogEditScreenState extends State<LogEditScreen> {
     _dateController.dispose();
     _hoursController.dispose();
     _taskController.dispose();
-    _reasonController.dispose();
     super.dispose();
   }
 
@@ -169,7 +165,14 @@ class _LogEditScreenState extends State<LogEditScreen> {
           taskDescription: _taskController.text.trim(),
         );
       } else {
-        final reason = _reasonController.text.trim();
+        final reason = await _promptForReason();
+        if (!mounted || reason == null) {
+          setState(() {
+            _isSaving = false;
+          });
+          return;
+        }
+
         if (reason.length < 5) {
           setState(() {
             _fieldErrors['reason'] = 'Reason must be at least 5 characters';
@@ -189,15 +192,15 @@ class _LogEditScreenState extends State<LogEditScreen> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            widget.log.isPending
-                ? 'Log updated successfully.'
-                : 'Edit request sent to admin for approval.',
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.log.isPending
+                  ? 'Log updated successfully.'
+                  : 'Edit request sent to admin and supervisor for review.',
+            ),
           ),
-        ),
-      );
+        );
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       _handleApiException(e);
@@ -214,6 +217,74 @@ class _LogEditScreenState extends State<LogEditScreen> {
         });
       }
     }
+  }
+
+  Future<String?> _promptForReason() async {
+    final controller = TextEditingController();
+    String? validationError;
+
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Request Log Correction'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Tell the admin and your supervisor why this log needs to be corrected.',
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Reason',
+                      hintText: 'Explain what needs to be fixed.',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  if (validationError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      validationError!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final trimmed = controller.text.trim();
+                    if (trimmed.length < 5) {
+                      setDialogState(() {
+                        validationError =
+                            'Reason must be at least 5 characters';
+                      });
+                      return;
+                    }
+
+                    Navigator.of(dialogContext).pop(trimmed);
+                  },
+                  child: const Text('Send Request'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    controller.dispose();
+    return reason;
   }
 
   @override
@@ -271,30 +342,8 @@ class _LogEditScreenState extends State<LogEditScreen> {
               ),
               if (!widget.log.isPending) ...[
                 const SizedBox(height: 12),
-                TextFormField(
-                  controller: _reasonController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Reason for admin approval',
-                    alignLabelWithHint: true,
-                    hintText:
-                        'Explain what was wrong and why it needs correction.',
-                  ),
-                  validator: (value) {
-                    final trimmed = (value ?? '').trim();
-                    if (trimmed.isEmpty) {
-                      return _fieldErrors['reason'] ?? 'Reason is required';
-                    }
-                    if (trimmed.length < 5) {
-                      return _fieldErrors['reason'] ??
-                          'Reason must be at least 5 characters';
-                    }
-                    return _fieldErrors['reason'];
-                  },
-                ),
-                const SizedBox(height: 8),
                 const Text(
-                  'This log is no longer pending, so changes will be sent to admin for approval before they are applied.',
+                  'This log is no longer pending, so your changes will be packaged into a request for both admin and supervisor review. You will be asked for a reason before sending it.',
                   style: TextStyle(fontSize: 13, color: Colors.black54),
                 ),
               ],

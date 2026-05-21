@@ -1243,9 +1243,9 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                 const SizedBox(height: 6),
                 Text(
                   _log.status.toUpperCase() == 'APPROVED'
-                      ? 'This log has been accepted. If you spot a mistake, you can send a correction request to admin.'
+                      ? 'This log has been accepted. If you spot a mistake, you can send a correction request to the admin and your supervisor.'
                       : _log.status.toUpperCase() == 'REJECTED'
-                      ? 'Please review the supervisor feedback above. You can still prepare corrections and send them to admin for approval.'
+                      ? 'Please review the supervisor feedback above. You can still prepare corrections and send them to the admin and your supervisor for approval.'
                       : 'Editing is disabled because this log is no longer pending review.',
                   style: TextStyle(
                     fontSize: 14,
@@ -1262,7 +1262,7 @@ class _LogDetailScreenState extends State<LogDetailScreen> {
                     label: Text(
                       _log.status.toUpperCase() == 'PENDING'
                           ? 'Edit Log'
-                          : 'Request Admin Edit',
+                          : 'Request Log Edit',
                     ),
                   ),
                 ),

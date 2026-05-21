@@ -56,7 +56,13 @@ class MonthlyDtrSummary {
 
 class MonthlyDtrRow {
   const MonthlyDtrRow({
+    required this.date,
+    required this.dailyTimeRecordId,
     required this.day,
+    required this.timeInAt,
+    required this.lunchOutAt,
+    required this.lunchInAt,
+    required this.timeOutAt,
     required this.amArrival,
     required this.amDeparture,
     required this.pmArrival,
@@ -66,7 +72,13 @@ class MonthlyDtrRow {
     required this.status,
   });
 
+  final String date;
+  final int? dailyTimeRecordId;
   final int day;
+  final DateTime? timeInAt;
+  final DateTime? lunchOutAt;
+  final DateTime? lunchInAt;
+  final DateTime? timeOutAt;
   final String amArrival;
   final String amDeparture;
   final String pmArrival;
@@ -84,7 +96,13 @@ class MonthlyDtrRow {
     );
 
     return MonthlyDtrRow(
+      date: (json['date'] ?? '').toString(),
+      dailyTimeRecordId: _parseNullableInt(json['daily_time_record_id']),
       day: MonthlyDtrSummary._parseInt(json['day']),
+      timeInAt: _parseDateTime(json['time_in_at']),
+      lunchOutAt: _parseDateTime(json['lunch_out_at']),
+      lunchInAt: _parseDateTime(json['lunch_in_at']),
+      timeOutAt: _parseDateTime(json['time_out_at']),
       amArrival: normalizedSessions.amArrival,
       amDeparture: normalizedSessions.amDeparture,
       pmArrival: normalizedSessions.pmArrival,
@@ -150,5 +168,19 @@ class MonthlyDtrRow {
 
     final hour = int.tryParse(match.group(1) ?? '');
     return hour != null && hour >= 12;
+  }
+
+  static int? _parseNullableInt(Object? value) {
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '');
+  }
+
+  static DateTime? _parseDateTime(Object? value) {
+    final raw = value?.toString();
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+
+    return DateTime.tryParse(raw)?.toLocal();
   }
 }

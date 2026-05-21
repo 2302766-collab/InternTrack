@@ -42,6 +42,10 @@ class EditRequestWorkflowTest extends TestCase
             'user_id' => $admin->id,
             'type' => 'EDIT_REQUEST_SUBMITTED',
         ]);
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $supervisor->id,
+            'type' => 'EDIT_REQUEST_SUBMITTED',
+        ]);
 
         Sanctum::actingAs($admin);
 
@@ -71,7 +75,9 @@ class EditRequestWorkflowTest extends TestCase
     public function test_student_can_request_dtr_edit_and_admin_can_reject_it(): void
     {
         $student = $this->helperStudent();
+        $supervisor = $this->helperSupervisor();
         $admin = $this->helperAdmin();
+        $this->helperInternshipProfileFor($student, $supervisor);
 
         $record = DailyTimeRecord::query()->create([
             'student_id' => $student->id,
@@ -89,6 +95,7 @@ class EditRequestWorkflowTest extends TestCase
         Sanctum::actingAs($student);
 
         $this->postJson('/api/v1/student/dtr/edit-request', [
+            'date' => now()->toDateString(),
             'daily_time_record_id' => $record->id,
             'time_in_at' => now()->startOfDay()->addHours(8)->addMinutes(15)->toIso8601String(),
             'lunch_out_at' => now()->startOfDay()->addHours(12)->toIso8601String(),
@@ -115,6 +122,54 @@ class EditRequestWorkflowTest extends TestCase
         $this->assertDatabaseHas('notifications', [
             'user_id' => $student->id,
             'type' => 'EDIT_REQUEST_REJECTED',
+        ]);
+    }
+
+    public function test_supervisor_can_approve_assigned_student_edit_request(): void
+    {
+        $student = $this->helperStudent();
+        $supervisor = $this->helperSupervisor();
+        $this->helperInternshipProfileFor($student, $supervisor);
+
+        Sanctum::actingAs($student);
+
+        $requestDate = now()->subDays(2)->startOfDay();
+
+        $this->postJson('/api/v1/student/dtr/edit-request', [
+            'date' => $requestDate->toDateString(),
+            'time_in_at' => $requestDate->copy()->addHours(8)->toIso8601String(),
+            'lunch_out_at' => $requestDate->copy()->addHours(12)->toIso8601String(),
+            'lunch_in_at' => $requestDate->copy()->addHours(13)->toIso8601String(),
+            'time_out_at' => $requestDate->copy()->addHours(17)->toIso8601String(),
+            'reason' => 'I forgot to punch for the full day even though I was present.',
+        ])->assertCreated();
+
+        $editRequest = EditRequest::query()->firstOrFail();
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $supervisor->id,
+            'type' => 'EDIT_REQUEST_SUBMITTED',
+        ]);
+
+        Sanctum::actingAs($supervisor);
+
+        $this->getJson('/api/v1/supervisor/edit-requests')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $editRequest->id);
+
+        $this->patchJson("/api/v1/supervisor/edit-requests/{$editRequest->id}/approve", [
+            'comment' => 'Attendance matches the submitted explanation.',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'APPROVED');
+
+        $record = DailyTimeRecord::query()->findOrFail($editRequest->daily_time_record_id);
+
+        $this->assertSame('COMPLETED', $record->status);
+        $this->assertSame(480, $record->total_work_minutes);
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $student->id,
+            'type' => 'EDIT_REQUEST_APPROVED',
         ]);
     }
 

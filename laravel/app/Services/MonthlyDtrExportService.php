@@ -48,7 +48,13 @@ class MonthlyDtrExportService
             $undertimeMinutes = $record ? $this->computeUndertimeMinutes($record) : null;
 
             $rows[] = [
+                'date' => $date->toDateString(),
+                'daily_time_record_id' => $record?->id,
                 'day' => $date->day,
+                'time_in_at' => $record?->time_in_at?->toIso8601String(),
+                'lunch_out_at' => $record?->lunch_out_at?->toIso8601String(),
+                'lunch_in_at' => $record?->lunch_in_at?->toIso8601String(),
+                'time_out_at' => $record?->time_out_at?->toIso8601String(),
                 'am_arrival' => $this->formatTime($record?->time_in_at),
                 'am_departure' => $this->formatTime($record?->lunch_out_at),
                 'pm_arrival' => $this->formatTime($record?->lunch_in_at),

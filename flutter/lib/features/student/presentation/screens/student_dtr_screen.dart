@@ -34,6 +34,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
   bool _isMonthlyLoading = true;
   bool _isExportingPdf = false;
   bool _isExportingExcel = false;
+  bool _isSubmittingCorrectionRequest = false;
   String? _errorMessage;
   String? _monthlyErrorMessage;
 
@@ -439,6 +440,365 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     return parts.join(' ');
   }
 
+  bool _isFutureRow(MonthlyDtrRow row) {
+    final parsed = DateTime.tryParse(row.date);
+    if (parsed == null) {
+      return false;
+    }
+
+    final today = DateTime.now();
+    final normalizedToday = DateTime(today.year, today.month, today.day);
+    final normalizedRow = DateTime(parsed.year, parsed.month, parsed.day);
+    return normalizedRow.isAfter(normalizedToday);
+  }
+
+  String _formatTimeField(DateTime? value) {
+    if (value == null) {
+      return 'Not set';
+    }
+
+    return DateFormat('hh:mm a').format(value);
+  }
+
+  DateTime _dateAtTime(DateTime baseDate, TimeOfDay time) {
+    return DateTime(
+      baseDate.year,
+      baseDate.month,
+      baseDate.day,
+      time.hour,
+      time.minute,
+    );
+  }
+
+  bool _hasValidAttendanceRequest({
+    required DateTime? timeInAt,
+    required DateTime? lunchOutAt,
+    required DateTime? lunchInAt,
+    required DateTime? timeOutAt,
+  }) {
+    final hasMorning = timeInAt != null || lunchOutAt != null;
+    final hasAfternoon = lunchInAt != null || timeOutAt != null;
+
+    if (!hasMorning && !hasAfternoon) {
+      return false;
+    }
+
+    if ((timeInAt == null) != (lunchOutAt == null)) {
+      return false;
+    }
+
+    if ((lunchInAt == null) != (timeOutAt == null)) {
+      return false;
+    }
+
+    if (timeInAt != null &&
+        lunchOutAt != null &&
+        !timeInAt.isBefore(lunchOutAt)) {
+      return false;
+    }
+
+    if (lunchInAt != null &&
+        timeOutAt != null &&
+        !lunchInAt.isBefore(timeOutAt)) {
+      return false;
+    }
+
+    if (lunchOutAt != null &&
+        lunchInAt != null &&
+        !lunchOutAt.isBefore(lunchInAt)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  Future<DateTime?> _pickPunchTime({
+    required DateTime baseDate,
+    required DateTime? initialValue,
+    required String helpText,
+  }) async {
+    final initialTime = initialValue != null
+        ? TimeOfDay(hour: initialValue.hour, minute: initialValue.minute)
+        : const TimeOfDay(hour: 8, minute: 0);
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+      helpText: helpText,
+    );
+
+    if (picked == null) {
+      return initialValue;
+    }
+
+    return _dateAtTime(baseDate, picked);
+  }
+
+  Future<void> _openAttendanceRequestModal(MonthlyDtrRow row) async {
+    if (_isSubmittingCorrectionRequest) {
+      return;
+    }
+
+    final requestDate = DateTime.tryParse(row.date);
+    if (requestDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to prepare this attendance row.')),
+      );
+      return;
+    }
+
+    final reasonController = TextEditingController();
+    DateTime? timeInAt = row.timeInAt;
+    DateTime? lunchOutAt = row.lunchOutAt;
+    DateTime? lunchInAt = row.lunchInAt;
+    DateTime? timeOutAt = row.timeOutAt;
+    String? validationError;
+
+    final payload = await showModalBottomSheet<_AttendanceRequestPayload>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<void> pickField(
+              String label,
+              DateTime? currentValue,
+              void Function(DateTime?) assign,
+            ) async {
+              final picked = await _pickPunchTime(
+                baseDate: requestDate,
+                initialValue: currentValue,
+                helpText: label,
+              );
+              if (picked == null && currentValue == null) {
+                return;
+              }
+
+              setSheetState(() {
+                assign(picked);
+                validationError = null;
+              });
+            }
+
+            Widget timeTile({
+              required String label,
+              required DateTime? value,
+              required void Function(DateTime?) onChanged,
+            }) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Theme.of(context).dividerColor.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: ListTile(
+                  title: Text(label),
+                  subtitle: Text(_formatTimeField(value)),
+                  trailing: Wrap(
+                    spacing: 8,
+                    children: [
+                      TextButton(
+                        onPressed: value == null
+                            ? null
+                            : () {
+                                setSheetState(() {
+                                  onChanged(null);
+                                  validationError = null;
+                                });
+                              },
+                        child: const Text('Clear'),
+                      ),
+                      FilledButton.tonal(
+                        onPressed: () => pickField(label, value, onChanged),
+                        child: Text(value == null ? 'Set' : 'Change'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  8,
+                  20,
+                  MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Request Attendance Correction',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Send corrected attendance times for ${DateFormat('MMMM d, yyyy').format(requestDate)} to the admin and your supervisor.',
+                      ),
+                      const SizedBox(height: 18),
+                      timeTile(
+                        label: 'Morning Time In',
+                        value: timeInAt,
+                        onChanged: (value) => timeInAt = value,
+                      ),
+                      timeTile(
+                        label: 'Morning Time Out',
+                        value: lunchOutAt,
+                        onChanged: (value) => lunchOutAt = value,
+                      ),
+                      timeTile(
+                        label: 'Afternoon Time In',
+                        value: lunchInAt,
+                        onChanged: (value) => lunchInAt = value,
+                      ),
+                      timeTile(
+                        label: 'Afternoon Time Out',
+                        value: timeOutAt,
+                        onChanged: (value) => timeOutAt = value,
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: reasonController,
+                        maxLines: 4,
+                        decoration: const InputDecoration(
+                          labelText: 'Reason',
+                          hintText:
+                              'Explain why these attendance times need to be fixed.',
+                          border: OutlineInputBorder(),
+                          alignLabelWithHint: true,
+                        ),
+                        onChanged: (_) {
+                          if (validationError != null) {
+                            setSheetState(() {
+                              validationError = null;
+                            });
+                          }
+                        },
+                      ),
+                      if (validationError != null) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          validationError!,
+                          style: const TextStyle(color: Color(0xFFB42318)),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.of(sheetContext).pop(),
+                              child: const Text('Cancel'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: () {
+                                final trimmedReason = reasonController.text.trim();
+                                if (trimmedReason.length < 5) {
+                                  setSheetState(() {
+                                    validationError =
+                                        'Reason must be at least 5 characters.';
+                                  });
+                                  return;
+                                }
+
+                                if (!_hasValidAttendanceRequest(
+                                  timeInAt: timeInAt,
+                                  lunchOutAt: lunchOutAt,
+                                  lunchInAt: lunchInAt,
+                                  timeOutAt: timeOutAt,
+                                )) {
+                                  setSheetState(() {
+                                    validationError =
+                                        'Enter a valid morning, afternoon, or full-day attendance sequence.';
+                                  });
+                                  return;
+                                }
+
+                                Navigator.of(sheetContext).pop(
+                                  _AttendanceRequestPayload(
+                                    date: requestDate,
+                                    dailyTimeRecordId: row.dailyTimeRecordId,
+                                    timeInAt: timeInAt,
+                                    lunchOutAt: lunchOutAt,
+                                    lunchInAt: lunchInAt,
+                                    timeOutAt: timeOutAt,
+                                    reason: trimmedReason,
+                                  ),
+                                );
+                              },
+                              child: const Text('Send Request'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    reasonController.dispose();
+
+    if (payload == null) {
+      return;
+    }
+
+    setState(() {
+      _isSubmittingCorrectionRequest = true;
+    });
+
+    try {
+      await _dtrService.requestEdit(
+        dailyTimeRecordId: payload.dailyTimeRecordId,
+        date: payload.date,
+        timeInAt: payload.timeInAt,
+        lunchOutAt: payload.lunchOutAt,
+        lunchInAt: payload.lunchInAt,
+        timeOutAt: payload.timeOutAt,
+        reason: payload.reason,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Attendance correction request sent to admin and supervisor.',
+          ),
+        ),
+      );
+      await _loadMonthlyRecord();
+      await _loadTodayRecord();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmittingCorrectionRequest = false;
+        });
+      }
+    }
+  }
+
   Widget _buildTable(MonthlyDtrSummary summary) {
     final theme = Theme.of(context);
     const dayWidth = 78.0;
@@ -446,6 +806,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
     const timeWidth = 112.0;
     const undertimeWidth = 112.0;
     const statusWidth = 156.0;
+    const requestWidth = 160.0;
 
     Widget headerCell(String label, double width, {Alignment? alignment}) {
       return Container(
@@ -540,6 +901,11 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                       statusWidth,
                       alignment: Alignment.center,
                     ),
+                    headerCell(
+                      'REQUEST',
+                      requestWidth,
+                      alignment: Alignment.center,
+                    ),
                   ],
                 ),
                 for (final row in summary.rows)
@@ -605,8 +971,25 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                         width: statusWidth,
                         shaded: row.day.isEven,
                         alignment: Alignment.center,
-                        showRightBorder: false,
                         child: Center(child: _buildIndicatorChip(row)),
+                      ),
+                      bodyCell(
+                        width: requestWidth,
+                        shaded: row.day.isEven,
+                        alignment: Alignment.center,
+                        showRightBorder: false,
+                        child: Center(
+                          child: FilledButton.tonal(
+                            onPressed:
+                                _isFutureRow(row) ||
+                                    _isSubmittingCorrectionRequest
+                                ? null
+                                : () => _openAttendanceRequestModal(row),
+                            child: Text(
+                              _isFutureRow(row) ? 'Unavailable' : 'Request',
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -673,6 +1056,11 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
           Text(
             'Monthly attendance view with AM and PM indicators.',
             style: TextStyle(fontSize: 14, color: theme.secondaryTextColor),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Use the Request button on a row if you forgot to time in or out and need the admin and your supervisor to review a correction.',
+            style: TextStyle(fontSize: 13, color: theme.secondaryTextColor),
           ),
           const SizedBox(height: 16),
           _buildTableToolbar(summary),
@@ -784,4 +1172,24 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
             ),
     );
   }
+}
+
+class _AttendanceRequestPayload {
+  const _AttendanceRequestPayload({
+    required this.date,
+    required this.dailyTimeRecordId,
+    required this.timeInAt,
+    required this.lunchOutAt,
+    required this.lunchInAt,
+    required this.timeOutAt,
+    required this.reason,
+  });
+
+  final DateTime date;
+  final int? dailyTimeRecordId;
+  final DateTime? timeInAt;
+  final DateTime? lunchOutAt;
+  final DateTime? lunchInAt;
+  final DateTime? timeOutAt;
+  final String reason;
 }

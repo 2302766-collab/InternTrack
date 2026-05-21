@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\Admin\EditRequestController as AdminEditRequestController;
 use App\Http\Controllers\Api\V1\Admin\UserManagementController;
 use App\Http\Controllers\Api\V1\Supervisor\SupervisorDashboardController;
+use App\Http\Controllers\Api\V1\Supervisor\EditRequestController as SupervisorEditRequestController;
 use App\Http\Controllers\Api\V1\Supervisor\SupervisorInternController;
 use App\Http\Controllers\Api\V1\Supervisor\SupervisorLogController;
 use App\Http\Controllers\Api\V1\Adviser\AdviserInternController;
@@ -97,6 +98,12 @@ Route::prefix('v1')->group(function () {
             ->middleware('role:Supervisor,Only supervisors can approve logs.');
         Route::match(['post', 'patch'], '/logs/{id}/reject', [SupervisorLogController::class, 'reject'])
             ->middleware('role:Supervisor,Only supervisors can reject logs.');
+        Route::get('/edit-requests', [SupervisorEditRequestController::class, 'index'])
+            ->middleware('role:Supervisor');
+        Route::patch('/edit-requests/{id}/approve', [SupervisorEditRequestController::class, 'approve'])
+            ->middleware('role:Supervisor');
+        Route::patch('/edit-requests/{id}/reject', [SupervisorEditRequestController::class, 'reject'])
+            ->middleware('role:Supervisor');
         Route::get('/students/{id}/dtr/export/pdf', [DailyTimeRecordExportController::class, 'supervisorPdf'])
             ->middleware('role:Supervisor');
         Route::get('/students/{id}/dtr/export/excel', [DailyTimeRecordExportController::class, 'supervisorExcel'])

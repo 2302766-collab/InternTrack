@@ -1,12 +1,14 @@
 <?php
 
-namespace App\Http\Controllers\Api\V1\Admin;
+namespace App\Http\Controllers\Api\V1\Supervisor;
 
 use App\Http\Controllers\Controller;
 use App\Models\DailyTimeRecord;
 use App\Models\EditRequest;
+use App\Models\InternshipProfile;
 use App\Models\LogEntry;
 use App\Models\Notification;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,8 +16,10 @@ use Illuminate\Support\Facades\DB;
 
 class EditRequestController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
+        $supervisor = $request->user();
+
         $requests = EditRequest::query()
             ->with([
                 'requester:id,name,email',
@@ -23,6 +27,15 @@ class EditRequestController extends Controller
                 'dailyTimeRecord.student:id,name,email',
             ])
             ->where('status', EditRequest::STATUS_PENDING)
+            ->where(function ($query) use ($supervisor): void {
+                $query->whereHas('logEntry.internshipProfile', function ($profileQuery) use ($supervisor): void {
+                    $profileQuery->where('supervisor_id', $supervisor->id);
+                })->orWhereHas('dailyTimeRecord', function ($recordQuery) use ($supervisor): void {
+                    $recordQuery->whereHas('student.internshipProfile', function ($profileQuery) use ($supervisor): void {
+                        $profileQuery->where('supervisor_id', $supervisor->id);
+                    });
+                });
+            })
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->get();
@@ -40,9 +53,7 @@ class EditRequestController extends Controller
             'comment' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $editRequest = EditRequest::query()
-            ->with(['requester', 'logEntry.internshipProfile.student', 'dailyTimeRecord.student'])
-            ->find($id);
+        $editRequest = $this->findScopedRequest($request->user(), $id);
 
         if (! $editRequest) {
             return $this->notFound();
@@ -82,7 +93,7 @@ class EditRequestController extends Controller
         $this->notifyRequester(
             $editRequest,
             'Edit request approved',
-            'Your requested correction was approved by admin.',
+            'Your requested correction was approved by your supervisor.',
             'EDIT_REQUEST_APPROVED'
         );
 
@@ -99,9 +110,7 @@ class EditRequestController extends Controller
             'comment' => ['required', 'string', 'min:3', 'max:2000'],
         ]);
 
-        $editRequest = EditRequest::query()
-            ->with(['requester', 'logEntry.internshipProfile.student', 'dailyTimeRecord.student'])
-            ->find($id);
+        $editRequest = $this->findScopedRequest($request->user(), $id);
 
         if (! $editRequest) {
             return $this->notFound();
@@ -121,7 +130,7 @@ class EditRequestController extends Controller
         $this->notifyRequester(
             $editRequest,
             'Edit request rejected',
-            'Your requested correction was rejected by admin.',
+            'Your requested correction was rejected by your supervisor.',
             'EDIT_REQUEST_REJECTED'
         );
 
@@ -134,6 +143,38 @@ class EditRequestController extends Controller
                 'dailyTimeRecord.student',
             ])),
         ], 200);
+    }
+
+    private function findScopedRequest(User $supervisor, int $id): ?EditRequest
+    {
+        $editRequest = EditRequest::query()
+            ->with(['requester', 'logEntry.internshipProfile.student', 'dailyTimeRecord.student'])
+            ->find($id);
+
+        if (! $editRequest) {
+            return null;
+        }
+
+        return $this->supervisorOwnsRequest($supervisor, $editRequest)
+            ? $editRequest
+            : null;
+    }
+
+    private function supervisorOwnsRequest(User $supervisor, EditRequest $editRequest): bool
+    {
+        if ($editRequest->resource_type === EditRequest::RESOURCE_LOG) {
+            return (int) $editRequest->logEntry?->internshipProfile?->supervisor_id === (int) $supervisor->id;
+        }
+
+        $studentId = $editRequest->dailyTimeRecord?->student_id;
+        if (! $studentId) {
+            return false;
+        }
+
+        return InternshipProfile::query()
+            ->where('student_id', $studentId)
+            ->where('supervisor_id', $supervisor->id)
+            ->exists();
     }
 
     private function applyLogChanges(EditRequest $editRequest): void

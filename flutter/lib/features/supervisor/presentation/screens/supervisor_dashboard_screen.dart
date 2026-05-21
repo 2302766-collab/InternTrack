@@ -1,11 +1,13 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
+import '../../../../core/services/edit_request_service.dart';
 import '../../../../core/services/supervisor_dashboard_service.dart';
 import '../../../../core/services/supervisor_log_service.dart';
 import '../../../../core/theme/ocean_breeze_palette.dart';
@@ -13,6 +15,7 @@ import '../../../../core/utils/file_picker_helper_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
     as file_picker;
 import '../../../../shared/models/app_user.dart';
+import '../../../../shared/models/edit_request.dart';
 import '../../../../shared/models/supervisor_dashboard_summary.dart';
 import '../../../../shared/models/supervisor_log_item.dart';
 import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
@@ -23,7 +26,7 @@ import 'intern_list_screen.dart';
 import 'supervisor_log_detail_screen.dart';
 import 'supervisor_log_queue_screen.dart';
 
-enum _SupervisorDashboardSection { summary, logs }
+enum _SupervisorDashboardSection { summary, logs, editRequests }
 
 class SupervisorDashboardScreen extends StatefulWidget {
   final String userName;
@@ -62,6 +65,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
   late final SupervisorLogService _logService;
   late final SupervisorDashboardService _dashboardService;
+  late final EditRequestService _editRequestService;
 
   bool _isInitialLoading = true;
   bool _isRefreshing = false;
@@ -69,24 +73,30 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   DateTime? _lastUpdated;
 
   List<SupervisorLogItem> _pendingLogs = <SupervisorLogItem>[];
+  List<EditRequestItem> _pendingEditRequests = <EditRequestItem>[];
   SupervisorDashboardSummary? _dashboardSummary;
   final GlobalKey _profileMenuAnchorKey = GlobalKey();
+  final Set<int> _processingEditRequestIds = <int>{};
 
   final Map<_SupervisorDashboardSection, bool> _sectionLoading =
       <_SupervisorDashboardSection, bool>{
         _SupervisorDashboardSection.summary: false,
         _SupervisorDashboardSection.logs: false,
+        _SupervisorDashboardSection.editRequests: false,
       };
 
   final Map<_SupervisorDashboardSection, String?> _sectionErrors =
       <_SupervisorDashboardSection, String?>{
         _SupervisorDashboardSection.summary: null,
         _SupervisorDashboardSection.logs: null,
+        _SupervisorDashboardSection.editRequests: null,
       };
 
   String? get _summaryError =>
       _sectionErrors[_SupervisorDashboardSection.summary];
   String? get _logsError => _sectionErrors[_SupervisorDashboardSection.logs];
+  String? get _editRequestError =>
+      _sectionErrors[_SupervisorDashboardSection.editRequests];
 
   DateTime _now() => (widget.clock ?? DateTime.now)();
 
@@ -101,6 +111,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       _logService = widget.logService ?? SupervisorLogService(apiClient);
       _dashboardService =
           widget.dashboardService ?? SupervisorDashboardService(apiClient);
+      _editRequestService = context.read<EditRequestService>();
       _loadDashboardData();
     }
   }
@@ -134,8 +145,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         _sectionErrors[_SupervisorDashboardSection.summary] =
             'Missing authentication token. Please log in again.';
         _sectionErrors[_SupervisorDashboardSection.logs] = null;
+        _sectionErrors[_SupervisorDashboardSection.editRequests] = null;
         _sectionLoading[_SupervisorDashboardSection.summary] = false;
         _sectionLoading[_SupervisorDashboardSection.logs] = false;
+        _sectionLoading[_SupervisorDashboardSection.editRequests] = false;
       });
       return;
     }
@@ -147,13 +160,16 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       _isRefreshing = !showFullScreenLoader;
       _sectionErrors[_SupervisorDashboardSection.summary] = null;
       _sectionErrors[_SupervisorDashboardSection.logs] = null;
+      _sectionErrors[_SupervisorDashboardSection.editRequests] = null;
       _sectionLoading[_SupervisorDashboardSection.summary] = true;
       _sectionLoading[_SupervisorDashboardSection.logs] = true;
+      _sectionLoading[_SupervisorDashboardSection.editRequests] = true;
     });
 
     final results = await Future.wait<_SupervisorSectionResult<dynamic>>([
       _refreshPendingLogs(markLoading: false),
       _refreshSummary(markLoading: false),
+      _refreshEditRequests(markLoading: false),
     ]);
 
     if (!mounted) return;
@@ -184,6 +200,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         markLoading: false,
       ),
       _SupervisorDashboardSection.logs => await _refreshPendingLogs(
+        markLoading: false,
+      ),
+      _SupervisorDashboardSection.editRequests => await _refreshEditRequests(
         markLoading: false,
       ),
     };
@@ -305,6 +324,60 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       });
 
       return _SupervisorSectionResult<List<SupervisorLogItem>>.failure();
+    }
+  }
+
+  Future<_SupervisorSectionResult<List<EditRequestItem>>> _refreshEditRequests({
+    bool markLoading = true,
+  }) async {
+    if (markLoading && mounted) {
+      setState(() {
+        _sectionLoading[_SupervisorDashboardSection.editRequests] = true;
+      });
+    }
+
+    try {
+      final requests = await _editRequestService.fetchSupervisorEditRequests();
+      if (!mounted) {
+        return _SupervisorSectionResult<List<EditRequestItem>>.failure();
+      }
+
+      setState(() {
+        _pendingEditRequests = requests;
+        _sectionErrors[_SupervisorDashboardSection.editRequests] = null;
+        _sectionLoading[_SupervisorDashboardSection.editRequests] = false;
+      });
+
+      return _SupervisorSectionResult<List<EditRequestItem>>.success(requests);
+    } on ApiException catch (e) {
+      if (!mounted) {
+        return _SupervisorSectionResult<List<EditRequestItem>>.failure();
+      }
+
+      if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+        await _handleExpiredSession();
+        return _SupervisorSectionResult<List<EditRequestItem>>.failure();
+      }
+
+      setState(() {
+        _sectionErrors[_SupervisorDashboardSection.editRequests] = e.message;
+        _sectionLoading[_SupervisorDashboardSection.editRequests] = false;
+      });
+
+      return _SupervisorSectionResult<List<EditRequestItem>>.failure();
+    } catch (e) {
+      if (!mounted) {
+        return _SupervisorSectionResult<List<EditRequestItem>>.failure();
+      }
+
+      setState(() {
+        _sectionErrors[_SupervisorDashboardSection.editRequests] = e
+            .toString()
+            .replaceFirst('Exception: ', '');
+        _sectionLoading[_SupervisorDashboardSection.editRequests] = false;
+      });
+
+      return _SupervisorSectionResult<List<EditRequestItem>>.failure();
     }
   }
 
@@ -1883,6 +1956,448 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     );
   }
 
+  String _editRequestValueLabel(Object? value) {
+    if (value == null) {
+      return 'Not set';
+    }
+
+    final raw = value.toString();
+    final dateTime = DateTime.tryParse(raw);
+    if (dateTime == null) {
+      return raw;
+    }
+
+    return DateFormat('MMM d, yyyy hh:mm a').format(dateTime.toLocal());
+  }
+
+  Future<void> _approveEditRequest(EditRequestItem request) async {
+    if (_processingEditRequestIds.contains(request.id)) {
+      return;
+    }
+
+    setState(() {
+      _processingEditRequestIds.add(request.id);
+      _sectionErrors[_SupervisorDashboardSection.editRequests] = null;
+    });
+
+    try {
+      await _editRequestService.approveRequest(
+        requestId: request.id,
+        role: 'supervisor',
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Edit request approved.')),
+      );
+      await _refreshEditRequests();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _sectionErrors[_SupervisorDashboardSection.editRequests] = e
+            .toString()
+            .replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingEditRequestIds.remove(request.id);
+        });
+      }
+    }
+  }
+
+  Future<void> _rejectEditRequest(EditRequestItem request) async {
+    if (_processingEditRequestIds.contains(request.id)) {
+      return;
+    }
+
+    final commentController = TextEditingController();
+    String? validationError;
+
+    final comment = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Reject Edit Request'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: commentController,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Reason for rejection',
+                      hintText: 'Explain what the student needs to fix.',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  if (validationError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      validationError!,
+                      style: const TextStyle(color: Color(0xFFB42318)),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFB42318),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    final trimmed = commentController.text.trim();
+                    if (trimmed.length < 3) {
+                      setDialogState(() {
+                        validationError =
+                            'Rejection reason must be at least 3 characters.';
+                      });
+                      return;
+                    }
+
+                    Navigator.of(dialogContext).pop(trimmed);
+                  },
+                  child: const Text('Reject'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    commentController.dispose();
+
+    if (comment == null) {
+      return;
+    }
+
+    setState(() {
+      _processingEditRequestIds.add(request.id);
+      _sectionErrors[_SupervisorDashboardSection.editRequests] = null;
+    });
+
+    try {
+      await _editRequestService.rejectRequest(
+        requestId: request.id,
+        comment: comment,
+        role: 'supervisor',
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Edit request rejected.')),
+      );
+      await _refreshEditRequests();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _sectionErrors[_SupervisorDashboardSection.editRequests] = e
+            .toString()
+            .replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingEditRequestIds.remove(request.id);
+        });
+      }
+    }
+  }
+
+  Widget _buildEditRequestCard(EditRequestItem request) {
+    final isProcessing = _processingEditRequestIds.contains(request.id);
+    final currentValues = request.currentValues;
+    final requestedChanges = request.requestedChanges;
+
+    Widget valuePair(String label, Object? current, Object? requested) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: _panelSoft,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _panelBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: _bodyColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Current: ${_editRequestValueLabel(current)}',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: _headlineColor,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Requested: ${_editRequestValueLabel(requested)}',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: _accentPrimary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final comparisonWidgets = request.isLog
+        ? <Widget>[
+            valuePair('Date', currentValues['date'], requestedChanges['date']),
+            valuePair(
+              'Hours Rendered',
+              currentValues['hours_rendered'],
+              requestedChanges['hours_rendered'],
+            ),
+            valuePair(
+              'Task Description',
+              currentValues['task_description'],
+              requestedChanges['task_description'],
+            ),
+          ]
+        : <Widget>[
+            valuePair(
+              'Morning Time In',
+              currentValues['time_in_at'],
+              requestedChanges['time_in_at'],
+            ),
+            valuePair(
+              'Morning Time Out',
+              currentValues['lunch_out_at'],
+              requestedChanges['lunch_out_at'],
+            ),
+            valuePair(
+              'Afternoon Time In',
+              currentValues['lunch_in_at'],
+              requestedChanges['lunch_in_at'],
+            ),
+            valuePair(
+              'Afternoon Time Out',
+              currentValues['time_out_at'],
+              requestedChanges['time_out_at'],
+            ),
+          ];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _panelColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _panelBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: _accentSoft,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  request.isLog ? 'Log Request' : 'Attendance Request',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: _accentPrimary,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: _panelSoft,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'Request #${request.id}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: _headlineColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            request.student?.name.isNotEmpty == true
+                ? request.student!.name
+                : request.requester?.name ?? 'Unknown student',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: _headlineColor,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            request.requester?.email ?? '',
+            style: const TextStyle(fontSize: 13, color: _bodyColor),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            request.reason,
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.5,
+              color: _headlineColor,
+            ),
+          ),
+          const SizedBox(height: 14),
+          ...comparisonWidgets
+              .expand((widget) => [widget, const SizedBox(height: 10)])
+              .toList()
+            ..removeLast(),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              FilledButton.icon(
+                onPressed: isProcessing ? null : () => _approveEditRequest(request),
+                icon: isProcessing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.check_circle_outline_rounded),
+                label: const Text('Approve'),
+              ),
+              OutlinedButton.icon(
+                onPressed: isProcessing ? null : () => _rejectEditRequest(request),
+                icon: const Icon(Icons.close_rounded),
+                label: const Text('Reject'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFB42318),
+                  side: const BorderSide(color: Color(0xFFF0C4C0)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditRequestsPanel() {
+    final isLoading = _isSectionLoading(_SupervisorDashboardSection.editRequests);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: _panelColor,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: _panelBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F0F172A),
+            blurRadius: 24,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Student Correction Requests',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: _headlineColor,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Review requested log and attendance corrections from your assigned students.',
+              style: TextStyle(
+                fontSize: 13.5,
+                height: 1.45,
+                color: _bodyColor,
+              ),
+            ),
+            const SizedBox(height: 18),
+            if (isLoading && _pendingEditRequests.isEmpty && _editRequestError == null)
+              const Center(child: CircularProgressIndicator())
+            else if (_editRequestError != null && _pendingEditRequests.isEmpty)
+              DashboardInlineNotice(
+                message: _editRequestError!,
+                onRetry: () =>
+                    _refreshSection(_SupervisorDashboardSection.editRequests),
+              )
+            else if (_pendingEditRequests.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: _panelSoft,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: _panelBorder),
+                ),
+                child: const Text(
+                  'No pending correction requests right now.',
+                  style: TextStyle(fontSize: 14, color: _bodyColor),
+                ),
+              )
+            else ...[
+              ..._pendingEditRequests.map(_buildEditRequestCard),
+              if (_editRequestError != null)
+                DashboardInlineNotice(
+                  message: _editRequestError!,
+                  onRetry: () =>
+                      _refreshSection(_SupervisorDashboardSection.editRequests),
+                )
+              else if (isLoading)
+                _buildSectionRefreshingHint(
+                  'Refreshing correction requests...',
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildBody() {
     final isSummaryLoading = _isSectionLoading(
       _SupervisorDashboardSection.summary,
@@ -1984,6 +2499,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   _buildActionBar(),
                   SizedBox(height: isNarrow ? 16 : 24),
                   _buildLogsPanel(),
+                  SizedBox(height: isNarrow ? 16 : 24),
+                  _buildEditRequestsPanel(),
                 ],
               ),
             ),
