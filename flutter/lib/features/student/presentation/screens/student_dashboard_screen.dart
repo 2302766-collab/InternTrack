@@ -1386,9 +1386,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         final authProvider = dialogContext.watch<AuthProvider>();
         final user = authProvider.user;
         final avatar = _avatarImage(authProvider);
-        final displayName = user?.name.isNotEmpty == true
-            ? user!.name
-            : widget.userName;
+        final displayName = _resolvedUserName(user);
 
         return SafeArea(
           child: Stack(
@@ -1665,7 +1663,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           _buildInfoRow(
             icon: Icons.badge_outlined,
             label: 'Student',
-            value: user?.name.isNotEmpty == true ? user!.name : widget.userName,
+            value: _resolvedUserName(user),
           ),
           const SizedBox(height: 10),
           _buildInfoRow(
@@ -1753,12 +1751,29 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
 
+  String _resolvedUserName(AppUser? user, {String fallback = 'Student'}) {
+    if (user?.name.isNotEmpty == true) {
+      return user!.name;
+    }
+
+    final providerUser = context.read<AuthProvider>().user;
+    if (providerUser?.name.isNotEmpty == true) {
+      return providerUser!.name;
+    }
+
+    if (widget.userName.isNotEmpty) {
+      return widget.userName;
+    }
+
+    return fallback;
+  }
+
   Widget _buildTopHeader(AuthProvider authProvider) {
     final themeController = context.watch<ThemeController>();
     final user = authProvider.user;
     final token = authProvider.token ?? '';
     final avatar = _avatarImage(authProvider);
-    final displayName = user?.name.isNotEmpty == true ? user!.name : 'Student';
+    final displayName = _resolvedUserName(user);
 
     return LayoutBuilder(
       builder: (context, constraints) {

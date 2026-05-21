@@ -1046,6 +1046,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         .toUpperCase();
   }
 
+  String resolvedUserName(AppUser? user, {String fallback = 'Admin'}) {
+    if (user?.name.isNotEmpty == true) {
+      return user!.name;
+    }
+
+    final providerUser = context.read<AuthProvider>().user;
+    if (providerUser?.name.isNotEmpty == true) {
+      return providerUser!.name;
+    }
+
+    if (widget.userName.isNotEmpty) {
+      return widget.userName;
+    }
+
+    return fallback;
+  }
+
   ImageProvider<Object>? avatarImageProviderFor(String? avatarBase64) {
     if (avatarBase64 == null || avatarBase64.isEmpty) {
       return null;
@@ -1064,7 +1081,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     double fontSize = 16,
   }) {
     final imageProvider = avatarImageProviderFor(user?.avatarBase64);
-    final name = user?.name ?? widget.userName;
+    final name = resolvedUserName(user);
 
     return CircleAvatar(
       radius: radius,
@@ -1188,9 +1205,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    user?.name.isNotEmpty == true
-                                        ? user!.name
-                                        : widget.userName,
+                                    resolvedUserName(user),
                                     style: TextStyle(
                                       fontSize: 21,
                                       fontWeight: FontWeight.w800,
@@ -1378,7 +1393,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           buildInfoRow(
             icon: Icons.badge_outlined,
             label: 'Administrator',
-            value: user?.name.isNotEmpty == true ? user!.name : widget.userName,
+            value: resolvedUserName(user),
           ),
           const SizedBox(height: 10),
           buildInfoRow(
@@ -1524,9 +1539,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            user?.name.isNotEmpty == true
-                                ? user!.name
-                                : widget.userName,
+                            resolvedUserName(user),
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 14,

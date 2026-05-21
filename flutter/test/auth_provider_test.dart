@@ -276,6 +276,36 @@ void main() {
       expect(tokenService.storedUser?.avatarBase64, isNull);
       expect(authService.lastAvatarBase64, isNull);
     });
+
+    test('updateProfile persists repeated name changes including reverting back', () async {
+      final tokenService = _FakeTokenService('stored-token', _student);
+      var currentUser = _student;
+      final authService = _FakeAuthService(
+        user: _student,
+        updateProfileHandler: ({required String name, required String gender}) async {
+          currentUser = AppUser(
+            id: currentUser.id,
+            name: name,
+            email: currentUser.email,
+            role: currentUser.role,
+            gender: gender,
+          );
+          return currentUser;
+        },
+      );
+      final provider = AuthProvider(tokenService, authService: authService);
+
+      await provider.initialize();
+      await provider.updateProfile(name: 'Updated Name', gender: 'Male');
+
+      expect(provider.user?.name, 'Updated Name');
+      expect(tokenService.storedUser?.name, 'Updated Name');
+
+      await provider.updateProfile(name: 'Student User', gender: 'Male');
+
+      expect(provider.user?.name, 'Student User');
+      expect(tokenService.storedUser?.name, 'Student User');
+    });
   });
 }
 
@@ -346,13 +376,20 @@ class _FakeAuthService extends AuthService {
     this.error,
     this.logoutError,
     this.updateAvatarHandler,
+    this.updateProfileHandler,
   }) : super(ApiClient(dio: Dio()));
 
   final AppUser? user;
   final Object? error;
   final Object? logoutError;
   final Future<AppUser> Function(String? avatarBase64)? updateAvatarHandler;
+  final Future<AppUser> Function({
+    required String name,
+    required String gender,
+  })? updateProfileHandler;
   String? lastAvatarBase64;
+  String? lastUpdatedName;
+  String? lastUpdatedGender;
 
   @override
   Future<AppUser> getAuthenticatedUser() async {
@@ -381,6 +418,29 @@ class _FakeAuthService extends AuthService {
     }
 
     return user!;
+  }
+
+  @override
+  Future<AppUser> updateProfile({
+    required String name,
+    required String gender,
+  }) async {
+    lastUpdatedName = name;
+    lastUpdatedGender = gender;
+
+    final handler = updateProfileHandler;
+    if (handler != null) {
+      return handler(name: name, gender: gender);
+    }
+
+    return AppUser(
+      id: user!.id,
+      name: name,
+      email: user!.email,
+      role: user!.role,
+      gender: gender,
+      avatarBase64: user!.avatarBase64,
+    );
   }
 }
 

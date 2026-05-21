@@ -204,7 +204,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
     double fontSize = 16,
   }) {
     final imageProvider = _avatarImageProviderFor(user?.avatarBase64);
-    final name = user?.name.isNotEmpty == true ? user!.name : widget.userName;
+    final name = _resolvedUserName(user);
 
     return CircleAvatar(
       radius: radius,
@@ -407,7 +407,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
           _buildProfileInfoRow(
             icon: Icons.person_outline_rounded,
             label: 'Adviser',
-            value: user?.name.isNotEmpty == true ? user!.name : widget.userName,
+            value: _resolvedUserName(user),
           ),
           const SizedBox(height: 10),
           _buildProfileInfoRow(
@@ -531,9 +531,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    user?.name.isNotEmpty == true
-                                        ? user!.name
-                                        : widget.userName,
+                                    _resolvedUserName(user),
                                     style: TextStyle(
                                       fontSize: 21,
                                       fontWeight: FontWeight.w800,
@@ -786,6 +784,23 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
     if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
     return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
         .toUpperCase();
+  }
+
+  String _resolvedUserName(AppUser? user, {String fallback = 'Adviser'}) {
+    if (user?.name.isNotEmpty == true) {
+      return user!.name;
+    }
+
+    final providerUser = context.read<AuthProvider>().user;
+    if (providerUser?.name.isNotEmpty == true) {
+      return providerUser!.name;
+    }
+
+    if (widget.userName.isNotEmpty) {
+      return widget.userName;
+    }
+
+    return fallback;
   }
 
   Widget _buildProfileTrigger({
@@ -1579,9 +1594,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
             : constraints.maxWidth >= 1280
             ? 420.0
             : 360.0;
-        final displayName = authProvider.user?.name.isNotEmpty == true
-            ? authProvider.user!.name
-            : widget.userName;
+        final displayName = _resolvedUserName(authProvider.user);
 
         final profileSection = Row(
           children: [

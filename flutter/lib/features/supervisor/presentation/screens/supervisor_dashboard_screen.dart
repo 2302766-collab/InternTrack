@@ -450,6 +450,23 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         .toUpperCase();
   }
 
+  String _resolvedUserName(AppUser? user, {String fallback = 'Supervisor'}) {
+    if (user?.name.isNotEmpty == true) {
+      return user!.name;
+    }
+
+    final providerUser = context.read<AuthProvider>().user;
+    if (providerUser?.name.isNotEmpty == true) {
+      return providerUser!.name;
+    }
+
+    if (widget.userName.isNotEmpty) {
+      return widget.userName;
+    }
+
+    return fallback;
+  }
+
   Widget _buildProfileTrigger({
     required AppUser? user,
     required String displayName,
@@ -531,7 +548,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     double fontSize = 16,
   }) {
     final imageProvider = _avatarImageProviderFor(user?.avatarBase64);
-    final name = user?.name.isNotEmpty == true ? user!.name : widget.userName;
+    final name = _resolvedUserName(user);
 
     return CircleAvatar(
       radius: radius,
@@ -688,9 +705,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    user?.name.isNotEmpty == true
-                                        ? user!.name
-                                        : widget.userName,
+                                    _resolvedUserName(user),
                                     style: TextStyle(
                                       fontSize: 21,
                                       fontWeight: FontWeight.w800,
@@ -879,7 +894,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           _buildInfoRow(
             icon: Icons.badge_outlined,
             label: 'Supervisor',
-            value: user?.name.isNotEmpty == true ? user!.name : widget.userName,
+            value: _resolvedUserName(user),
           ),
           const SizedBox(height: 10),
           _buildInfoRow(
@@ -1084,9 +1099,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         theme.textTheme.bodyMedium?.color ?? primaryTextColor;
     final dividerColor =
         theme.dividerTheme.color ?? theme.colorScheme.outlineVariant;
-    final displayName = authProvider.user?.name.isNotEmpty == true
-        ? authProvider.user!.name
-        : widget.userName;
+    final displayName = _resolvedUserName(authProvider.user);
 
     return LayoutBuilder(
       builder: (context, constraints) {
