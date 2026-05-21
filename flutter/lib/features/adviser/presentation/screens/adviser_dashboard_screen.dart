@@ -3245,262 +3245,295 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                 ? _buildEmptySectionMessage(
                     'No interns matched the current search and filter settings.',
                   )
-                : Column(
-                    children: paginatedInterns.map((detail) {
-                      final progress = _progressValue(detail);
-                      final status = _statusLabel(detail);
-                      final secondaryStatus = _secondaryStatusLabel(detail);
-                      final statusColor = _statusColor(detail);
-                      final daysSince = _daysSince(
-                        _lastLogDate(detail),
-                        referenceDate,
-                      );
-                      final isStale = _hasNoRecentLog(detail, referenceDate);
-                      final borderColor = isStale
-                          ? const Color(0xFFFFD3BF)
-                          : detail.hasActiveAlert
-                          ? statusColor.withAlpha(80)
-                          : const Color(0xFFE0E6ED);
+                : Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7F9FC),
+                      borderRadius: BorderRadius.circular(26),
+                      border: Border.all(color: const Color(0xFFE7EDF4)),
+                    ),
+                    child: Column(
+                      children: paginatedInterns.asMap().entries.map((entry) {
+                        final detail = entry.value;
+                        final isLast = entry.key == paginatedInterns.length - 1;
+                        final progress = _progressValue(detail);
+                        final status = _statusLabel(detail);
+                        final secondaryStatus = _secondaryStatusLabel(detail);
+                        final statusColor = _statusColor(detail);
+                        final daysSince = _daysSince(
+                          _lastLogDate(detail),
+                          referenceDate,
+                        );
+                        final isStale = _hasNoRecentLog(detail, referenceDate);
+                        final borderColor = isStale
+                            ? const Color(0xFFFFD3BF)
+                            : detail.hasActiveAlert
+                            ? statusColor.withAlpha(80)
+                            : const Color(0xFFD7E1EB);
 
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 18),
-                        child: InkWell(
-                          onTap: () => _openIntern(detail),
-                          borderRadius: BorderRadius.circular(24),
-                          child: Ink(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: borderColor),
-                            ),
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                final isNarrow = constraints.maxWidth < 760;
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+                          child: InkWell(
+                            onTap: () => _openIntern(detail),
+                            borderRadius: BorderRadius.circular(24),
+                            child: Ink(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFCFDFE),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: borderColor,
+                                  width: 1.2,
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x120F172A),
+                                    blurRadius: 18,
+                                    offset: Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final isNarrow = constraints.maxWidth < 760;
 
-                                final identitySection = Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 24,
-                                      backgroundColor: const Color(0xFF326DE6),
-                                      child: Text(
-                                        _initialsFor(detail.studentName),
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            detail.studentName,
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w800,
-                                              color: _headlineColor,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            detail.companyName,
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: _bodyColor,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          Wrap(
-                                            spacing: 8,
-                                            runSpacing: 8,
-                                            children: [
-                                              _buildTag(status, statusColor),
-                                              if (secondaryStatus != null)
-                                                _buildTag(
-                                                  secondaryStatus,
-                                                  _forecastColor(
-                                                    'Watch closely',
-                                                  ),
-                                                ),
-                                              if (_needsReview(detail))
-                                                _buildTag(
-                                                  '${detail.pendingLogs} pending',
-                                                  const Color(0xFF326DE6),
-                                                ),
-                                              if (isStale)
-                                                _buildTag(
-                                                  _staleLogLabel(
-                                                    detail,
-                                                    referenceDate,
-                                                  ),
-                                                  daysSince == null ||
-                                                          daysSince >= 6
-                                                      ? const Color(0xFFD92D20)
-                                                      : const Color(0xFFB54708),
-                                                ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                );
-
-                                final statusSection = Column(
-                                  crossAxisAlignment: isNarrow
-                                      ? CrossAxisAlignment.start
-                                      : CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      'Last log',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF68768A),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _formatDate(_lastLogDate(detail)),
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700,
-                                        color: isStale
-                                            ? const Color(0xFFB54708)
-                                            : _headlineColor,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      _forecastLabel(detail, referenceDate),
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: _forecastColor(
-                                          _forecastLabel(detail, referenceDate),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                );
-
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (isNarrow) ...[
-                                      identitySection,
-                                      const SizedBox(height: 14),
-                                      statusSection,
-                                    ] else
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(child: identitySection),
-                                          const SizedBox(width: 16),
-                                          statusSection,
-                                        ],
-                                      ),
-                                    const SizedBox(height: 20),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          'Progress',
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w700,
-                                            color: Color(0xFF355070),
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                        Text(
-                                          '${detail.completedHours} / ${detail.requiredHours} hours',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Color(0xFF243B63),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(999),
-                                      child: LinearProgressIndicator(
-                                        minHeight: 16,
-                                        value: progress,
+                                  final identitySection = Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 24,
                                         backgroundColor: const Color(
-                                          0xFFDDE2EA,
+                                          0xFF326DE6,
                                         ),
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              _progressColor(detail),
-                                            ),
+                                        child: Text(
+                                          _initialsFor(detail.studentName),
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 14),
-                                    if (isNarrow)
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            '${(progress * 100).round()}% complete',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w700,
-                                              color: _headlineColor,
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              detail.studentName,
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w800,
+                                                color: _headlineColor,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              detail.companyName,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: _bodyColor,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Wrap(
+                                              spacing: 8,
+                                              runSpacing: 8,
+                                              children: [
+                                                _buildTag(status, statusColor),
+                                                if (secondaryStatus != null)
+                                                  _buildTag(
+                                                    secondaryStatus,
+                                                    _forecastColor(
+                                                      'Watch closely',
+                                                    ),
+                                                  ),
+                                                if (_needsReview(detail))
+                                                  _buildTag(
+                                                    '${detail.pendingLogs} pending',
+                                                    const Color(0xFF326DE6),
+                                                  ),
+                                                if (isStale)
+                                                  _buildTag(
+                                                    _staleLogLabel(
+                                                      detail,
+                                                      referenceDate,
+                                                    ),
+                                                    daysSince == null ||
+                                                            daysSince >= 6
+                                                        ? const Color(
+                                                            0xFFD92D20,
+                                                          )
+                                                        : const Color(
+                                                            0xFFB54708,
+                                                          ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  );
+
+                                  final statusSection = Column(
+                                    crossAxisAlignment: isNarrow
+                                        ? CrossAxisAlignment.start
+                                        : CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        'Last log',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF68768A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _formatDate(_lastLogDate(detail)),
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                          color: isStale
+                                              ? const Color(0xFFB54708)
+                                              : _headlineColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        _forecastLabel(detail, referenceDate),
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: _forecastColor(
+                                            _forecastLabel(
+                                              detail,
+                                              referenceDate,
                                             ),
                                           ),
-                                          const SizedBox(height: 6),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (isNarrow) ...[
+                                        identitySection,
+                                        const SizedBox(height: 14),
+                                        statusSection,
+                                      ] else
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(child: identitySection),
+                                            const SizedBox(width: 16),
+                                            statusSection,
+                                          ],
+                                        ),
+                                      const SizedBox(height: 20),
+                                      Row(
+                                        children: [
                                           Text(
-                                            detail.alertMessage,
+                                            'Progress',
                                             style: TextStyle(
-                                              fontSize: 13,
-                                              color: _bodyColor,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF355070),
+                                            ),
+                                          ),
+                                          const Spacer(),
+                                          Text(
+                                            '${detail.completedHours} / ${detail.requiredHours} hours',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Color(0xFF243B63),
                                             ),
                                           ),
                                         ],
-                                      )
-                                    else
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
+                                      ),
+                                      const SizedBox(height: 10),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
+                                        child: LinearProgressIndicator(
+                                          minHeight: 16,
+                                          value: progress,
+                                          backgroundColor: const Color(
+                                            0xFFDDE2EA,
+                                          ),
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                _progressColor(detail),
+                                              ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 14),
+                                      if (isNarrow)
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '${(progress * 100).round()}% complete',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                                color: _headlineColor,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
                                               detail.alertMessage,
                                               style: TextStyle(
                                                 fontSize: 13,
                                                 color: _bodyColor,
-                                                height: 1.45,
                                               ),
                                             ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Text(
-                                            '${(progress * 100).round()}%',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w800,
-                                              color: _headlineColor,
+                                          ],
+                                        )
+                                      else
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                detail.alertMessage,
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  color: _bodyColor,
+                                                  height: 1.45,
+                                                ),
+                                              ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                  ],
-                                );
-                              },
+                                            const SizedBox(width: 12),
+                                            Text(
+                                              '${(progress * 100).round()}%',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w800,
+                                                color: _headlineColor,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                    ],
+                                  );
+                                },
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    }).toList(),
+                        );
+                      }).toList(),
+                    ),
                   ),
           ),
           if (totalFiltered > _internProgressItemsPerPage)
