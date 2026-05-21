@@ -6,13 +6,14 @@ import 'base_service.dart';
 
 class AdminStudentService extends BaseService {
   AdminStudentService([ApiClient? apiClient])
-      : _apiClient = apiClient ?? ApiClient();
+    : _apiClient = apiClient ?? ApiClient();
 
   final ApiClient _apiClient;
 
   Future<AdminStudentsPage> fetchStudents({
     required int page,
     int perPage = 10,
+    String filter = 'all',
   }) async {
     try {
       return await _apiClient.get<AdminStudentsPage>(
@@ -20,6 +21,7 @@ class AdminStudentService extends BaseService {
         queryParameters: <String, dynamic>{
           'page': page,
           'per_page': perPage,
+          'filter': filter,
         },
         converter: (payload) {
           if (payload is! Map<String, dynamic>) {
@@ -32,9 +34,9 @@ class AdminStudentService extends BaseService {
           final rawData = payload['data'];
           final students = rawData is List
               ? rawData
-                  .whereType<Map<String, dynamic>>()
-                  .map(AdminStudentSummary.fromJson)
-                  .toList()
+                    .whereType<Map<String, dynamic>>()
+                    .map(AdminStudentSummary.fromJson)
+                    .toList()
               : <AdminStudentSummary>[];
 
           final meta = payload['meta'];

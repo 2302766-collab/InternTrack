@@ -133,6 +133,55 @@ class AdminStudentListingTest extends TestCase
             ->assertJsonPath('meta.has_more_pages', false);
     }
 
+    public function test_students_endpoint_can_filter_students_with_missing_advisers(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $supervisor = $this->createUserWithRole('Supervisor');
+        $adviser = $this->createUserWithRole('Adviser');
+
+        $missingAdviserStudent = $this->createUserWithRole('Student', 'Missing Adviser');
+        $assignedStudent = $this->createUserWithRole('Student', 'Assigned Student');
+        $this->createUserWithRole('Student', 'Missing Profile');
+
+        $this->createInternshipProfileFor($missingAdviserStudent, $supervisor, 486, 'Acme Corp');
+        $assignedProfile = $this->createInternshipProfileFor($assignedStudent, $supervisor, 486, 'Beta LLC');
+        $assignedProfile->update([
+            'adviser_id' => $adviser->id,
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $response = $this->withHeader('Accept', 'application/json')
+            ->get('/api/v1/admin/students?filter=missing_adviser');
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.name', 'Missing Adviser')
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('meta.last_page', 1);
+
+        $this->assertSame($missingAdviserStudent->id, $response->json('data.0.student_id'));
+    }
+
+    public function test_students_endpoint_rejects_invalid_filter(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+
+        Sanctum::actingAs($admin);
+
+        $this->withHeader('Accept', 'application/json')
+            ->get('/api/v1/admin/students?filter=unknown')
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Validation failed.')
+            ->assertJsonStructure([
+                'data' => [
+                    'errors' => [
+                        'filter',
+                    ],
+                ],
+            ]);
+    }
+
     public function test_students_endpoint_returns_empty_payload_when_student_role_is_missing(): void
     {
         $admin = $this->createUserWithRole('Admin');

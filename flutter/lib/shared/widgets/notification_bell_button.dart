@@ -7,6 +7,8 @@ import '../../core/exceptions/api_exception.dart';
 import '../../core/services/notification_service.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/student/navigation/student_notification_routing.dart';
+import '../../features/supervisor/presentation/screens/intern_list_screen.dart';
+import '../../features/supervisor/presentation/screens/supervisor_log_queue_screen.dart';
 import '../models/app_notification.dart';
 
 class NotificationBellButton extends StatefulWidget {
@@ -134,8 +136,7 @@ class _NotificationBellButtonState extends State<NotificationBellButton> {
       builder: (sheetContext) {
         return _NotificationSheet(
           hostContext: context,
-          enableStudentTapRouting:
-              context.read<AuthProvider>().role.toLowerCase() == 'student',
+          userRole: context.read<AuthProvider>().role,
           errorMessage: _errorMessage,
           isLoading: _isLoading,
           notifications: _notifications,
@@ -165,10 +166,7 @@ class _NotificationBellButtonState extends State<NotificationBellButton> {
                     ),
                   ),
                 )
-              : Icon(
-                  Icons.notifications_none_rounded,
-                  color: widget.iconColor,
-                ),
+              : Icon(Icons.notifications_none_rounded, color: widget.iconColor),
         ),
         if (_unreadCount > 0)
           Positioned(
@@ -200,7 +198,7 @@ class _NotificationBellButtonState extends State<NotificationBellButton> {
 
 class _NotificationSheet extends StatefulWidget {
   final BuildContext hostContext;
-  final bool enableStudentTapRouting;
+  final String userRole;
   final String? errorMessage;
   final bool isLoading;
   final List<AppNotification> notifications;
@@ -209,7 +207,7 @@ class _NotificationSheet extends StatefulWidget {
 
   const _NotificationSheet({
     required this.hostContext,
-    required this.enableStudentTapRouting,
+    required this.userRole,
     required this.errorMessage,
     required this.isLoading,
     required this.notifications,
@@ -255,11 +253,7 @@ class _NotificationSheetState extends State<_NotificationSheet> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
-          ),
-        ),
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
       );
     } finally {
       if (mounted) {
@@ -271,7 +265,8 @@ class _NotificationSheetState extends State<_NotificationSheet> {
   }
 
   Future<void> _handleNotificationTap(AppNotification notification) async {
-    if (!widget.enableStudentTapRouting) return;
+    final quickLink = _resolveQuickLink(notification);
+    if (quickLink == null) return;
 
     if (!notification.isRead) {
       try {
@@ -290,9 +285,9 @@ class _NotificationSheetState extends State<_NotificationSheet> {
           final message = e is ApiException
               ? e.message
               : e.toString().replaceFirst('Exception: ', '');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message)));
         }
       }
     }
@@ -303,27 +298,178 @@ class _NotificationSheetState extends State<_NotificationSheet> {
     final host = widget.hostContext;
     if (!host.mounted) return;
 
+    await quickLink.open(host);
+  }
+
+  _NotificationQuickLink? _resolveQuickLink(AppNotification notification) {
+    final role = widget.userRole.trim().toLowerCase();
+    switch (role) {
+      case 'student':
+        return _resolveStudentQuickLink(notification);
+      case 'supervisor':
+        return _resolveSupervisorQuickLink(notification);
+      case 'adviser':
+        return _resolveAdviserQuickLink(notification);
+      case 'admin':
+        return _resolveAdminQuickLink(notification);
+      default:
+        return null;
+    }
+  }
+
+  _NotificationQuickLink? _resolveStudentQuickLink(
+    AppNotification notification,
+  ) {
     final route = StudentNotificationRoute.resolve(notification);
     if (route == null) {
-      ScaffoldMessenger.of(host).showSnackBar(
-        const SnackBar(
-          content: Text('No quick link is available for this notification.'),
-        ),
-      );
-      return;
+      return null;
     }
 
     switch (route.kind) {
       case StudentNotificationRouteKind.logbook:
-        Navigator.of(host).pushNamed(
-          AppRoutes.logbook,
-          arguments: LogbookNavArgs(logId: route.logId),
+        return _NotificationQuickLink(
+          label: 'Open logbook',
+          open: (host) => _pushNamedIfNeeded(
+            host,
+            AppRoutes.logbook,
+            arguments: LogbookNavArgs(logId: route.logId),
+          ),
         );
-        break;
       case StudentNotificationRouteKind.report:
-        Navigator.of(host).pushNamed(AppRoutes.studentReport);
-        break;
+        return _NotificationQuickLink(
+          label: 'Open report',
+          open: (host) => _pushNamedIfNeeded(host, AppRoutes.studentReport),
+        );
+      case StudentNotificationRouteKind.dtr:
+        return _NotificationQuickLink(
+          label: 'Open DTR',
+          open: (host) => _pushNamedIfNeeded(host, AppRoutes.studentDtr),
+        );
     }
+  }
+
+  _NotificationQuickLink? _resolveSupervisorQuickLink(
+    AppNotification notification,
+  ) {
+    final normalized = _normalizedType(notification.type);
+    final resourceType = _normalizedMeta(notification.meta?['resource_type']);
+    final haystack = '${notification.title} ${notification.message}'
+        .toLowerCase();
+
+    if (normalized == 'edit_request_submitted') {
+      if (resourceType == 'log') {
+        return _NotificationQuickLink(
+          label: 'Review logs',
+          open: (host) => Navigator.of(host).push(
+            MaterialPageRoute(
+              builder: (_) => const SupervisorPendingLogsScreen(),
+            ),
+          ),
+        );
+      }
+
+      return _NotificationQuickLink(
+        label: 'View interns',
+        open: (host) => Navigator.of(host).push(
+          MaterialPageRoute(
+            builder: (_) => const InternListScreen(role: 'supervisor'),
+          ),
+        ),
+      );
+    }
+
+    if (haystack.contains('log')) {
+      return _NotificationQuickLink(
+        label: 'Review logs',
+        open: (host) => Navigator.of(host).push(
+          MaterialPageRoute(
+            builder: (_) => const SupervisorPendingLogsScreen(),
+          ),
+        ),
+      );
+    }
+
+    if (haystack.contains('intern') || haystack.contains('student')) {
+      return _NotificationQuickLink(
+        label: 'View interns',
+        open: (host) => Navigator.of(host).push(
+          MaterialPageRoute(
+            builder: (_) => const InternListScreen(role: 'supervisor'),
+          ),
+        ),
+      );
+    }
+
+    return null;
+  }
+
+  _NotificationQuickLink? _resolveAdviserQuickLink(
+    AppNotification notification,
+  ) {
+    final haystack = '${notification.title} ${notification.message}'
+        .toLowerCase();
+
+    if (haystack.contains('intern') ||
+        haystack.contains('student') ||
+        haystack.contains('report') ||
+        haystack.contains('log')) {
+      return _NotificationQuickLink(
+        label: 'View interns',
+        open: (host) => Navigator.of(host).push(
+          MaterialPageRoute(
+            builder: (_) => const InternListScreen(role: 'adviser'),
+          ),
+        ),
+      );
+    }
+
+    return null;
+  }
+
+  _NotificationQuickLink? _resolveAdminQuickLink(AppNotification notification) {
+    final normalized = _normalizedType(notification.type);
+    final haystack = '${notification.title} ${notification.message}'
+        .toLowerCase();
+
+    if (normalized == 'edit_request_submitted') {
+      return _NotificationQuickLink(
+        label: 'Open dashboard',
+        open: (host) => _pushNamedIfNeeded(host, AppRoutes.adminDashboard),
+      );
+    }
+
+    if (haystack.contains('adviser') ||
+        haystack.contains('supervisor') ||
+        haystack.contains('assign')) {
+      return _NotificationQuickLink(
+        label: 'Manage assignments',
+        open: (host) =>
+            _pushNamedIfNeeded(host, AppRoutes.studentAdviserAssignment),
+      );
+    }
+
+    return null;
+  }
+
+  Future<void> _pushNamedIfNeeded(
+    BuildContext host,
+    String routeName, {
+    Object? arguments,
+  }) async {
+    final currentRoute = ModalRoute.of(host)?.settings.name;
+    if (currentRoute == routeName) {
+      return;
+    }
+
+    await Navigator.of(host).pushNamed(routeName, arguments: arguments);
+  }
+
+  String _normalizedType(String? value) {
+    return (value ?? '').trim().toLowerCase().replaceAll('-', '_');
+  }
+
+  String _normalizedMeta(Object? value) {
+    return value?.toString().trim().toLowerCase() ?? '';
   }
 
   @override
@@ -399,6 +545,7 @@ class _NotificationSheetState extends State<_NotificationSheet> {
                     itemBuilder: (context, index) {
                       final notification = _notifications[index];
                       final isMarking = _markingIds.contains(notification.id);
+                      final quickLink = _resolveQuickLink(notification);
 
                       return Material(
                         color: notification.isRead
@@ -415,91 +562,110 @@ class _NotificationSheetState extends State<_NotificationSheet> {
                         ),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(18),
-                          onTap: widget.enableStudentTapRouting
-                              ? () => _handleNotificationTap(notification)
-                              : null,
+                          onTap: quickLink == null
+                              ? null
+                              : () => _handleNotificationTap(notification),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        notification.title,
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF102A56),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        notification.message,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          color: Color(0xFF475467),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                if (!notification.isRead)
-                                  Container(
-                                    width: 10,
-                                    height: 10,
-                                    margin: const EdgeInsets.only(top: 6),
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFF1D4ED8),
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    _formatTimestamp(notification.createdAt),
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF667085),
-                                    ),
-                                  ),
-                                ),
-                                if (notification.isRead)
-                                  const Text(
-                                    'Read',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF039855),
-                                    ),
-                                  )
-                                else
-                                  TextButton(
-                                    onPressed: isMarking
-                                        ? null
-                                        : () => _handleMarkAsRead(notification.id),
-                                    child: isMarking
-                                        ? const SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            notification.title,
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF102A56),
                                             ),
-                                          )
-                                        : const Text('Mark as read'),
-                                  ),
-                              ],
-                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            notification.message,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              color: Color(0xFF475467),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    if (!notification.isRead)
+                                      Container(
+                                        width: 10,
+                                        height: 10,
+                                        margin: const EdgeInsets.only(top: 6),
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFF1D4ED8),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        _formatTimestamp(
+                                          notification.createdAt,
+                                        ),
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF667085),
+                                        ),
+                                      ),
+                                    ),
+                                    if (quickLink != null) ...[
+                                      TextButton.icon(
+                                        onPressed: () => _handleNotificationTap(
+                                          notification,
+                                        ),
+                                        icon: const Icon(
+                                          Icons.open_in_new_rounded,
+                                          size: 16,
+                                        ),
+                                        label: Text(quickLink.label),
+                                      ),
+                                      const SizedBox(width: 8),
+                                    ],
+                                    if (notification.isRead)
+                                      const Text(
+                                        'Read',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF039855),
+                                        ),
+                                      )
+                                    else
+                                      TextButton(
+                                        onPressed: isMarking
+                                            ? null
+                                            : () => _handleMarkAsRead(
+                                                notification.id,
+                                              ),
+                                        child: isMarking
+                                            ? const SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
+                                              )
+                                            : const Text('Mark as read'),
+                                      ),
+                                  ],
+                                ),
                               ],
                             ),
                           ),
@@ -522,4 +688,11 @@ class _NotificationSheetState extends State<_NotificationSheet> {
 
     return DateFormat('MMM d, yyyy - h:mm a').format(value.toLocal());
   }
+}
+
+class _NotificationQuickLink {
+  const _NotificationQuickLink({required this.label, required this.open});
+
+  final String label;
+  final Future<void> Function(BuildContext host) open;
 }

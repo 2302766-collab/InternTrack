@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dio/dio.dart';
+import 'package:intern_track_app/core/constants/app_routes.dart';
 import 'package:intern_track_app/core/exceptions/api_exception.dart';
 import 'package:intern_track_app/core/services/auth_service.dart';
 import 'package:intern_track_app/core/services/api_client.dart';
@@ -111,6 +114,27 @@ void main() {
       },
     );
 
+    test('refreshes provided login user when syncUser is enabled', () async {
+      final tokenService = _FakeTokenService();
+      final authService = _FakeAuthService(
+        user: const AppUser(
+          id: 1,
+          name: 'Updated Student',
+          email: 'student@example.test',
+          role: 'Student',
+          gender: 'Female',
+        ),
+      );
+      final provider = AuthProvider(tokenService, authService: authService);
+
+      await provider.setToken('good-token', user: _student, syncUser: true);
+
+      expect(provider.isAuthenticated, isTrue);
+      expect(provider.user?.name, 'Updated Student');
+      expect(provider.user?.gender, 'Female');
+      expect(tokenService.storedUser?.name, 'Updated Student');
+    });
+
     test(
       'initialization falls back to logged out state when token restore throws',
       () async {
@@ -134,6 +158,154 @@ void main() {
         expect(tokenService.cleared, isTrue);
       },
     );
+
+    test(
+      'refreshAuthState clears session when synced token is unauthorized',
+      () async {
+        final tokenService = _FakeTokenService('stored-token', _student);
+        final authService = _FakeAuthService(
+          error: ApiException(
+            message: 'Unauthenticated.',
+            errorType: ApiErrorType.unauthorized,
+          ),
+        );
+        final provider = AuthProvider(tokenService, authService: authService);
+
+        await provider.initialize();
+        await provider.refreshAuthState();
+
+        expect(provider.isAuthenticated, isFalse);
+        expect(provider.token, isNull);
+        expect(provider.user, isNull);
+        expect(tokenService.cleared, isTrue);
+      },
+    );
+
+    test('logout clears local session even when server logout fails', () async {
+      final tokenService = _FakeTokenService('stored-token', _student);
+      final authService = _FakeAuthService(
+        user: _student,
+        logoutError: ApiException(
+          message: 'Token already expired.',
+          errorType: ApiErrorType.unauthorized,
+        ),
+      );
+      final provider = AuthProvider(tokenService, authService: authService);
+
+      await provider.initialize();
+      await provider.logout();
+
+      expect(provider.isAuthenticated, isFalse);
+      expect(provider.token, isNull);
+      expect(provider.user, isNull);
+      expect(tokenService.cleared, isTrue);
+    });
+
+    test('dashboardRoute matches each supported role', () async {
+      final adminProvider = AuthProvider(
+        _FakeTokenService(),
+        authService: _FakeAuthService(),
+      );
+      await adminProvider.setToken(
+        'admin-token',
+        user: const AppUser(
+          id: 10,
+          name: 'Admin',
+          email: 'admin@test',
+          role: 'Admin',
+        ),
+      );
+
+      final supervisorProvider = AuthProvider(
+        _FakeTokenService(),
+        authService: _FakeAuthService(),
+      );
+      await supervisorProvider.setToken(
+        'supervisor-token',
+        user: const AppUser(
+          id: 11,
+          name: 'Supervisor',
+          email: 'supervisor@test',
+          role: 'Supervisor',
+        ),
+      );
+
+      final adviserProvider = AuthProvider(
+        _FakeTokenService(),
+        authService: _FakeAuthService(),
+      );
+      await adviserProvider.setToken(
+        'adviser-token',
+        user: const AppUser(
+          id: 12,
+          name: 'Adviser',
+          email: 'adviser@test',
+          role: 'Adviser',
+        ),
+      );
+
+      expect(adminProvider.dashboardRoute, AppRoutes.adminDashboard);
+      expect(supervisorProvider.dashboardRoute, AppRoutes.supervisorDashboard);
+      expect(adviserProvider.dashboardRoute, AppRoutes.adviserDashboard);
+      expect(
+        AuthProvider(
+          _FakeTokenService(),
+          authService: _FakeAuthService(),
+        ).dashboardRoute,
+        AppRoutes.studentDashboard,
+      );
+    });
+
+    test('updateAvatarBytes clears avatar when bytes are empty', () async {
+      final tokenService = _FakeTokenService('stored-token', _student);
+      final authService = _FakeAuthService(
+        user: _student,
+        updateAvatarHandler: (_) async => const AppUser(
+          id: 1,
+          name: 'Student User',
+          email: 'student@example.test',
+          role: 'Student',
+        ),
+      );
+      final provider = AuthProvider(tokenService, authService: authService);
+
+      await provider.initialize();
+      await provider.updateAvatarBytes(Uint8List(0));
+
+      expect(provider.user?.avatarBase64, isNull);
+      expect(tokenService.storedUser?.avatarBase64, isNull);
+      expect(authService.lastAvatarBase64, isNull);
+    });
+
+    test('updateProfile persists repeated name changes including reverting back', () async {
+      final tokenService = _FakeTokenService('stored-token', _student);
+      var currentUser = _student;
+      final authService = _FakeAuthService(
+        user: _student,
+        updateProfileHandler: ({required String name, required String gender}) async {
+          currentUser = AppUser(
+            id: currentUser.id,
+            name: name,
+            email: currentUser.email,
+            role: currentUser.role,
+            gender: gender,
+          );
+          return currentUser;
+        },
+      );
+      final provider = AuthProvider(tokenService, authService: authService);
+
+      await provider.initialize();
+      await provider.updateProfile(name: 'Updated Name', gender: 'Male');
+
+      expect(provider.user?.name, 'Updated Name');
+      expect(tokenService.storedUser?.name, 'Updated Name');
+
+      await provider.updateProfile(name: 'Student User', gender: 'Male');
+
+      expect(provider.user?.name, 'Student User');
+      expect(tokenService.storedUser?.name, 'Student User');
+    });
   });
 }
 
@@ -199,10 +371,25 @@ class _FakeTokenService extends TokenService {
 }
 
 class _FakeAuthService extends AuthService {
-  _FakeAuthService({this.user, this.error}) : super(ApiClient(dio: Dio()));
+  _FakeAuthService({
+    this.user,
+    this.error,
+    this.logoutError,
+    this.updateAvatarHandler,
+    this.updateProfileHandler,
+  }) : super(ApiClient(dio: Dio()));
 
   final AppUser? user;
   final Object? error;
+  final Object? logoutError;
+  final Future<AppUser> Function(String? avatarBase64)? updateAvatarHandler;
+  final Future<AppUser> Function({
+    required String name,
+    required String gender,
+  })? updateProfileHandler;
+  String? lastAvatarBase64;
+  String? lastUpdatedName;
+  String? lastUpdatedGender;
 
   @override
   Future<AppUser> getAuthenticatedUser() async {
@@ -212,6 +399,48 @@ class _FakeAuthService extends AuthService {
     }
 
     return user!;
+  }
+
+  @override
+  Future<void> logout() async {
+    final logoutError = this.logoutError;
+    if (logoutError != null) {
+      throw logoutError;
+    }
+  }
+
+  @override
+  Future<AppUser> updateAvatarBase64(String? avatarBase64) async {
+    lastAvatarBase64 = avatarBase64;
+    final handler = updateAvatarHandler;
+    if (handler != null) {
+      return handler(avatarBase64);
+    }
+
+    return user!;
+  }
+
+  @override
+  Future<AppUser> updateProfile({
+    required String name,
+    required String gender,
+  }) async {
+    lastUpdatedName = name;
+    lastUpdatedGender = gender;
+
+    final handler = updateProfileHandler;
+    if (handler != null) {
+      return handler(name: name, gender: gender);
+    }
+
+    return AppUser(
+      id: user!.id,
+      name: name,
+      email: user!.email,
+      role: user!.role,
+      gender: gender,
+      avatarBase64: user!.avatarBase64,
+    );
   }
 }
 

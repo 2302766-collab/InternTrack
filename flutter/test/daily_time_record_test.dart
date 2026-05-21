@@ -35,7 +35,7 @@ void main() {
       expect(record.totalWorkMinutes, 0);
     });
 
-    test('treats an afternoon-only active session as ready for time out', () {
+    test('preserves the server next action for afternoon-only sessions', () {
       final record = DailyTimeRecord.fromJson({
         'status': 'WORKING',
         'next_action': 'LUNCH_OUT',
@@ -43,10 +43,7 @@ void main() {
       });
 
       expect(record.isAfternoonOnlySession, isTrue);
-      expect(
-        record.resolvedNextAction(DateTime(2026, 4, 20, 13)),
-        'TIME_OUT',
-      );
+      expect(record.resolvedNextAction(DateTime(2026, 4, 20, 13)), 'LUNCH_OUT');
     });
   });
 }

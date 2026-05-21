@@ -11,6 +11,7 @@ class AdviserAlertService
     private const INACTIVE_WORKING_DAYS = 3;
     private const EARLY_STAGE_WORKING_DAYS = 5;
     private const PACE_GRACE_WORKING_DAYS = 2;
+    private const NO_LOGS_WARNING_WORKING_DAYS = 5;
 
     public function evaluate(
         InternshipProfile $profile,
@@ -42,9 +43,11 @@ class AdviserAlertService
         $baseMeta = [
             'server_date' => $serverDate->toDateString(),
             'inactive_threshold_working_days' => self::INACTIVE_WORKING_DAYS,
+            'no_logs_warning_working_days' => self::NO_LOGS_WARNING_WORKING_DAYS,
             'inactive_working_days' => $inactiveWorkingDays,
             'completed_hours' => $completedHours,
             'required_hours' => $requiredHours,
+            'has_supervisor' => $profile->supervisor_id !== null,
             'completion_percentage' => $requiredHours > 0
                 ? round(($completedHours / $requiredHours) * 100, 2)
                 : 0,
@@ -60,11 +63,28 @@ class AdviserAlertService
             );
         }
 
+        if ($profile->supervisor_id === null) {
+            return $this->payload(
+                status: 'MISSING_SUPERVISOR',
+                message: 'No company supervisor has been assigned for this internship yet.',
+                severity: 'critical',
+                meta: $baseMeta
+            );
+        }
+
         if ($totalLogs === 0) {
+            $elapsedWorkingDays = (int) ($timeline['elapsed_working_days'] ?? 0);
+            $message = $elapsedWorkingDays >= self::NO_LOGS_WARNING_WORKING_DAYS
+                ? "No logs submitted after {$elapsedWorkingDays} working days."
+                : 'No logs submitted yet for this active internship.';
+            $severity = $elapsedWorkingDays >= self::NO_LOGS_WARNING_WORKING_DAYS
+                ? 'warning'
+                : 'info';
+
             return $this->payload(
                 status: 'NO_LOGS_YET',
-                message: 'No logs submitted yet for this active internship.',
-                severity: 'info',
+                message: $message,
+                severity: $severity,
                 meta: $baseMeta
             );
         }

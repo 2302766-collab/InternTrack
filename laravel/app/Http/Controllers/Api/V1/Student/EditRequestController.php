@@ -64,7 +64,7 @@ class EditRequestController extends Controller
 
         $editRequest->load(['requester', 'logEntry.internshipProfile.student']);
 
-        $this->notifyAdmins(
+        $this->notifyStakeholders(
             title: 'Log edit request submitted',
             message: "{$student->name} requested a correction for log #{$log->id}.",
             type: 'EDIT_REQUEST_SUBMITTED',
@@ -73,6 +73,7 @@ class EditRequestController extends Controller
                 'resource_type' => EditRequest::RESOURCE_LOG,
                 'log_entry_id' => $log->id,
             ],
+            supervisor: $profile->supervisor,
         );
 
         return response()->json([
@@ -87,26 +88,57 @@ class EditRequestController extends Controller
         $student = $request->user();
 
         $validated = $request->validate([
-            'daily_time_record_id' => ['required', 'integer'],
-            'time_in_at' => ['required', 'date'],
-            'lunch_out_at' => ['required', 'date'],
-            'lunch_in_at' => ['required', 'date'],
-            'time_out_at' => ['required', 'date'],
+            'daily_time_record_id' => ['nullable', 'integer'],
+            'date' => ['required', 'date', 'before_or_equal:today'],
+            'time_in_at' => ['nullable', 'date'],
+            'lunch_out_at' => ['nullable', 'date'],
+            'lunch_in_at' => ['nullable', 'date'],
+            'time_out_at' => ['nullable', 'date'],
             'reason' => ['required', 'string', 'min:5', 'max:2000'],
         ]);
 
-        $record = DailyTimeRecord::query()->find($validated['daily_time_record_id']);
+        $profile = InternshipProfile::query()
+            ->where('student_id', $student->id)
+            ->first();
+
+        if (! $profile) {
+            return $this->notFound('Internship profile is required before requesting DTR edits.');
+        }
+
+        $requestedDate = Carbon::parse($validated['date'])->toDateString();
+
+        $record = isset($validated['daily_time_record_id'])
+            ? DailyTimeRecord::query()->find($validated['daily_time_record_id'])
+            : DailyTimeRecord::query()
+                ->where('student_id', $student->id)
+                ->whereDate('date', $requestedDate)
+                ->first();
 
         if (! $record) {
-            return $this->notFound('Daily time record not found.');
+            $record = DailyTimeRecord::query()->create([
+                'student_id' => $student->id,
+                'date' => $requestedDate,
+                'status' => 'NOT_STARTED',
+                'first_work_minutes' => 0,
+                'second_work_minutes' => 0,
+                'total_work_minutes' => 0,
+            ]);
         }
 
         if ((int) $record->student_id !== (int) $student->id) {
             return $this->forbidden('You are not allowed to request edits for this daily time record.');
         }
 
-        if ($record->status !== 'COMPLETED') {
-            return $this->conflict('Only completed daily time records can be submitted for admin correction.');
+        if ($record->date?->toDateString() !== $requestedDate) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Requested DTR date does not match the selected attendance record.',
+                'data' => [
+                    'errors' => [
+                        'date' => ['Requested DTR date does not match the selected attendance record.'],
+                    ],
+                ],
+            ], 422);
         }
 
         if ($this->hasPendingDtrRequest($record->id)) {
@@ -114,19 +146,19 @@ class EditRequestController extends Controller
         }
 
         $requestedChanges = [
-            'time_in_at' => Carbon::parse($validated['time_in_at']),
-            'lunch_out_at' => Carbon::parse($validated['lunch_out_at']),
-            'lunch_in_at' => Carbon::parse($validated['lunch_in_at']),
-            'time_out_at' => Carbon::parse($validated['time_out_at']),
+            'time_in_at' => $this->parseOptionalDate($validated['time_in_at'] ?? null),
+            'lunch_out_at' => $this->parseOptionalDate($validated['lunch_out_at'] ?? null),
+            'lunch_in_at' => $this->parseOptionalDate($validated['lunch_in_at'] ?? null),
+            'time_out_at' => $this->parseOptionalDate($validated['time_out_at'] ?? null),
         ];
 
-        if (! $this->isValidDtrSequence($record->date->toDateString(), $requestedChanges)) {
+        if (! $this->isValidDtrSequence($requestedDate, $requestedChanges)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Requested DTR times must stay in order and match the record date.',
+                'message' => 'Requested DTR times must form a valid morning, afternoon, or full-day attendance sequence on the selected date.',
                 'data' => [
                     'errors' => [
-                        'time_sequence' => ['Requested DTR times must stay in order and match the record date.'],
+                        'time_sequence' => ['Requested DTR times must form a valid morning, afternoon, or full-day attendance sequence on the selected date.'],
                     ],
                 ],
             ], 422);
@@ -139,17 +171,17 @@ class EditRequestController extends Controller
             'status' => EditRequest::STATUS_PENDING,
             'reason' => trim($validated['reason']),
             'requested_changes' => [
-                'date' => $record->date->toDateString(),
-                'time_in_at' => $requestedChanges['time_in_at']->toIso8601String(),
-                'lunch_out_at' => $requestedChanges['lunch_out_at']->toIso8601String(),
-                'lunch_in_at' => $requestedChanges['lunch_in_at']->toIso8601String(),
-                'time_out_at' => $requestedChanges['time_out_at']->toIso8601String(),
+                'date' => $requestedDate,
+                'time_in_at' => $requestedChanges['time_in_at']?->toIso8601String(),
+                'lunch_out_at' => $requestedChanges['lunch_out_at']?->toIso8601String(),
+                'lunch_in_at' => $requestedChanges['lunch_in_at']?->toIso8601String(),
+                'time_out_at' => $requestedChanges['time_out_at']?->toIso8601String(),
             ],
         ]);
 
         $editRequest->load(['requester', 'dailyTimeRecord.student']);
 
-        $this->notifyAdmins(
+        $this->notifyStakeholders(
             title: 'DTR edit request submitted',
             message: "{$student->name} requested a correction for DTR #{$record->id}.",
             type: 'EDIT_REQUEST_SUBMITTED',
@@ -158,6 +190,7 @@ class EditRequestController extends Controller
                 'resource_type' => EditRequest::RESOURCE_DTR,
                 'daily_time_record_id' => $record->id,
             ],
+            supervisor: $profile->supervisor,
         );
 
         return response()->json([
@@ -187,33 +220,57 @@ class EditRequestController extends Controller
 
     private function isValidDtrSequence(string $expectedDate, array $changes): bool
     {
-        $timeIn = $changes['time_in_at'];
-        $lunchOut = $changes['lunch_out_at'];
-        $lunchIn = $changes['lunch_in_at'];
-        $timeOut = $changes['time_out_at'];
+        $timeIn = $changes['time_in_at'] ?? null;
+        $lunchOut = $changes['lunch_out_at'] ?? null;
+        $lunchIn = $changes['lunch_in_at'] ?? null;
+        $timeOut = $changes['time_out_at'] ?? null;
 
-        $sameDate = $timeIn->toDateString() === $expectedDate
-            && $lunchOut->toDateString() === $expectedDate
-            && $lunchIn->toDateString() === $expectedDate
-            && $timeOut->toDateString() === $expectedDate;
+        foreach ([$timeIn, $lunchOut, $lunchIn, $timeOut] as $value) {
+            if ($value !== null && $value->toDateString() !== $expectedDate) {
+                return false;
+            }
+        }
 
-        if (! $sameDate) {
+        $hasMorning = $timeIn !== null || $lunchOut !== null;
+        $hasAfternoon = $lunchIn !== null || $timeOut !== null;
+
+        if (! $hasMorning && ! $hasAfternoon) {
             return false;
         }
 
-        return $timeIn->lt($lunchOut)
-            && $lunchOut->lt($lunchIn)
-            && $lunchIn->lt($timeOut);
+        if (($timeIn === null) !== ($lunchOut === null)) {
+            return false;
+        }
+
+        if (($lunchIn === null) !== ($timeOut === null)) {
+            return false;
+        }
+
+        if ($timeIn !== null && $lunchOut !== null && ! $timeIn->lt($lunchOut)) {
+            return false;
+        }
+
+        if ($lunchIn !== null && $timeOut !== null && ! $lunchIn->lt($timeOut)) {
+            return false;
+        }
+
+        if ($lunchOut !== null && $lunchIn !== null && ! $lunchOut->lt($lunchIn)) {
+            return false;
+        }
+
+        return true;
     }
 
-    private function notifyAdmins(
+    private function notifyStakeholders(
         string $title,
         string $message,
         string $type,
-        array $meta
+        array $meta,
+        ?User $supervisor = null,
     ): void {
         $adminRoleId = Role::query()->where('name', 'Admin')->value('id');
         if (! $adminRoleId) {
+            $this->notifySupervisor($supervisor, $title, $message, $type, $meta);
             return;
         }
 
@@ -230,6 +287,38 @@ class EditRequestController extends Controller
                     'is_read' => false,
                 ]);
             });
+
+        $this->notifySupervisor($supervisor, $title, $message, $type, $meta);
+    }
+
+    private function notifySupervisor(
+        ?User $supervisor,
+        string $title,
+        string $message,
+        string $type,
+        array $meta
+    ): void {
+        if (! $supervisor) {
+            return;
+        }
+
+        Notification::query()->create([
+            'user_id' => $supervisor->id,
+            'title' => $title,
+            'message' => $message,
+            'type' => $type,
+            'meta' => $meta,
+            'is_read' => false,
+        ]);
+    }
+
+    private function parseOptionalDate(mixed $value): ?Carbon
+    {
+        if ($value === null || trim((string) $value) === '') {
+            return null;
+        }
+
+        return Carbon::parse($value);
     }
 
     private function serializeEditRequest(EditRequest $editRequest): array

@@ -34,7 +34,7 @@ void main() {
     await _pumpDashboardReady(tester);
 
     expect(find.text('Monitoring Pulse'), findsOneWidget);
-    expect(find.text('Reports Awaiting Review'), findsOneWidget);
+    expect(find.text('Pending Supervisor Approval'), findsOneWidget);
     expect(find.text('Upcoming Deadlines'), findsOneWidget);
     expect(find.text('Recent Activity'), findsOneWidget);
     expect(find.text('At-Risk Spotlight'), findsOneWidget);
@@ -48,9 +48,7 @@ void main() {
     await _disposeRenderedTree(tester);
   });
 
-  testWidgets('adviser dashboard search updates visible count', (
-    tester,
-  ) async {
+  testWidgets('adviser dashboard search updates visible count', (tester) async {
     _setLargeSurfaceSize(tester);
 
     final authProvider = await _buildAuthProvider();
@@ -74,6 +72,43 @@ void main() {
 
     await _disposeRenderedTree(tester);
   });
+
+  testWidgets(
+    'adviser dashboard uses injected clock when server date metadata is missing',
+    (tester) async {
+      _setLargeSurfaceSize(tester);
+
+      final authProvider = await _buildAuthProvider();
+      final apiClient = ApiClient(
+        dio: Dio()
+          ..httpClientAdapter = _FakeAdapter(_payloadWithoutServerDate()),
+      );
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+            Provider<ApiClient>.value(value: apiClient),
+            Provider<NotificationService>.value(
+              value: _FakeNotificationService(),
+            ),
+          ],
+          child: MaterialApp(
+            home: AdviserDashboardScreen(
+              userName: 'Sample Adviser',
+              clock: () => DateTime(2026, 5, 11, 9),
+            ),
+          ),
+        ),
+      );
+
+      await _pumpDashboardReady(tester);
+
+      expect(find.text('No log for 5 days'), findsWidgets);
+
+      await _disposeRenderedTree(tester);
+    },
+  );
 }
 
 Future<void> _pumpDashboardReady(WidgetTester tester) async {
@@ -180,6 +215,36 @@ Map<String, dynamic> _dashboardPayload() {
       'last_page': 1,
       'per_page': 20,
       'total': 3,
+      'has_more_pages': false,
+    },
+  };
+}
+
+Map<String, dynamic> _payloadWithoutServerDate() {
+  return {
+    'data': [
+      _intern(
+        id: 10,
+        studentId: 10,
+        studentName: 'Clock Bound',
+        companyName: 'Timebox Labs',
+        requiredHours: 486,
+        completedHours: 60,
+        pendingLogs: 0,
+        approvedLogs: 4,
+        totalLogs: 4,
+        lastLogDate: '2026-05-06',
+        endDate: '2026-06-30',
+        alertStatus: 'INACTIVE',
+        alertMessage: 'No log submitted recently.',
+        alertMeta: {'expected_hours_by_now': 72},
+      ),
+    ],
+    'meta': {
+      'current_page': 1,
+      'last_page': 1,
+      'per_page': 20,
+      'total': 1,
       'has_more_pages': false,
     },
   };

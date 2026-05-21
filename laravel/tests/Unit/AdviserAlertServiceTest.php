@@ -98,12 +98,14 @@ class AdviserAlertServiceTest extends TestCase
     private function profile(
         string $startDate = '2026-04-06',
         string $endDate = '2026-05-01',
-        int $requiredHours = 160
+        int $requiredHours = 160,
+        ?int $supervisorId = 1
     ): InternshipProfile {
         return new InternshipProfile([
             'required_hours' => $requiredHours,
             'start_date' => $startDate,
             'end_date' => $endDate,
+            'supervisor_id' => $supervisorId,
         ]);
     }
 

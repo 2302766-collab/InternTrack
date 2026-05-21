@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_routes.dart';
+import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/admin_dashboard_service.dart';
 import '../../../../core/services/admin_student_service.dart';
@@ -26,6 +27,7 @@ import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/edit_request.dart';
 import '../../../../shared/widgets/dtr_export_dialog.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
+import '../../../../shared/widgets/profile_edit_dialog.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -47,7 +49,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   static const String _filterMissingAdviser = 'missing_adviser';
   static const String _userRoleAll = 'all';
 
-  static const Color _pageBackground = Color(0xFFF3F6FB);
   static const Color _surfaceColor = Colors.white;
   static const Color _borderColor = Color(0xFFD8E2EC);
   static const Color _textPrimary = Color(0xFF0F254A);
@@ -131,6 +132,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     await _loadDashboard(page: page);
   }
 
+  Future<void> _applyStudentFilter(String filter) async {
+    if (_isPageLoading) {
+      return;
+    }
+
+    if (filter == _selectedFilter && _currentPage == 1) {
+      return;
+    }
+
+    setState(() {
+      _selectedFilter = filter;
+    });
+
+    await _loadDashboard(page: 1);
+  }
+
   Future<void> _loadDashboard({required int page}) async {
     final token = context.read<AuthProvider>().token ?? '';
     if (token.isEmpty) {
@@ -163,7 +180,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     try {
       final results = await Future.wait<dynamic>([
-        _studentService.fetchStudents(page: page, perPage: _itemsPerPage),
+        _studentService.fetchStudents(
+          page: page,
+          perPage: _itemsPerPage,
+          filter: _selectedFilter,
+        ),
         _dashboardService.getSummary(
           month: _selectedLogsMonth,
           year: _selectedLogsYear,
@@ -465,7 +486,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Add User'),
+              title: Text('Add User'),
               content: Form(
                 key: formKey,
                 child: SingleChildScrollView(
@@ -586,7 +607,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel'),
+                  child: Text('Cancel'),
                 ),
                 FilledButton(
                   onPressed: () {
@@ -604,7 +625,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ),
                     );
                   },
-                  child: const Text('Create'),
+                  child: Text('Create'),
                 ),
               ],
             );
@@ -675,7 +696,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
+              child: Text('Cancel'),
             ),
             FilledButton(
               style: FilledButton.styleFrom(
@@ -683,7 +704,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 foregroundColor: Colors.white,
               ),
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Remove'),
+              child: Text('Remove'),
             ),
           ],
         );
@@ -781,7 +802,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Reject Edit Request'),
+              title: Text('Reject Edit Request'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -798,7 +819,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     const SizedBox(height: 8),
                     Text(
                       validationError!,
-                      style: const TextStyle(color: Color(0xFFB42318)),
+                      style: TextStyle(color: Color(0xFFB42318)),
                     ),
                   ],
                 ],
@@ -806,7 +827,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel'),
+                  child: Text('Cancel'),
                 ),
                 FilledButton(
                   style: FilledButton.styleFrom(
@@ -824,7 +845,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     }
                     Navigator.of(dialogContext).pop(trimmed);
                   },
-                  child: const Text('Reject'),
+                  child: Text('Reject'),
                 ),
               ],
             );
@@ -958,6 +979,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      final avatarErrors = error.details?['avatar_base64'];
+      final fieldMessage = avatarErrors is List && avatarErrors.isNotEmpty
+          ? avatarErrors.first.toString()
+          : null;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(fieldMessage ?? error.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -978,6 +1008,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   List<AdminStudentSummary> get _filteredStudents {
+    if (_selectedFilter == _filterAll) {
+      return _students;
+    }
+
     return _students.where(matchesSelectedFilter).toList();
   }
 
@@ -1012,6 +1046,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         .toUpperCase();
   }
 
+  String resolvedUserName(AppUser? user, {String fallback = 'Admin'}) {
+    if (user?.name.isNotEmpty == true) {
+      return user!.name;
+    }
+
+    final providerUser = context.read<AuthProvider>().user;
+    if (providerUser?.name.isNotEmpty == true) {
+      return providerUser!.name;
+    }
+
+    if (widget.userName.isNotEmpty) {
+      return widget.userName;
+    }
+
+    return fallback;
+  }
+
   ImageProvider<Object>? avatarImageProviderFor(String? avatarBase64) {
     if (avatarBase64 == null || avatarBase64.isEmpty) {
       return null;
@@ -1030,7 +1081,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     double fontSize = 16,
   }) {
     final imageProvider = avatarImageProviderFor(user?.avatarBase64);
-    final name = user?.name ?? widget.userName;
+    final name = resolvedUserName(user);
 
     return CircleAvatar(
       radius: radius,
@@ -1135,7 +1186,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                         Navigator.of(dialogContext).pop();
                                         await _pickProfilePhoto();
                                       },
-                                      child: const Padding(
+                                      child: Padding(
                                         padding: EdgeInsets.all(6),
                                         child: Icon(
                                           Icons.camera_alt_rounded,
@@ -1154,10 +1205,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    user?.name.isNotEmpty == true
-                                        ? user!.name
-                                        : widget.userName,
-                                    style: const TextStyle(
+                                    resolvedUserName(user),
+                                    style: TextStyle(
                                       fontSize: 21,
                                       fontWeight: FontWeight.w800,
                                       color: _textPrimary,
@@ -1168,7 +1217,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     user?.email.isNotEmpty == true
                                         ? user!.email
                                         : 'No email available',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
                                       color: _textSecondary,
                                     ),
@@ -1187,6 +1236,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           ],
                         ),
                         const SizedBox(height: 18),
+                        buildProfileActionTile(
+                          icon: Icons.person_outline_rounded,
+                          title: 'Edit profile details',
+                          subtitle:
+                              'Update your display name and gender details.',
+                          onTap: () async {
+                            Navigator.of(dialogContext).pop();
+                            await showProfileEditDialog(
+                              context,
+                              title: 'Edit administrator profile',
+                              user: authProvider.user,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 10),
                         buildProfileActionTile(
                           icon: Icons.edit_outlined,
                           title: 'Change profile photo',
@@ -1219,11 +1283,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               Navigator.of(dialogContext).pop();
                               await _logout();
                             },
-                            icon: const Icon(Icons.logout_rounded),
-                            label: const Text('Log out'),
+                            icon: Icon(Icons.logout_rounded),
+                            label: Text('Log out'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFFB42318),
-                              side: const BorderSide(color: Color(0xFFF0C4C0)),
+                              side: BorderSide(color: Color(0xFFF0C4C0)),
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(18),
@@ -1252,7 +1316,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
           color: _brandPrimary,
@@ -1294,7 +1358,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: _textPrimary,
@@ -1303,10 +1367,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     const SizedBox(height: 3),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        color: _textSecondary,
-                      ),
+                      style: TextStyle(fontSize: 12.5, color: _textSecondary),
                     ),
                   ],
                 ),
@@ -1332,7 +1393,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           buildInfoRow(
             icon: Icons.badge_outlined,
             label: 'Administrator',
-            value: user?.name.isNotEmpty == true ? user!.name : widget.userName,
+            value: resolvedUserName(user),
           ),
           const SizedBox(height: 10),
           buildInfoRow(
@@ -1382,7 +1443,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: _textSecondary,
@@ -1391,7 +1452,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: _textPrimary,
@@ -1418,14 +1479,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               children: [
                 Text(
                   '${greetingForHour()}, ${user?.name.split(' ').first ?? 'Admin'}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Administrative Command Center',
                   style: TextStyle(
                     fontSize: 30,
@@ -1478,11 +1539,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            user?.name.isNotEmpty == true
-                                ? user!.name
-                                : widget.userName,
+                            resolvedUserName(user),
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                               color: Colors.white,
@@ -1503,7 +1562,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(
+                    Icon(
                       Icons.keyboard_arrow_down_rounded,
                       color: Colors.white,
                     ),
@@ -1560,7 +1619,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         color: Colors.white.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Live Operations Snapshot',
                         style: TextStyle(
                           fontSize: 12,
@@ -1573,7 +1632,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     const SizedBox(height: 16),
                     Text(
                       '${summary.studentsRequiringAttention} students need action from admin',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.w800,
                         color: Colors.white,
@@ -1603,7 +1662,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     color: Colors.white.withValues(alpha: 0.12),
                   ),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.admin_panel_settings_rounded,
                   color: Colors.white,
                   size: 38,
@@ -1669,7 +1728,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
               fontSize: 19,
               fontWeight: FontWeight.w800,
@@ -1812,7 +1871,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Population Breakdown',
                     style: TextStyle(
                       fontSize: 22,
@@ -1821,7 +1880,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Gender distribution across all student, adviser, and supervisor accounts in the admin workspace.',
                     style: TextStyle(
                       fontSize: 14,
@@ -1892,7 +1951,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           shape: BoxShape.circle,
                           border: Border.all(color: _borderColor, width: 18),
                         ),
-                        child: const Padding(
+                        child: Padding(
                           padding: EdgeInsets.all(32),
                           child: Text(
                             'No gender data is available yet.',
@@ -1956,7 +2015,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Logs Per Day',
             style: TextStyle(
               fontSize: 20,
@@ -1969,11 +2028,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             monthLabel.isEmpty
                 ? 'Daily log volume from admin analytics.'
                 : 'Daily log volume recorded for $monthLabel.',
-            style: const TextStyle(
-              fontSize: 14,
-              color: _textSecondary,
-              height: 1.5,
-            ),
+            style: TextStyle(fontSize: 14, color: _textSecondary, height: 1.5),
           ),
           const SizedBox(height: 16),
           Row(
@@ -2057,11 +2112,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: _borderColor),
+          borderSide: BorderSide(color: _borderColor),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: _borderColor),
+          borderSide: BorderSide(color: _borderColor),
         ),
       ),
       items: items
@@ -2118,7 +2173,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
                 color: _textPrimary,
@@ -2127,7 +2182,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           Text(
             '$count users',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
               color: _textSecondary,
@@ -2180,7 +2235,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               children: [
                 Text(
                   item.label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: _textSecondary,
@@ -2189,7 +2244,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 const SizedBox(height: 5),
                 Text(
                   item.value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
                     color: _textPrimary,
@@ -2198,7 +2253,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 const SizedBox(height: 4),
                 Text(
                   item.subtitle,
-                  style: const TextStyle(fontSize: 12.5, color: _textSecondary),
+                  style: TextStyle(fontSize: 12.5, color: _textSecondary),
                 ),
               ],
             ),
@@ -2236,7 +2291,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Admin Actions',
                       style: TextStyle(
                         fontSize: 22,
@@ -2245,7 +2300,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'The dashboard should help you complete work, not only watch metrics. Use these actions to clear assignments and fix onboarding gaps quickly.',
                       style: TextStyle(
                         fontSize: 14,
@@ -2260,8 +2315,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       children: [
                         FilledButton.icon(
                           onPressed: _openAdviserAssignment,
-                          icon: const Icon(Icons.manage_accounts_outlined),
-                          label: const Text('Manage Assignments'),
+                          icon: Icon(Icons.manage_accounts_outlined),
+                          label: Text('Manage Assignments'),
                           style: FilledButton.styleFrom(
                             backgroundColor: _brandPrimary,
                             foregroundColor: Colors.white,
@@ -2287,7 +2342,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     color: Colors.white,
                                   ),
                                 )
-                              : const Icon(Icons.person_add_alt_1_rounded),
+                              : Icon(Icons.person_add_alt_1_rounded),
                           label: Text(
                             _isCreatingUser ? 'Creating...' : 'Add User',
                           ),
@@ -2304,16 +2359,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           ),
                         ),
                         OutlinedButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _selectedFilter = _filterNeedsAttention;
-                            });
-                          },
-                          icon: const Icon(Icons.filter_alt_outlined),
-                          label: const Text('Attention Queue'),
+                          onPressed: _isPageLoading
+                              ? null
+                              : () =>
+                                    _applyStudentFilter(_filterNeedsAttention),
+                          icon: Icon(Icons.filter_alt_outlined),
+                          label: Text('Attention Queue'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: _brandPrimary,
-                            side: const BorderSide(color: Color(0xFFC5D4EA)),
+                            side: BorderSide(color: Color(0xFFC5D4EA)),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 18,
                               vertical: 16,
@@ -2356,13 +2410,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               color: const Color(0xFFEAF2FF),
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.insights_rounded,
                               color: _brandPrimary,
                             ),
                           ),
                           const SizedBox(width: 12),
-                          const Expanded(
+                          Expanded(
                             child: Text(
                               'Priority Insight',
                               style: TextStyle(
@@ -2381,7 +2435,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             : (summary.studentsWithoutSupervisor > 0
                                   ? '${summary.studentsWithoutSupervisor} students still need supervisor coverage.'
                                   : 'All current internship profiles already have assignment coverage.'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                           color: _textPrimary,
@@ -2389,7 +2443,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'Use assignment management to assign, update, and remove supervisor or adviser links without leaving the admin workspace.',
                         style: TextStyle(
                           fontSize: 13.5,
@@ -2456,11 +2510,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             (filter) => ChoiceChip(
               label: Text(filter.label),
               selected: _selectedFilter == filter.key,
-              onSelected: (_) {
-                setState(() {
-                  _selectedFilter = filter.key;
-                });
-              },
+              onSelected: _isPageLoading
+                  ? null
+                  : (_) => _applyStudentFilter(filter.key),
               backgroundColor: const Color(0xFFF8FAFC),
               selectedColor: const Color(0xFFDCEBFF),
               side: BorderSide(
@@ -2535,7 +2587,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   children: [
                     Text(
                       student.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                         color: _textPrimary,
@@ -2550,7 +2602,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   (!student.hasAdviser || !student.hasSupervisor))
                 TextButton.icon(
                   onPressed: _openAdviserAssignment,
-                  icon: const Icon(Icons.open_in_new_rounded),
+                  icon: Icon(Icons.open_in_new_rounded),
                   label: Text(
                     !student.hasSupervisor && !student.hasAdviser
                         ? 'Assign Roles'
@@ -2581,7 +2633,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SizedBox(width: 12),
               Text(
                 '${student.completionPercentage.round()}%',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: _brandSecondary,
@@ -2616,11 +2668,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.file_download_outlined),
+                    : Icon(Icons.file_download_outlined),
                 label: Text(isExporting ? 'Exporting...' : 'Export DTR'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _brandPrimary,
-                  side: const BorderSide(color: Color(0xFFC5D4EA)),
+                  side: BorderSide(color: Color(0xFFC5D4EA)),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 12,
@@ -2653,22 +2705,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(width: 8),
           RichText(
             text: TextSpan(
-              style: DefaultTextStyle.of(context).style,
+              style: DefaultTextStyle.of(
+                context,
+              ).style.copyWith(decoration: TextDecoration.none),
               children: [
                 TextSpan(
                   text: '$label: ',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: _textSecondary,
+                    decoration: TextDecoration.none,
                   ),
                 ),
                 TextSpan(
                   text: value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: _textPrimary,
+                    decoration: TextDecoration.none,
                   ),
                 ),
               ],
@@ -2725,7 +2781,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Edit Requests',
             style: TextStyle(
               fontSize: 24,
@@ -2734,7 +2790,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Review student correction requests for submitted logs and completed DTR records.',
             style: TextStyle(fontSize: 14, color: _textSecondary, height: 1.45),
           ),
@@ -2742,7 +2798,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             const SizedBox(height: 12),
             Text(
               _editRequestError!,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Color(0xFFB42318),
                 fontWeight: FontWeight.w600,
               ),
@@ -2758,7 +2814,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: const Color(0xFFE4E7EC)),
               ),
-              child: const Text(
+              child: Text(
                 'No pending edit requests right now.',
                 style: TextStyle(fontSize: 14, color: _textSecondary),
               ),
@@ -2789,7 +2845,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           children: [
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
                 color: _textSecondary,
@@ -2798,7 +2854,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             const SizedBox(height: 8),
             Text(
               'Current: ${_editRequestValueLabel(current)}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 color: _textPrimary,
                 fontWeight: FontWeight.w600,
@@ -2807,7 +2863,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             const SizedBox(height: 4),
             Text(
               'Requested: ${_editRequestValueLabel(requested)}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 color: _brandSecondary,
                 fontWeight: FontWeight.w700,
@@ -2887,7 +2943,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             request.student?.name.isNotEmpty == true
                 ? request.student!.name
                 : request.requester?.name ?? 'Unknown student',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
               color: _textPrimary,
@@ -2896,16 +2952,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 4),
           Text(
             request.requester?.email ?? '',
-            style: const TextStyle(fontSize: 13, color: _textSecondary),
+            style: TextStyle(fontSize: 13, color: _textSecondary),
           ),
           const SizedBox(height: 12),
           Text(
             'Reason: ${request.reason}',
-            style: const TextStyle(
-              fontSize: 14,
-              height: 1.45,
-              color: _textPrimary,
-            ),
+            style: TextStyle(fontSize: 14, height: 1.45, color: _textPrimary),
           ),
           const SizedBox(height: 14),
           ...comparisonWidgets
@@ -2930,18 +2982,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Icon(Icons.check_circle_outline_rounded),
-                label: const Text('Approve'),
+                    : Icon(Icons.check_circle_outline_rounded),
+                label: Text('Approve'),
               ),
               OutlinedButton.icon(
                 onPressed: isProcessing
                     ? null
                     : () => _rejectEditRequest(request),
-                icon: const Icon(Icons.close_rounded),
-                label: const Text('Reject'),
+                icon: Icon(Icons.close_rounded),
+                label: Text('Reject'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFB42318),
-                  side: const BorderSide(color: Color(0xFFF0C4C0)),
+                  side: BorderSide(color: Color(0xFFF0C4C0)),
                 ),
               ),
             ],
@@ -2992,7 +3044,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -3022,7 +3074,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             const SizedBox(height: 12),
             Text(
               '${population.unspecifiedCount} older account${population.unspecifiedCount == 1 ? '' : 's'} still ${population.unspecifiedCount == 1 ? 'has' : 'have'} no saved gender. They appear as "Not set" below until the user updates their profile.',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 color: Color(0xFF9E4F15),
                 height: 1.45,
@@ -3034,7 +3086,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             const SizedBox(height: 14),
             Text(
               _userManagementError!,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Color(0xFFB42318),
                 fontWeight: FontWeight.w600,
               ),
@@ -3061,7 +3113,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           controller: _managedUserSearchController,
                           onChanged: _updateManagedUserSearch,
                           decoration: InputDecoration(
-                            prefixIcon: const Icon(Icons.search_rounded),
+                            prefixIcon: Icon(Icons.search_rounded),
                             hintText: 'Search user',
                             filled: true,
                             fillColor: const Color(0xFFF8FAFC),
@@ -3072,23 +3124,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                       _managedUserSearchController.clear();
                                       _updateManagedUserSearch('');
                                     },
-                                    icon: const Icon(Icons.close_rounded),
+                                    icon: Icon(Icons.close_rounded),
                                   ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(18),
-                              borderSide: const BorderSide(
-                                color: Color(0xFFD7E4F4),
-                              ),
+                              borderSide: BorderSide(color: Color(0xFFD7E4F4)),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(18),
-                              borderSide: const BorderSide(
-                                color: Color(0xFFD7E4F4),
-                              ),
+                              borderSide: BorderSide(color: Color(0xFFD7E4F4)),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(18),
-                              borderSide: const BorderSide(
+                              borderSide: BorderSide(
                                 color: _brandPrimary,
                                 width: 1.4,
                               ),
@@ -3112,7 +3160,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                     child: Text(
                       '$startItem-$endItem of $totalUsers users',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: _textSecondary,
@@ -3166,7 +3214,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     _userSearchQuery.trim().isEmpty
                         ? 'No users matched this filter.'
                         : 'No users matched "${_userSearchQuery.trim()}".',
-                    style: const TextStyle(fontSize: 14, color: _textSecondary),
+                    style: TextStyle(fontSize: 14, color: _textSecondary),
                   ),
                 );
               }
@@ -3216,7 +3264,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 backgroundColor: const Color(0xFFEAF2FF),
                 child: Text(
                   _initialsFor(user.name),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: _brandPrimary,
                     fontWeight: FontWeight.w800,
                   ),
@@ -3226,7 +3274,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               Expanded(
                 child: Text(
                   user.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: _textPrimary,
@@ -3244,7 +3292,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(
+                    : Icon(
                         Icons.delete_outline_rounded,
                         color: Color(0xFFB42318),
                       ),
@@ -3276,7 +3324,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 12),
           Text(
             user.email,
-            style: const TextStyle(fontSize: 13, color: _textSecondary),
+            style: TextStyle(fontSize: 13, color: _textSecondary),
           ),
         ],
       ),
@@ -3378,7 +3426,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 8),
           Text(
             '$startItem-$endItem of $totalUsers users',
-            style: const TextStyle(fontSize: 14, color: _textSecondary),
+            style: TextStyle(fontSize: 14, color: _textSecondary),
           ),
         ],
       );
@@ -3425,7 +3473,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         const SizedBox(width: 8),
         Text(
           '$startItem-$endItem of $totalUsers users',
-          style: const TextStyle(fontSize: 16, color: _textSecondary),
+          style: TextStyle(fontSize: 16, color: _textSecondary),
         ),
       ],
     );
@@ -3553,7 +3601,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 8),
           Text(
             '$startItem-$endItem of $_totalStudents items',
-            style: const TextStyle(fontSize: 14, color: _textSecondary),
+            style: TextStyle(fontSize: 14, color: _textSecondary),
           ),
         ],
       );
@@ -3597,7 +3645,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         const SizedBox(width: 8),
         Text(
           '$startItem-$endItem of $_totalStudents items',
-          style: const TextStyle(fontSize: 16, color: _textSecondary),
+          style: TextStyle(fontSize: 16, color: _textSecondary),
         ),
       ],
     );
@@ -3621,7 +3669,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 Text(
                   _errorMessage!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: _textSecondary),
+                  style: TextStyle(color: _textSecondary),
                 ),
                 const SizedBox(height: 12),
                 FilledButton(
@@ -3630,7 +3678,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     backgroundColor: _brandPrimary,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Retry'),
+                  child: Text('Retry'),
                 ),
               ],
             ),
@@ -3667,7 +3715,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Student Operations',
                     style: TextStyle(
                       fontSize: 24,
@@ -3676,7 +3724,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'Review the current page of students, filter unresolved setup issues, and jump into adviser assignment when needed.',
                     style: TextStyle(
                       fontSize: 14,
@@ -3688,7 +3736,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   buildFilterChips(),
                   const SizedBox(height: 20),
                   if (filteredStudents.isEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 36),
                       child: Text(
                         'No students matched this filter on the current page.',
@@ -3707,20 +3755,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             Text(
                               _errorMessage!,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(color: Color(0xFFB42318)),
+                              style: TextStyle(color: Color(0xFFB42318)),
                             ),
                             const SizedBox(height: 8),
                             TextButton(
                               onPressed: () =>
                                   _loadDashboard(page: _currentPage),
-                              child: const Text('Try loading again'),
+                              child: Text('Try loading again'),
                             ),
                           ],
                         ),
                       ),
                     ),
                   if (_isPageLoading)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(top: 8, bottom: 18),
                       child: Center(child: CircularProgressIndicator()),
                     ),
@@ -3742,7 +3790,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final authProvider = context.watch<AuthProvider>();
 
     return Scaffold(
-      backgroundColor: _pageBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           Positioned(
@@ -3751,7 +3799,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             right: 0,
             child: Container(
               height: 240,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: <Color>[
                     Color(0xFF0F2D57),
@@ -3928,7 +3976,7 @@ class _PopulationPieChart extends StatelessWidget {
             children: [
               Text(
                 centerLabel,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w800,
                   color: _AdminDashboardScreenState._textPrimary,
@@ -3937,7 +3985,7 @@ class _PopulationPieChart extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 centerSubtitle,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: _AdminDashboardScreenState._textSecondary,
@@ -4033,7 +4081,7 @@ class _DailyLogsLineChart extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: _AdminDashboardScreenState._borderColor),
         ),
-        child: const Text(
+        child: Text(
           'No log activity is available yet.',
           style: TextStyle(
             fontSize: 15,
@@ -4109,7 +4157,7 @@ class _DailyLogsLineChart extends StatelessWidget {
                   : day == lastPoint
                   ? TextAlign.right
                   : TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: _AdminDashboardScreenState._textSecondary,
@@ -4157,7 +4205,7 @@ class _DailyLogsLineChartPainter extends CustomPainter {
     final gridPaint = Paint()
       ..color = const Color(0xFFE4E7EC)
       ..strokeWidth = 1;
-    final axisLabelStyle = const TextStyle(
+    final axisLabelStyle = TextStyle(
       fontSize: 11,
       fontWeight: FontWeight.w700,
       color: _AdminDashboardScreenState._textSecondary,

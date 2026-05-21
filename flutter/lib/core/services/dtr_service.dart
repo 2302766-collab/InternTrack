@@ -177,11 +177,12 @@ class DtrService extends BaseService {
   }
 
   Future<EditRequestItem> requestEdit({
-    required int dailyTimeRecordId,
-    required DateTime timeInAt,
-    required DateTime lunchOutAt,
-    required DateTime lunchInAt,
-    required DateTime timeOutAt,
+    int? dailyTimeRecordId,
+    required DateTime date,
+    DateTime? timeInAt,
+    DateTime? lunchOutAt,
+    DateTime? lunchInAt,
+    DateTime? timeOutAt,
     required String reason,
   }) async {
     try {
@@ -189,10 +190,11 @@ class DtrService extends BaseService {
         path: '/student/dtr/edit-request',
         data: {
           'daily_time_record_id': dailyTimeRecordId,
-          'time_in_at': timeInAt.toIso8601String(),
-          'lunch_out_at': lunchOutAt.toIso8601String(),
-          'lunch_in_at': lunchInAt.toIso8601String(),
-          'time_out_at': timeOutAt.toIso8601String(),
+          'date': _formatDate(date),
+          'time_in_at': timeInAt?.toIso8601String(),
+          'lunch_out_at': lunchOutAt?.toIso8601String(),
+          'lunch_in_at': lunchInAt?.toIso8601String(),
+          'time_out_at': timeOutAt?.toIso8601String(),
           'reason': reason,
         },
         converter: (data) {

@@ -27,98 +27,98 @@ import 'package:intern_track_app/shared/models/student_report.dart';
 import 'package:intern_track_app/shared/widgets/dashboard_refresh_widgets.dart';
 
 void main() {
-  testWidgets('shows a full-page loading state on first load without cached data', (
-    tester,
-  ) async {
-    final authProvider = await _buildAuthProvider();
-    final profileCompleter = Completer<InternshipProfile?>();
+  testWidgets(
+    'shows a full-page loading state on first load without cached data',
+    (tester) async {
+      final authProvider = await _buildAuthProvider();
+      final profileCompleter = Completer<InternshipProfile?>();
 
-    await tester.pumpWidget(
-      _buildApp(
-        authProvider: authProvider,
-        internshipService: _QueuedInternshipService(
-          responses: Queue.of([
-            () => profileCompleter.future,
-          ]),
+      await tester.pumpWidget(
+        _buildApp(
+          authProvider: authProvider,
+          internshipService: _QueuedInternshipService(
+            responses: Queue.of([() => profileCompleter.future]),
+          ),
+          reportService: _QueuedStudentReportService(
+            responses: Queue.of([() async => _sampleReport()]),
+          ),
+          logbookService: _QueuedLogbookService(
+            responses: Queue.of([() async => _sampleLogs()]),
+          ),
         ),
-        reportService: _QueuedStudentReportService(
-          responses: Queue.of([() async => _sampleReport()]),
+      );
+
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Next Action'), findsNothing);
+
+      profileCompleter.complete(_sampleProfile());
+      await _pumpDashboardReady(tester);
+
+      await _disposeRenderedTree(tester);
+    },
+  );
+
+  testWidgets(
+    'refresh keeps existing content visible and shows refreshing status',
+    (tester) async {
+      final authProvider = await _buildAuthProvider();
+      final profileCompleter = Completer<InternshipProfile?>();
+      final reportCompleter = Completer<StudentReportData>();
+      final logsCompleter = Completer<List<LogEntryItem>>();
+      final clock = _FakeClock(DateTime(2026, 5, 10, 9, 30));
+
+      await tester.pumpWidget(
+        _buildApp(
+          authProvider: authProvider,
+          internshipService: _QueuedInternshipService(
+            responses: Queue.of([
+              () async => _sampleProfile(),
+              () => profileCompleter.future,
+            ]),
+          ),
+          reportService: _QueuedStudentReportService(
+            responses: Queue.of([
+              () async => _sampleReport(),
+              () => reportCompleter.future,
+            ]),
+          ),
+          logbookService: _QueuedLogbookService(
+            responses: Queue.of([
+              () async => _sampleLogs(),
+              () => logsCompleter.future,
+            ]),
+          ),
+          clock: clock.call,
         ),
-        logbookService: _QueuedLogbookService(
-          responses: Queue.of([() async => _sampleLogs()]),
-        ),
-      ),
-    );
+      );
 
-    await tester.pump();
+      await _pumpDashboardReady(tester);
 
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.text('Next Action'), findsNothing);
+      expect(find.text('Completed daily development tasks.'), findsOneWidget);
+      expect(find.text('Last updated: 9:30 AM'), findsOneWidget);
 
-    profileCompleter.complete(_sampleProfile());
-    await _pumpDashboardReady(tester);
+      await _triggerRefresh(tester);
 
-    await _disposeRenderedTree(tester);
-  });
+      expect(find.text('Refreshing student dashboard...'), findsOneWidget);
+      expect(find.text('Completed daily development tasks.'), findsOneWidget);
+      expect(find.text('Next Action'), findsOneWidget);
 
-  testWidgets('refresh keeps existing content visible and shows refreshing status', (
-    tester,
-  ) async {
-    final authProvider = await _buildAuthProvider();
-    final profileCompleter = Completer<InternshipProfile?>();
-    final reportCompleter = Completer<StudentReportData>();
-    final logsCompleter = Completer<List<LogEntryItem>>();
-    final clock = _FakeClock(DateTime(2026, 5, 10, 9, 30));
+      profileCompleter.complete(_sampleProfile());
+      reportCompleter.complete(_sampleReport());
+      logsCompleter.complete(
+        _sampleLogs(taskDescription: 'Refreshed activity log.'),
+      );
 
-    await tester.pumpWidget(
-      _buildApp(
-        authProvider: authProvider,
-        internshipService: _QueuedInternshipService(
-          responses: Queue.of([
-            () async => _sampleProfile(),
-            () => profileCompleter.future,
-          ]),
-        ),
-        reportService: _QueuedStudentReportService(
-          responses: Queue.of([
-            () async => _sampleReport(),
-            () => reportCompleter.future,
-          ]),
-        ),
-        logbookService: _QueuedLogbookService(
-          responses: Queue.of([
-            () async => _sampleLogs(),
-            () => logsCompleter.future,
-          ]),
-        ),
-        clock: clock.call,
-      ),
-    );
+      await _pumpDashboardReady(tester);
 
-    await _pumpDashboardReady(tester);
+      expect(find.text('Refreshing student dashboard...'), findsNothing);
+      expect(find.text('Refreshed activity log.'), findsOneWidget);
 
-    expect(find.text('Completed daily development tasks.'), findsOneWidget);
-    expect(find.text('Last updated: 9:30 AM'), findsOneWidget);
-
-    await _triggerRefresh(tester);
-
-    expect(find.text('Refreshing student dashboard...'), findsOneWidget);
-    expect(find.text('Completed daily development tasks.'), findsOneWidget);
-    expect(find.text('Next Action'), findsOneWidget);
-
-    profileCompleter.complete(_sampleProfile());
-    reportCompleter.complete(_sampleReport());
-    logsCompleter.complete(
-      _sampleLogs(taskDescription: 'Refreshed activity log.'),
-    );
-
-    await _pumpDashboardReady(tester);
-
-    expect(find.text('Refreshing student dashboard...'), findsNothing);
-    expect(find.text('Refreshed activity log.'), findsOneWidget);
-
-    await _disposeRenderedTree(tester);
-  });
+      await _disposeRenderedTree(tester);
+    },
+  );
 
   testWidgets('successful refresh updates the last updated timestamp', (
     tester,
@@ -164,58 +164,59 @@ void main() {
     await _disposeRenderedTree(tester);
   });
 
-  testWidgets('partial refresh failure preserves previous report data and shows inline error', (
-    tester,
-  ) async {
-    final authProvider = await _buildAuthProvider();
-    final clock = _FakeClock(DateTime(2026, 5, 10, 10, 0));
+  testWidgets(
+    'partial refresh failure preserves previous report data and shows inline error',
+    (tester) async {
+      final authProvider = await _buildAuthProvider();
+      final clock = _FakeClock(DateTime(2026, 5, 10, 10, 0));
 
-    await tester.pumpWidget(
-      _buildApp(
-        authProvider: authProvider,
-        internshipService: _QueuedInternshipService(
-          responses: Queue.of([
-            () async => _sampleProfile(),
-            () async => _sampleProfile(),
-          ]),
-        ),
-        reportService: _QueuedStudentReportService(
-          responses: Queue.of([
-            () async => _sampleReport(),
-            () => Future<StudentReportData>.error(
-              ApiException(
-                message: 'Report refresh failed.',
-                errorType: ApiErrorType.networkError,
+      await tester.pumpWidget(
+        _buildApp(
+          authProvider: authProvider,
+          internshipService: _QueuedInternshipService(
+            responses: Queue.of([
+              () async => _sampleProfile(),
+              () async => _sampleProfile(),
+            ]),
+          ),
+          reportService: _QueuedStudentReportService(
+            responses: Queue.of([
+              () async => _sampleReport(),
+              () => Future<StudentReportData>.error(
+                ApiException(
+                  message: 'Report refresh failed.',
+                  errorType: ApiErrorType.networkError,
+                ),
               ),
-            ),
-          ]),
+            ]),
+          ),
+          logbookService: _QueuedLogbookService(
+            responses: Queue.of([
+              () async => _sampleLogs(),
+              () async =>
+                  _sampleLogs(taskDescription: 'Logs refreshed successfully.'),
+            ]),
+          ),
+          clock: clock.call,
         ),
-        logbookService: _QueuedLogbookService(
-          responses: Queue.of([
-            () async => _sampleLogs(),
-            () async =>
-                _sampleLogs(taskDescription: 'Logs refreshed successfully.'),
-          ]),
-        ),
-        clock: clock.call,
-      ),
-    );
+      );
 
-    await _pumpDashboardReady(tester);
+      await _pumpDashboardReady(tester);
 
-    expect(find.text('Approved Hours: 15 / 486 hours'), findsOneWidget);
+      expect(find.text('Approved Hours: 15 / 486 hours'), findsOneWidget);
 
-    clock.current = DateTime(2026, 5, 10, 11, 0);
-    await _triggerRefresh(tester);
-    await _pumpDashboardReady(tester);
+      clock.current = DateTime(2026, 5, 10, 11, 0);
+      await _triggerRefresh(tester);
+      await _pumpDashboardReady(tester);
 
-    expect(find.text('Approved Hours: 15 / 486 hours'), findsOneWidget);
-    expect(find.text('Report refresh failed.'), findsOneWidget);
-    expect(find.text('Logs refreshed successfully.'), findsOneWidget);
-    expect(find.text('Last updated: 11:00 AM'), findsOneWidget);
+      expect(find.text('Approved Hours: 15 / 486 hours'), findsOneWidget);
+      expect(find.text('Report refresh failed.'), findsOneWidget);
+      expect(find.text('Logs refreshed successfully.'), findsOneWidget);
+      expect(find.text('Last updated: 11:00 AM'), findsOneWidget);
 
-    await _disposeRenderedTree(tester);
-  });
+      await _disposeRenderedTree(tester);
+    },
+  );
 
   testWidgets('complete refresh failure preserves data and last updated time', (
     tester,
@@ -280,160 +281,161 @@ void main() {
     await _disposeRenderedTree(tester);
   });
 
-  testWidgets('last updated appears only after first successful load completes', (
-    tester,
-  ) async {
-    final authProvider = await _buildAuthProvider();
-    final profileCompleter = Completer<InternshipProfile?>();
-    final clock = _FakeClock(DateTime(2026, 5, 10, 7, 15));
+  testWidgets(
+    'last updated appears only after first successful load completes',
+    (tester) async {
+      final authProvider = await _buildAuthProvider();
+      final profileCompleter = Completer<InternshipProfile?>();
+      final clock = _FakeClock(DateTime(2026, 5, 10, 7, 15));
 
-    await tester.pumpWidget(
-      _buildApp(
-        authProvider: authProvider,
-        internshipService: _QueuedInternshipService(
-          responses: Queue.of([
-            () => profileCompleter.future,
-          ]),
+      await tester.pumpWidget(
+        _buildApp(
+          authProvider: authProvider,
+          internshipService: _QueuedInternshipService(
+            responses: Queue.of([() => profileCompleter.future]),
+          ),
+          reportService: _QueuedStudentReportService(
+            responses: Queue.of([() async => _sampleReport()]),
+          ),
+          logbookService: _QueuedLogbookService(
+            responses: Queue.of([() async => _sampleLogs()]),
+          ),
+          clock: clock.call,
         ),
-        reportService: _QueuedStudentReportService(
-          responses: Queue.of([() async => _sampleReport()]),
-        ),
-        logbookService: _QueuedLogbookService(
-          responses: Queue.of([() async => _sampleLogs()]),
-        ),
-        clock: clock.call,
-      ),
-    );
+      );
 
-    await tester.pump();
-    expect(find.textContaining('Last updated'), findsNothing);
+      await tester.pump();
+      expect(find.textContaining('Last updated'), findsNothing);
 
-    profileCompleter.complete(_sampleProfile());
-    await _pumpDashboardReady(tester);
+      profileCompleter.complete(_sampleProfile());
+      await _pumpDashboardReady(tester);
 
-    expect(find.text('Last updated: 7:15 AM'), findsOneWidget);
+      expect(find.text('Last updated: 7:15 AM'), findsOneWidget);
 
-    await _disposeRenderedTree(tester);
-  });
+      await _disposeRenderedTree(tester);
+    },
+  );
 
-  testWidgets('section without cached data shows skeleton while retry refresh is in progress', (
-    tester,
-  ) async {
-    final authProvider = await _buildAuthProvider();
-    final logsCompleter = Completer<List<LogEntryItem>>();
-    final clock = _FakeClock(DateTime(2026, 5, 10, 8, 45));
+  testWidgets(
+    'section without cached data shows skeleton while retry refresh is in progress',
+    (tester) async {
+      final authProvider = await _buildAuthProvider();
+      final logsCompleter = Completer<List<LogEntryItem>>();
+      final clock = _FakeClock(DateTime(2026, 5, 10, 8, 45));
 
-    await tester.pumpWidget(
-      _buildApp(
-        authProvider: authProvider,
-        internshipService: _QueuedInternshipService(
-          responses: Queue.of([
-            () async => _sampleProfile(),
-            () async => _sampleProfile(),
-          ]),
-        ),
-        reportService: _QueuedStudentReportService(
-          responses: Queue.of([
-            () async => _sampleReport(),
-            () async => _sampleReport(),
-          ]),
-        ),
-        logbookService: _QueuedLogbookService(
-          responses: Queue.of([
-            () => Future<List<LogEntryItem>>.error(
-              ApiException(
-                message: 'Logs refresh failed.',
-                errorType: ApiErrorType.networkError,
+      await tester.pumpWidget(
+        _buildApp(
+          authProvider: authProvider,
+          internshipService: _QueuedInternshipService(
+            responses: Queue.of([
+              () async => _sampleProfile(),
+              () async => _sampleProfile(),
+            ]),
+          ),
+          reportService: _QueuedStudentReportService(
+            responses: Queue.of([
+              () async => _sampleReport(),
+              () async => _sampleReport(),
+            ]),
+          ),
+          logbookService: _QueuedLogbookService(
+            responses: Queue.of([
+              () => Future<List<LogEntryItem>>.error(
+                ApiException(
+                  message: 'Logs refresh failed.',
+                  errorType: ApiErrorType.networkError,
+                ),
               ),
-            ),
-            () => logsCompleter.future,
-          ]),
+              () => logsCompleter.future,
+            ]),
+          ),
+          clock: clock.call,
         ),
-        clock: clock.call,
-      ),
-    );
+      );
 
-    await _pumpDashboardReady(tester);
+      await _pumpDashboardReady(tester);
 
-    expect(find.text('Logs refresh failed.'), findsOneWidget);
-    expect(find.text('Next Action'), findsOneWidget);
+      expect(find.text('Logs refresh failed.'), findsOneWidget);
+      expect(find.text('Next Action'), findsOneWidget);
 
-    await _triggerRefresh(tester);
+      await _triggerRefresh(tester);
 
-    expect(find.byType(DashboardSkeletonBlock), findsWidgets);
-    expect(find.text('Next Action'), findsOneWidget);
+      expect(find.byType(DashboardSkeletonBlock), findsWidgets);
+      expect(find.text('Next Action'), findsOneWidget);
 
-    logsCompleter.complete(
-      _sampleLogs(taskDescription: 'Logs loaded after retry.'),
-    );
-    await _pumpDashboardReady(tester);
+      logsCompleter.complete(
+        _sampleLogs(taskDescription: 'Logs loaded after retry.'),
+      );
+      await _pumpDashboardReady(tester);
 
-    expect(find.text('Logs refresh failed.'), findsNothing);
-    expect(find.text('Logs loaded after retry.'), findsOneWidget);
+      expect(find.text('Logs refresh failed.'), findsNothing);
+      expect(find.text('Logs loaded after retry.'), findsOneWidget);
 
-    await _disposeRenderedTree(tester);
-  });
+      await _disposeRenderedTree(tester);
+    },
+  );
 
-  testWidgets('student dashboard still highlights missing today log and recent activity', (
-    tester,
-  ) async {
-    final authProvider = await _buildAuthProvider();
-    final today = DateTime.now();
-    final yesterday = DateTime(today.year, today.month, today.day - 1);
+  testWidgets(
+    'student dashboard still highlights missing today log and recent activity',
+    (tester) async {
+      final authProvider = await _buildAuthProvider();
+      final today = DateTime.now();
+      final yesterday = DateTime(today.year, today.month, today.day - 1);
 
-    await tester.pumpWidget(
-      _buildApp(
-        authProvider: authProvider,
-        internshipService: _QueuedInternshipService(
-          responses: Queue.of([() async => _sampleProfile()]),
+      await tester.pumpWidget(
+        _buildApp(
+          authProvider: authProvider,
+          internshipService: _QueuedInternshipService(
+            responses: Queue.of([() async => _sampleProfile()]),
+          ),
+          reportService: _QueuedStudentReportService(
+            responses: Queue.of([() async => _sampleReport()]),
+          ),
+          logbookService: _QueuedLogbookService(
+            responses: Queue.of([
+              () async => <LogEntryItem>[
+                _buildLog(
+                  id: 11,
+                  date: _formatApiDate(yesterday),
+                  hoursRendered: 8,
+                  status: 'PENDING',
+                  taskDescription: 'Completed daily development tasks.',
+                ),
+                _buildLog(
+                  id: 10,
+                  date: '2026-04-18',
+                  hoursRendered: 7,
+                  status: 'APPROVED',
+                  taskDescription: 'Fixed UI issues and tested forms.',
+                ),
+              ],
+            ]),
+          ),
         ),
-        reportService: _QueuedStudentReportService(
-          responses: Queue.of([() async => _sampleReport()]),
-        ),
-        logbookService: _QueuedLogbookService(
-          responses: Queue.of([
-            () async => <LogEntryItem>[
-                  _buildLog(
-                    id: 11,
-                    date: _formatApiDate(yesterday),
-                    hoursRendered: 8,
-                    status: 'PENDING',
-                    taskDescription: 'Completed daily development tasks.',
-                  ),
-                  _buildLog(
-                    id: 10,
-                    date: '2026-04-18',
-                    hoursRendered: 7,
-                    status: 'APPROVED',
-                    taskDescription: 'Fixed UI issues and tested forms.',
-                  ),
-                ],
-          ]),
-        ),
-      ),
-    );
+      );
 
-    await _pumpDashboardReady(tester);
+      await _pumpDashboardReady(tester);
 
-    expect(find.text('Next Action'), findsOneWidget);
-    expect(find.text('Add today\'s log entry'), findsOneWidget);
-    expect(find.text('Add Today\'s Log'), findsNWidgets(2));
-    expect(find.text('Pending Hours'), findsOneWidget);
-    expect(find.text('Completed daily development tasks.'), findsOneWidget);
-    expect(find.text('Fixed UI issues and tested forms.'), findsOneWidget);
-    expect(find.text('Edit in Logbook'), findsOneWidget);
-    expect(find.text('Update Profile'), findsOneWidget);
+      expect(find.text('Next Action'), findsOneWidget);
+      expect(find.text('Add today\'s log entry'), findsOneWidget);
+      expect(find.text('Add Today\'s Log'), findsNWidgets(2));
+      expect(find.text('Pending Hours'), findsOneWidget);
+      expect(find.text('Completed daily development tasks.'), findsOneWidget);
+      expect(find.text('Fixed UI issues and tested forms.'), findsOneWidget);
+      expect(find.text('Edit in Logbook'), findsOneWidget);
+      expect(find.text('Update Profile'), findsOneWidget);
 
-    final newerLogY = tester
-        .getTopLeft(find.text('Completed daily development tasks.'))
-        .dy;
-    final olderLogY = tester
-        .getTopLeft(find.text('Fixed UI issues and tested forms.'))
-        .dy;
-    expect(newerLogY, lessThan(olderLogY));
+      final newerLogY = tester
+          .getTopLeft(find.text('Completed daily development tasks.'))
+          .dy;
+      final olderLogY = tester
+          .getTopLeft(find.text('Fixed UI issues and tested forms.'))
+          .dy;
+      expect(newerLogY, lessThan(olderLogY));
 
-    await _disposeRenderedTree(tester);
-  });
+      await _disposeRenderedTree(tester);
+    },
+  );
 
   testWidgets(
     'student dashboard pushes profile completion when profile is missing',
@@ -565,38 +567,161 @@ void main() {
     await _disposeRenderedTree(tester);
   });
 
-  testWidgets('afternoon-only active session uses time out instead of lunch out', (
+  testWidgets(
+    'afternoon-only active session uses time out instead of lunch out',
+    (tester) async {
+      final authProvider = await _buildAuthProvider();
+      final dtrService = _ActionTrackingDtrService(
+        initialRecord: DailyTimeRecord(
+          id: 9,
+          date: '2026-05-10',
+          status: 'WORKING',
+          currentStateLabel: 'Working',
+          nextAction: 'LUNCH_OUT',
+          timeInAt: DateTime(2026, 5, 10, 13, 0),
+          lunchOutAt: null,
+          lunchInAt: null,
+          timeOutAt: null,
+          firstWorkMinutes: 0,
+          secondWorkMinutes: 45,
+          totalWorkMinutes: 45,
+        ),
+        lunchOutRecord: DailyTimeRecord(
+          id: 9,
+          date: '2026-05-10',
+          status: 'COMPLETED',
+          currentStateLabel: 'Completed',
+          nextAction: null,
+          timeInAt: DateTime(2026, 5, 10, 13, 0),
+          lunchOutAt: null,
+          lunchInAt: null,
+          timeOutAt: DateTime(2026, 5, 10, 17, 0),
+          firstWorkMinutes: 0,
+          secondWorkMinutes: 240,
+          totalWorkMinutes: 240,
+        ),
+        lunchInRecord: DailyTimeRecord(
+          id: 9,
+          date: '2026-05-10',
+          status: 'COMPLETED',
+          currentStateLabel: 'Completed',
+          nextAction: null,
+          timeInAt: DateTime(2026, 5, 10, 13, 0),
+          lunchOutAt: null,
+          lunchInAt: null,
+          timeOutAt: DateTime(2026, 5, 10, 17, 0),
+          firstWorkMinutes: 0,
+          secondWorkMinutes: 240,
+          totalWorkMinutes: 240,
+        ),
+        timeOutRecord: DailyTimeRecord(
+          id: 9,
+          date: '2026-05-10',
+          status: 'COMPLETED',
+          currentStateLabel: 'Completed',
+          nextAction: null,
+          timeInAt: DateTime(2026, 5, 10, 13, 0),
+          lunchOutAt: null,
+          lunchInAt: null,
+          timeOutAt: DateTime(2026, 5, 10, 17, 0),
+          firstWorkMinutes: 0,
+          secondWorkMinutes: 240,
+          totalWorkMinutes: 240,
+        ),
+      );
+
+      await tester.pumpWidget(
+        _buildApp(
+          authProvider: authProvider,
+          internshipService: _QueuedInternshipService(
+            responses: Queue.of([() async => _sampleProfile()]),
+          ),
+          dtrService: dtrService,
+          reportService: _QueuedStudentReportService(
+            responses: Queue.of([() async => _sampleReport()]),
+          ),
+          logbookService: _QueuedLogbookService(
+            responses: Queue.of([() async => _sampleLogs()]),
+          ),
+          clock: _FakeClock(DateTime(2026, 5, 10, 13, 30)).call,
+        ),
+      );
+
+      await _pumpDashboardReady(tester);
+
+      expect(find.text('Your afternoon session is active.'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Lunch Out'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Lunch Out'));
+      await _pumpDashboardReady(tester);
+
+      expect(dtrService.lastAction, 'lunchOut');
+      expect(dtrService.lunchOutCalls, 1);
+
+      await _disposeRenderedTree(tester);
+    },
+  );
+
+  testWidgets('working morning session offers lunch out and records break', (
     tester,
   ) async {
     final authProvider = await _buildAuthProvider();
     final dtrService = _ActionTrackingDtrService(
       initialRecord: DailyTimeRecord(
-        id: 9,
+        id: 10,
         date: '2026-05-10',
         status: 'WORKING',
         currentStateLabel: 'Working',
         nextAction: 'LUNCH_OUT',
-        timeInAt: DateTime(2026, 5, 10, 13, 0),
+        timeInAt: DateTime(2026, 5, 10, 8, 0),
         lunchOutAt: null,
         lunchInAt: null,
         timeOutAt: null,
-        firstWorkMinutes: 0,
-        secondWorkMinutes: 45,
-        totalWorkMinutes: 45,
+        firstWorkMinutes: 180,
+        secondWorkMinutes: 0,
+        totalWorkMinutes: 180,
+      ),
+      lunchOutRecord: DailyTimeRecord(
+        id: 10,
+        date: '2026-05-10',
+        status: 'ON_BREAK',
+        currentStateLabel: 'On Break',
+        nextAction: 'LUNCH_IN',
+        timeInAt: DateTime(2026, 5, 10, 8, 0),
+        lunchOutAt: DateTime(2026, 5, 10, 12, 0),
+        lunchInAt: null,
+        timeOutAt: null,
+        firstWorkMinutes: 240,
+        secondWorkMinutes: 0,
+        totalWorkMinutes: 240,
+      ),
+      lunchInRecord: DailyTimeRecord(
+        id: 10,
+        date: '2026-05-10',
+        status: 'WORKING',
+        currentStateLabel: 'Working',
+        nextAction: 'TIME_OUT',
+        timeInAt: DateTime(2026, 5, 10, 8, 0),
+        lunchOutAt: DateTime(2026, 5, 10, 12, 0),
+        lunchInAt: DateTime(2026, 5, 10, 13, 0),
+        timeOutAt: null,
+        firstWorkMinutes: 240,
+        secondWorkMinutes: 0,
+        totalWorkMinutes: 240,
       ),
       timeOutRecord: DailyTimeRecord(
-        id: 9,
+        id: 10,
         date: '2026-05-10',
         status: 'COMPLETED',
         currentStateLabel: 'Completed',
         nextAction: null,
-        timeInAt: DateTime(2026, 5, 10, 13, 0),
-        lunchOutAt: null,
-        lunchInAt: null,
+        timeInAt: DateTime(2026, 5, 10, 8, 0),
+        lunchOutAt: DateTime(2026, 5, 10, 12, 0),
+        lunchInAt: DateTime(2026, 5, 10, 13, 0),
         timeOutAt: DateTime(2026, 5, 10, 17, 0),
-        firstWorkMinutes: 0,
+        firstWorkMinutes: 240,
         secondWorkMinutes: 240,
-        totalWorkMinutes: 240,
+        totalWorkMinutes: 480,
       ),
     );
 
@@ -613,19 +738,351 @@ void main() {
         logbookService: _QueuedLogbookService(
           responses: Queue.of([() async => _sampleLogs()]),
         ),
-        clock: _FakeClock(DateTime(2026, 5, 10, 13, 30)).call,
+        clock: _FakeClock(DateTime(2026, 5, 10, 11, 30)).call,
       ),
     );
 
     await _pumpDashboardReady(tester);
 
-    expect(find.text('Your afternoon session is active.'), findsOneWidget);
+    expect(
+      find.text(
+        'Your morning session is active. Use Lunch Out when you start your break.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(FilledButton, 'Lunch Out'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Time Out'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Lunch Out'));
     await _pumpDashboardReady(tester);
 
-    expect(dtrService.lastAction, 'timeOut');
-    expect(dtrService.lunchOutCalls, 0);
+    expect(dtrService.lastAction, 'lunchOut');
+    expect(dtrService.lunchOutCalls, 1);
+    expect(find.text('You are on break'), findsOneWidget);
+    expect(
+      find.text('You are currently on break. Use Lunch In when you return.'),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(FilledButton, 'Lunch In'), findsOneWidget);
+
+    await _disposeRenderedTree(tester);
+  });
+
+  testWidgets('attendance section shows six attendance slots', (tester) async {
+    final authProvider = await _buildAuthProvider();
+
+    await tester.pumpWidget(
+      _buildApp(
+        authProvider: authProvider,
+        internshipService: _QueuedInternshipService(
+          responses: Queue.of([() async => _sampleProfile()]),
+        ),
+        dtrService: _StaticDtrService(),
+        reportService: _QueuedStudentReportService(
+          responses: Queue.of([() async => _sampleReport()]),
+        ),
+        logbookService: _QueuedLogbookService(
+          responses: Queue.of([() async => _sampleLogs()]),
+        ),
+      ),
+    );
+
+    await _pumpDashboardReady(tester);
+
+    expect(find.text('AM Time In'), findsOneWidget);
+    expect(find.text('AM Time Out'), findsOneWidget);
+    expect(find.text('Lunch Out'), findsOneWidget);
+    expect(find.text('Lunch In'), findsOneWidget);
+    expect(find.text('PM Time In'), findsOneWidget);
+    expect(find.text('PM Time Out'), findsOneWidget);
+
+    await _disposeRenderedTree(tester);
+  });
+
+  testWidgets('morning session only allows AM time in before noon', (
+    tester,
+  ) async {
+    final authProvider = await _buildAuthProvider();
+    final dtrService = _ActionTrackingDtrService(
+      initialRecord: DailyTimeRecord(
+        id: 12,
+        date: '2026-05-10',
+        status: 'NOT_STARTED',
+        currentStateLabel: 'Not Started',
+        nextAction: 'TIME_IN',
+        timeInAt: null,
+        lunchOutAt: null,
+        lunchInAt: null,
+        timeOutAt: null,
+        firstWorkMinutes: 0,
+        secondWorkMinutes: 0,
+        totalWorkMinutes: 0,
+      ),
+      lunchOutRecord: DailyTimeRecord(
+        id: 12,
+        date: '2026-05-10',
+        status: 'WORKING',
+        currentStateLabel: 'Working',
+        nextAction: 'LUNCH_OUT',
+        timeInAt: DateTime(2026, 5, 10, 8, 0),
+        lunchOutAt: null,
+        lunchInAt: null,
+        timeOutAt: null,
+        firstWorkMinutes: 0,
+        secondWorkMinutes: 0,
+        totalWorkMinutes: 0,
+      ),
+      lunchInRecord: DailyTimeRecord(
+        id: 12,
+        date: '2026-05-10',
+        status: 'WORKING',
+        currentStateLabel: 'Working',
+        nextAction: 'TIME_OUT',
+        timeInAt: DateTime(2026, 5, 10, 8, 0),
+        lunchOutAt: DateTime(2026, 5, 10, 12, 0),
+        lunchInAt: DateTime(2026, 5, 10, 13, 0),
+        timeOutAt: null,
+        firstWorkMinutes: 240,
+        secondWorkMinutes: 0,
+        totalWorkMinutes: 240,
+      ),
+      timeOutRecord: DailyTimeRecord(
+        id: 12,
+        date: '2026-05-10',
+        status: 'COMPLETED',
+        currentStateLabel: 'Completed',
+        nextAction: null,
+        timeInAt: DateTime(2026, 5, 10, 8, 0),
+        lunchOutAt: DateTime(2026, 5, 10, 12, 0),
+        lunchInAt: DateTime(2026, 5, 10, 13, 0),
+        timeOutAt: DateTime(2026, 5, 10, 17, 0),
+        firstWorkMinutes: 240,
+        secondWorkMinutes: 240,
+        totalWorkMinutes: 480,
+      ),
+    );
+
+    await tester.pumpWidget(
+      _buildApp(
+        authProvider: authProvider,
+        internshipService: _QueuedInternshipService(
+          responses: Queue.of([() async => _sampleProfile()]),
+        ),
+        dtrService: dtrService,
+        reportService: _QueuedStudentReportService(
+          responses: Queue.of([() async => _sampleReport()]),
+        ),
+        logbookService: _QueuedLogbookService(
+          responses: Queue.of([() async => _sampleLogs()]),
+        ),
+        clock: _FakeClock(DateTime(2026, 5, 10, 9, 0)).call,
+      ),
+    );
+
+    await _pumpDashboardReady(tester);
+
+    await tester.tap(find.text('PM Time In'));
+    await _pumpDashboardReady(tester);
+
+    expect(dtrService.timeInCalls, 0);
+
+    await tester.tap(find.text('AM Time In'));
+    await _pumpDashboardReady(tester);
+
+    expect(dtrService.lastAction, 'timeIn');
+    expect(dtrService.timeInCalls, 1);
+
+    await _disposeRenderedTree(tester);
+  });
+
+  testWidgets(
+    'afternoon session disables morning start and allows PM time in',
+    (tester) async {
+      final authProvider = await _buildAuthProvider();
+      final dtrService = _ActionTrackingDtrService(
+        initialRecord: DailyTimeRecord(
+          id: 13,
+          date: '2026-05-10',
+          status: 'NOT_STARTED',
+          currentStateLabel: 'Not Started',
+          nextAction: 'TIME_IN',
+          timeInAt: null,
+          lunchOutAt: null,
+          lunchInAt: null,
+          timeOutAt: null,
+          firstWorkMinutes: 0,
+          secondWorkMinutes: 0,
+          totalWorkMinutes: 0,
+        ),
+        lunchOutRecord: DailyTimeRecord(
+          id: 13,
+          date: '2026-05-10',
+          status: 'WORKING',
+          currentStateLabel: 'Working',
+          nextAction: 'TIME_OUT',
+          timeInAt: DateTime(2026, 5, 10, 13, 0),
+          lunchOutAt: null,
+          lunchInAt: null,
+          timeOutAt: null,
+          firstWorkMinutes: 0,
+          secondWorkMinutes: 0,
+          totalWorkMinutes: 0,
+        ),
+        lunchInRecord: DailyTimeRecord(
+          id: 13,
+          date: '2026-05-10',
+          status: 'WORKING',
+          currentStateLabel: 'Working',
+          nextAction: 'TIME_OUT',
+          timeInAt: DateTime(2026, 5, 10, 13, 0),
+          lunchOutAt: null,
+          lunchInAt: null,
+          timeOutAt: null,
+          firstWorkMinutes: 0,
+          secondWorkMinutes: 0,
+          totalWorkMinutes: 0,
+        ),
+        timeOutRecord: DailyTimeRecord(
+          id: 13,
+          date: '2026-05-10',
+          status: 'COMPLETED',
+          currentStateLabel: 'Completed',
+          nextAction: null,
+          timeInAt: DateTime(2026, 5, 10, 13, 0),
+          lunchOutAt: null,
+          lunchInAt: null,
+          timeOutAt: DateTime(2026, 5, 10, 17, 0),
+          firstWorkMinutes: 0,
+          secondWorkMinutes: 240,
+          totalWorkMinutes: 240,
+        ),
+      );
+
+      await tester.pumpWidget(
+        _buildApp(
+          authProvider: authProvider,
+          internshipService: _QueuedInternshipService(
+            responses: Queue.of([() async => _sampleProfile()]),
+          ),
+          dtrService: dtrService,
+          reportService: _QueuedStudentReportService(
+            responses: Queue.of([() async => _sampleReport()]),
+          ),
+          logbookService: _QueuedLogbookService(
+            responses: Queue.of([() async => _sampleLogs()]),
+          ),
+          clock: _FakeClock(DateTime(2026, 5, 10, 13, 30)).call,
+        ),
+      );
+
+      await _pumpDashboardReady(tester);
+
+      expect(find.text('Request Morning Attendance'), findsOneWidget);
+
+      await tester.tap(find.text('AM Time In'));
+      await _pumpDashboardReady(tester);
+
+      expect(dtrService.timeInCalls, 0);
+
+      await tester.tap(find.text('PM Time In'));
+      await _pumpDashboardReady(tester);
+
+      expect(dtrService.lastAction, 'timeIn');
+      expect(dtrService.timeInCalls, 1);
+
+      await _disposeRenderedTree(tester);
+    },
+  );
+
+  testWidgets('break session offers lunch in and resumes work', (tester) async {
+    final authProvider = await _buildAuthProvider();
+    final dtrService = _ActionTrackingDtrService(
+      initialRecord: DailyTimeRecord(
+        id: 11,
+        date: '2026-05-10',
+        status: 'ON_BREAK',
+        currentStateLabel: 'On Break',
+        nextAction: 'LUNCH_IN',
+        timeInAt: DateTime(2026, 5, 10, 8, 0),
+        lunchOutAt: DateTime(2026, 5, 10, 12, 0),
+        lunchInAt: null,
+        timeOutAt: null,
+        firstWorkMinutes: 240,
+        secondWorkMinutes: 0,
+        totalWorkMinutes: 240,
+      ),
+      lunchOutRecord: DailyTimeRecord(
+        id: 11,
+        date: '2026-05-10',
+        status: 'ON_BREAK',
+        currentStateLabel: 'On Break',
+        nextAction: 'LUNCH_IN',
+        timeInAt: DateTime(2026, 5, 10, 8, 0),
+        lunchOutAt: DateTime(2026, 5, 10, 12, 0),
+        lunchInAt: null,
+        timeOutAt: null,
+        firstWorkMinutes: 240,
+        secondWorkMinutes: 0,
+        totalWorkMinutes: 240,
+      ),
+      lunchInRecord: DailyTimeRecord(
+        id: 11,
+        date: '2026-05-10',
+        status: 'WORKING',
+        currentStateLabel: 'Working',
+        nextAction: 'TIME_OUT',
+        timeInAt: DateTime(2026, 5, 10, 8, 0),
+        lunchOutAt: DateTime(2026, 5, 10, 12, 0),
+        lunchInAt: DateTime(2026, 5, 10, 13, 0),
+        timeOutAt: null,
+        firstWorkMinutes: 240,
+        secondWorkMinutes: 0,
+        totalWorkMinutes: 240,
+      ),
+      timeOutRecord: DailyTimeRecord(
+        id: 11,
+        date: '2026-05-10',
+        status: 'COMPLETED',
+        currentStateLabel: 'Completed',
+        nextAction: null,
+        timeInAt: DateTime(2026, 5, 10, 8, 0),
+        lunchOutAt: DateTime(2026, 5, 10, 12, 0),
+        lunchInAt: DateTime(2026, 5, 10, 13, 0),
+        timeOutAt: DateTime(2026, 5, 10, 17, 0),
+        firstWorkMinutes: 240,
+        secondWorkMinutes: 240,
+        totalWorkMinutes: 480,
+      ),
+    );
+
+    await tester.pumpWidget(
+      _buildApp(
+        authProvider: authProvider,
+        internshipService: _QueuedInternshipService(
+          responses: Queue.of([() async => _sampleProfile()]),
+        ),
+        dtrService: dtrService,
+        reportService: _QueuedStudentReportService(
+          responses: Queue.of([() async => _sampleReport()]),
+        ),
+        logbookService: _QueuedLogbookService(
+          responses: Queue.of([() async => _sampleLogs()]),
+        ),
+        clock: _FakeClock(DateTime(2026, 5, 10, 12, 30)).call,
+      ),
+    );
+
+    await _pumpDashboardReady(tester);
+
+    expect(find.text('You are on break'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Lunch In'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Lunch In'));
+    await _pumpDashboardReady(tester);
+
+    expect(dtrService.lastAction, 'lunchIn');
+    expect(dtrService.lunchInCalls, 1);
+    expect(find.text('You are timed in'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Time Out'), findsOneWidget);
 
     await _disposeRenderedTree(tester);
   });
@@ -914,8 +1371,7 @@ class _FakeNotificationService extends NotificationService {
 }
 
 class _StaticDtrService extends DtrService {
-  _StaticDtrService()
-    : super(ApiClient(dio: Dio()));
+  _StaticDtrService() : super(ApiClient(dio: Dio()));
 
   @override
   Future<DailyTimeRecord> getTodayRecord() async {
@@ -939,13 +1395,20 @@ class _StaticDtrService extends DtrService {
 class _ActionTrackingDtrService extends DtrService {
   _ActionTrackingDtrService({
     required this.initialRecord,
+    required this.lunchOutRecord,
+    required this.lunchInRecord,
     required this.timeOutRecord,
   }) : super(ApiClient(dio: Dio()));
 
   final DailyTimeRecord initialRecord;
+  final DailyTimeRecord lunchOutRecord;
+  final DailyTimeRecord lunchInRecord;
   final DailyTimeRecord timeOutRecord;
   String? lastAction;
+  int timeInCalls = 0;
   int lunchOutCalls = 0;
+  int lunchInCalls = 0;
+  int timeOutCalls = 0;
 
   @override
   Future<DailyTimeRecord> getTodayRecord() async => initialRecord;
@@ -954,12 +1417,27 @@ class _ActionTrackingDtrService extends DtrService {
   Future<DailyTimeRecord> lunchOut() async {
     lastAction = 'lunchOut';
     lunchOutCalls += 1;
-    return timeOutRecord;
+    return lunchOutRecord;
+  }
+
+  @override
+  Future<DailyTimeRecord> lunchIn() async {
+    lastAction = 'lunchIn';
+    lunchInCalls += 1;
+    return lunchInRecord;
+  }
+
+  @override
+  Future<DailyTimeRecord> timeIn() async {
+    lastAction = 'timeIn';
+    timeInCalls += 1;
+    return lunchOutRecord;
   }
 
   @override
   Future<DailyTimeRecord> timeOut() async {
     lastAction = 'timeOut';
+    timeOutCalls += 1;
     return timeOutRecord;
   }
 }

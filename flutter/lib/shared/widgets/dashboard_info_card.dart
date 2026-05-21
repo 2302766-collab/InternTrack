@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/ocean_breeze_palette.dart';
+import '../../core/theme/theme_utils.dart';
 
 class DashboardInfoCard extends StatelessWidget {
   final String? title;
@@ -23,7 +23,7 @@ class DashboardInfoCard extends StatelessWidget {
               Text(
                 title!,
                 style: theme.textTheme.titleMedium?.copyWith(
-                  color: OceanBreezePalette.textPrimary,
+                  color: theme.primaryTextColor,
                   fontWeight: FontWeight.w800,
                 ),
               ),

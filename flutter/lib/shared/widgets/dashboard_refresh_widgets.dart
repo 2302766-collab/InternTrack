@@ -10,12 +10,14 @@ class DashboardRefreshStatus extends StatelessWidget {
     required this.isRefreshing,
     this.pullToRefreshLabel = 'Pull down to refresh dashboard data',
     this.refreshingLabel = 'Refreshing dashboard data...',
+    this.dense = false,
   });
 
   final DateTime? lastUpdated;
   final bool isRefreshing;
   final String pullToRefreshLabel;
   final String refreshingLabel;
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
@@ -26,11 +28,13 @@ class DashboardRefreshStatus extends StatelessWidget {
     final labelStyle = theme.textTheme.bodyMedium?.copyWith(
       color: mutedColor,
       fontWeight: FontWeight.w600,
+      fontSize: dense ? 13 : null,
+      height: dense ? 1.35 : null,
     );
 
     return Wrap(
-      spacing: 12,
-      runSpacing: 8,
+      spacing: dense ? 8 : 12,
+      runSpacing: dense ? 4 : 8,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Text(pullToRefreshLabel, style: labelStyle),

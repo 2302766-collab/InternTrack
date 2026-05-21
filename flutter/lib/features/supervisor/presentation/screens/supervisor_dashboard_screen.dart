@@ -1,29 +1,34 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
+import '../../../../core/services/edit_request_service.dart';
 import '../../../../core/services/supervisor_dashboard_service.dart';
 import '../../../../core/services/supervisor_log_service.dart';
 import '../../../../core/theme/ocean_breeze_palette.dart';
+import '../../../../core/theme/theme_controller.dart';
+import '../../../../core/theme/theme_utils.dart';
 import '../../../../core/utils/file_picker_helper_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
     as file_picker;
 import '../../../../shared/models/app_user.dart';
+import '../../../../shared/models/edit_request.dart';
 import '../../../../shared/models/supervisor_dashboard_summary.dart';
 import '../../../../shared/models/supervisor_log_item.dart';
 import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
-import '../../../../shared/widgets/settings_shortcut_button.dart';
+import '../../../../shared/widgets/profile_edit_dialog.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'intern_list_screen.dart';
 import 'supervisor_log_detail_screen.dart';
 import 'supervisor_log_queue_screen.dart';
 
-enum _SupervisorDashboardSection { summary, logs }
+enum _SupervisorDashboardSection { summary, logs, editRequests }
 
 class SupervisorDashboardScreen extends StatefulWidget {
   final String userName;
@@ -46,12 +51,6 @@ class SupervisorDashboardScreen extends StatefulWidget {
 
 class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   static const double _maxContentWidth = 1520;
-  static const Color _canvasColor = OceanBreezePalette.canvas;
-  static const Color _panelColor = OceanBreezePalette.surface;
-  static const Color _panelSoft = OceanBreezePalette.surfaceSoft;
-  static const Color _panelBorder = OceanBreezePalette.border;
-  static const Color _headlineColor = OceanBreezePalette.textPrimary;
-  static const Color _bodyColor = OceanBreezePalette.textSecondary;
   static const Color _heroStart = OceanBreezePalette.midnight;
   static const Color _heroEnd = OceanBreezePalette.deepSea;
   static const Color _accentPrimary = OceanBreezePalette.deepSea;
@@ -62,33 +61,45 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
   late final SupervisorLogService _logService;
   late final SupervisorDashboardService _dashboardService;
+  late final EditRequestService _editRequestService;
 
   bool _isInitialLoading = true;
   bool _isRefreshing = false;
   bool _hasCompletedFirstLoad = false;
-  DateTime? _lastUpdated;
+  _SupervisorMobileTab _currentMobileTab = _SupervisorMobileTab.dashboard;
 
   List<SupervisorLogItem> _pendingLogs = <SupervisorLogItem>[];
+  List<EditRequestItem> _pendingEditRequests = <EditRequestItem>[];
   SupervisorDashboardSummary? _dashboardSummary;
   final GlobalKey _profileMenuAnchorKey = GlobalKey();
+  final Set<int> _processingEditRequestIds = <int>{};
 
   final Map<_SupervisorDashboardSection, bool> _sectionLoading =
       <_SupervisorDashboardSection, bool>{
         _SupervisorDashboardSection.summary: false,
         _SupervisorDashboardSection.logs: false,
+        _SupervisorDashboardSection.editRequests: false,
       };
 
   final Map<_SupervisorDashboardSection, String?> _sectionErrors =
       <_SupervisorDashboardSection, String?>{
         _SupervisorDashboardSection.summary: null,
         _SupervisorDashboardSection.logs: null,
+        _SupervisorDashboardSection.editRequests: null,
       };
 
   String? get _summaryError =>
       _sectionErrors[_SupervisorDashboardSection.summary];
   String? get _logsError => _sectionErrors[_SupervisorDashboardSection.logs];
-
-  DateTime _now() => (widget.clock ?? DateTime.now)();
+  String? get _editRequestError =>
+      _sectionErrors[_SupervisorDashboardSection.editRequests];
+  ThemeData get _theme => Theme.of(context);
+  Color get _canvasColor => _theme.scaffoldBackgroundColor;
+  Color get _panelColor => _theme.panelColor;
+  Color get _panelSoft => _theme.softPanelColor;
+  Color get _panelBorder => _theme.borderSubtleColor;
+  Color get _headlineColor => _theme.primaryTextColor;
+  Color get _bodyColor => _theme.secondaryTextColor;
 
   @override
   void didChangeDependencies() {
@@ -101,6 +112,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       _logService = widget.logService ?? SupervisorLogService(apiClient);
       _dashboardService =
           widget.dashboardService ?? SupervisorDashboardService(apiClient);
+      _editRequestService = context.read<EditRequestService>();
       _loadDashboardData();
     }
   }
@@ -134,8 +146,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         _sectionErrors[_SupervisorDashboardSection.summary] =
             'Missing authentication token. Please log in again.';
         _sectionErrors[_SupervisorDashboardSection.logs] = null;
+        _sectionErrors[_SupervisorDashboardSection.editRequests] = null;
         _sectionLoading[_SupervisorDashboardSection.summary] = false;
         _sectionLoading[_SupervisorDashboardSection.logs] = false;
+        _sectionLoading[_SupervisorDashboardSection.editRequests] = false;
       });
       return;
     }
@@ -147,28 +161,24 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       _isRefreshing = !showFullScreenLoader;
       _sectionErrors[_SupervisorDashboardSection.summary] = null;
       _sectionErrors[_SupervisorDashboardSection.logs] = null;
+      _sectionErrors[_SupervisorDashboardSection.editRequests] = null;
       _sectionLoading[_SupervisorDashboardSection.summary] = true;
       _sectionLoading[_SupervisorDashboardSection.logs] = true;
+      _sectionLoading[_SupervisorDashboardSection.editRequests] = true;
     });
 
-    final results = await Future.wait<_SupervisorSectionResult<dynamic>>([
+    await Future.wait<_SupervisorSectionResult<dynamic>>([
       _refreshPendingLogs(markLoading: false),
       _refreshSummary(markLoading: false),
+      _refreshEditRequests(markLoading: false),
     ]);
 
     if (!mounted) return;
-
-    final successfulSections = results
-        .where((result) => result.succeeded)
-        .length;
 
     setState(() {
       _isInitialLoading = false;
       _isRefreshing = false;
       _hasCompletedFirstLoad = true;
-      if (successfulSections > 0) {
-        _lastUpdated = _now();
-      }
     });
   }
 
@@ -179,22 +189,19 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       _sectionLoading[section] = true;
     });
 
-    final result = switch (section) {
-      _SupervisorDashboardSection.summary => await _refreshSummary(
-        markLoading: false,
-      ),
-      _SupervisorDashboardSection.logs => await _refreshPendingLogs(
-        markLoading: false,
-      ),
-    };
+    switch (section) {
+      case _SupervisorDashboardSection.summary:
+        await _refreshSummary(markLoading: false);
+        break;
+      case _SupervisorDashboardSection.logs:
+        await _refreshPendingLogs(markLoading: false);
+        break;
+      case _SupervisorDashboardSection.editRequests:
+        await _refreshEditRequests(markLoading: false);
+        break;
+    }
 
     if (!mounted) return;
-
-    setState(() {
-      if (result.succeeded) {
-        _lastUpdated = _now();
-      }
-    });
   }
 
   Future<_SupervisorSectionResult<SupervisorDashboardSummary>> _refreshSummary({
@@ -308,6 +315,60 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     }
   }
 
+  Future<_SupervisorSectionResult<List<EditRequestItem>>> _refreshEditRequests({
+    bool markLoading = true,
+  }) async {
+    if (markLoading && mounted) {
+      setState(() {
+        _sectionLoading[_SupervisorDashboardSection.editRequests] = true;
+      });
+    }
+
+    try {
+      final requests = await _editRequestService.fetchSupervisorEditRequests();
+      if (!mounted) {
+        return _SupervisorSectionResult<List<EditRequestItem>>.failure();
+      }
+
+      setState(() {
+        _pendingEditRequests = requests;
+        _sectionErrors[_SupervisorDashboardSection.editRequests] = null;
+        _sectionLoading[_SupervisorDashboardSection.editRequests] = false;
+      });
+
+      return _SupervisorSectionResult<List<EditRequestItem>>.success(requests);
+    } on ApiException catch (e) {
+      if (!mounted) {
+        return _SupervisorSectionResult<List<EditRequestItem>>.failure();
+      }
+
+      if (e.statusCode == 401 || e.errorType == ApiErrorType.unauthorized) {
+        await _handleExpiredSession();
+        return _SupervisorSectionResult<List<EditRequestItem>>.failure();
+      }
+
+      setState(() {
+        _sectionErrors[_SupervisorDashboardSection.editRequests] = e.message;
+        _sectionLoading[_SupervisorDashboardSection.editRequests] = false;
+      });
+
+      return _SupervisorSectionResult<List<EditRequestItem>>.failure();
+    } catch (e) {
+      if (!mounted) {
+        return _SupervisorSectionResult<List<EditRequestItem>>.failure();
+      }
+
+      setState(() {
+        _sectionErrors[_SupervisorDashboardSection.editRequests] = e
+            .toString()
+            .replaceFirst('Exception: ', '');
+        _sectionLoading[_SupervisorDashboardSection.editRequests] = false;
+      });
+
+      return _SupervisorSectionResult<List<EditRequestItem>>.failure();
+    }
+  }
+
   Future<void> _openPendingQueue() async {
     await Navigator.push(
       context,
@@ -374,6 +435,86 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         .toUpperCase();
   }
 
+  String _resolvedUserName(AppUser? user, {String fallback = 'Supervisor'}) {
+    if (user?.name.isNotEmpty == true) {
+      return user!.name;
+    }
+
+    final providerUser = context.read<AuthProvider>().user;
+    if (providerUser?.name.isNotEmpty == true) {
+      return providerUser!.name;
+    }
+
+    if (widget.userName.isNotEmpty) {
+      return widget.userName;
+    }
+
+    return fallback;
+  }
+
+  Widget _buildProfileTrigger({
+    required AppUser? user,
+    required String displayName,
+    bool compact = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: _profileMenuAnchorKey,
+        onTap: _openProfilePanel,
+        borderRadius: BorderRadius.circular(22),
+        child: Ink(
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 8 : 12,
+            vertical: 8,
+          ),
+          decoration: BoxDecoration(
+            color: _panelSoft,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: _panelBorder),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildAvatar(user: user, radius: compact ? 17 : 18, fontSize: 12),
+              if (!compact) ...[
+                const SizedBox(width: 10),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 150),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: _headlineColor,
+                        ),
+                      ),
+                      Text(
+                        'Profile',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _bodyColor.withValues(alpha: 0.85),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(Icons.keyboard_arrow_down_rounded, color: _headlineColor),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   ImageProvider<Object>? _avatarImageProviderFor(String? avatarBase64) {
     if (avatarBase64 == null || avatarBase64.isEmpty) {
       return null;
@@ -392,7 +533,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     double fontSize = 16,
   }) {
     final imageProvider = _avatarImageProviderFor(user?.avatarBase64);
-    final name = user?.name.isNotEmpty == true ? user!.name : widget.userName;
+    final name = _resolvedUserName(user);
 
     return CircleAvatar(
       radius: radius,
@@ -427,6 +568,15 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      final avatarErrors = error.details?['avatar_base64'];
+      final fieldMessage = avatarErrors is List && avatarErrors.isNotEmpty
+          ? avatarErrors.first.toString()
+          : null;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(fieldMessage ?? error.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -521,7 +671,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                         Navigator.of(dialogContext).pop();
                                         await _pickProfilePhoto();
                                       },
-                                      child: const Padding(
+                                      child: Padding(
                                         padding: EdgeInsets.all(6),
                                         child: Icon(
                                           Icons.camera_alt_rounded,
@@ -540,10 +690,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    user?.name.isNotEmpty == true
-                                        ? user!.name
-                                        : widget.userName,
-                                    style: const TextStyle(
+                                    _resolvedUserName(user),
+                                    style: TextStyle(
                                       fontSize: 21,
                                       fontWeight: FontWeight.w800,
                                       color: _headlineColor,
@@ -554,7 +702,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                     user?.email.isNotEmpty == true
                                         ? user!.email
                                         : 'No email available',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
                                       color: _bodyColor,
                                     ),
@@ -573,6 +721,21 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           ],
                         ),
                         const SizedBox(height: 18),
+                        _buildProfileActionTile(
+                          icon: Icons.person_outline_rounded,
+                          title: 'Edit profile details',
+                          subtitle:
+                              'Update your display name and gender details.',
+                          onTap: () async {
+                            Navigator.of(dialogContext).pop();
+                            await showProfileEditDialog(
+                              context,
+                              title: 'Edit supervisor profile',
+                              user: authProvider.user,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 10),
                         _buildProfileActionTile(
                           icon: Icons.edit_outlined,
                           title: 'Change profile photo',
@@ -606,11 +769,11 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                               Navigator.of(dialogContext).pop();
                               await _logout();
                             },
-                            icon: const Icon(Icons.logout_rounded),
-                            label: const Text('Log out'),
+                            icon: Icon(Icons.logout_rounded),
+                            label: Text('Log out'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFFB42318),
-                              side: const BorderSide(color: Color(0xFFF0C4C0)),
+                              side: BorderSide(color: Color(0xFFF0C4C0)),
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(18),
@@ -639,7 +802,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
           color: _accentPrimary,
@@ -681,7 +844,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: _headlineColor,
@@ -690,7 +853,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     const SizedBox(height: 3),
                     Text(
                       subtitle,
-                      style: const TextStyle(fontSize: 12.5, color: _bodyColor),
+                      style: TextStyle(fontSize: 12.5, color: _bodyColor),
                     ),
                   ],
                 ),
@@ -716,7 +879,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           _buildInfoRow(
             icon: Icons.badge_outlined,
             label: 'Supervisor',
-            value: user?.name.isNotEmpty == true ? user!.name : widget.userName,
+            value: _resolvedUserName(user),
           ),
           const SizedBox(height: 10),
           _buildInfoRow(
@@ -766,7 +929,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: _bodyColor,
@@ -775,7 +938,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: _headlineColor,
@@ -828,7 +991,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: _bodyColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -913,13 +1076,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Widget _buildHeader(AuthProvider authProvider) {
+    final themeController = context.watch<ThemeController>();
     final theme = Theme.of(context);
     final surfaceColor = theme.colorScheme.surface;
     final primaryTextColor = theme.colorScheme.onSurface;
-    final secondaryTextColor =
-        theme.textTheme.bodyMedium?.color ?? primaryTextColor;
     final dividerColor =
         theme.dividerTheme.color ?? theme.colorScheme.outlineVariant;
+    final displayName = _resolvedUserName(authProvider.user);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -934,104 +1097,42 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
         final profileSection = Row(
           children: [
-            const SettingsShortcutButton(),
-            const SizedBox(width: 8),
-            NotificationBellButton(token: authProvider.token ?? ''),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  key: _profileMenuAnchorKey,
-                  onTap: _openProfilePanel,
-                  borderRadius: BorderRadius.circular(22),
-                  child: Ink(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _panelSoft,
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: _panelBorder),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: isCompact
-                                ? CrossAxisAlignment.start
-                                : CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                authProvider.user?.name.isNotEmpty == true
-                                    ? authProvider.user!.name
-                                    : widget.userName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: primaryTextColor,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                authProvider.user?.role.isNotEmpty == true
-                                    ? authProvider.user!.role
-                                    : 'Company Supervisor',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: secondaryTextColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        _buildAvatar(
-                          user: authProvider.user,
-                          radius: 26,
-                          fontSize: 16,
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.keyboard_arrow_down_rounded),
-                      ],
-                    ),
+            NotificationBellButton(
+              token: authProvider.token ?? '',
+              iconColor: primaryTextColor,
+            ),
+            const SizedBox(width: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  themeController.isDarkMode
+                      ? Icons.dark_mode_rounded
+                      : Icons.light_mode_rounded,
+                  color: primaryTextColor,
+                  size: 18,
+                ),
+                Transform.scale(
+                  scale: isCompact ? 0.85 : 1,
+                  child: Switch(
+                    value: themeController.isDarkMode,
+                    onChanged: (value) {
+                      context.read<ThemeController>().setDarkMode(value);
+                    },
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
-        );
-
-        final titleBlock = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Supervisor Dashboard',
-              style: TextStyle(
-                fontSize: isNarrow ? (isCompact ? 20 : 24) : 28,
-                fontWeight: FontWeight.w700,
-                color: primaryTextColor,
+            const SizedBox(width: 4),
+            Flexible(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: _buildProfileTrigger(
+                  user: authProvider.user,
+                  displayName: displayName,
+                  compact: isCompact,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Monitor intern activity, review submissions, and keep approvals moving.',
-              style: TextStyle(
-                fontSize: isCompact ? 13 : 14,
-                color: secondaryTextColor,
-              ),
-            ),
-            const SizedBox(height: 8),
-            DashboardRefreshStatus(
-              lastUpdated: _lastUpdated,
-              isRefreshing: _isRefreshing,
-              pullToRefreshLabel: 'Pull down to refresh dashboard data',
-              refreshingLabel: 'Refreshing supervisor dashboard...',
             ),
           ],
         );
@@ -1039,20 +1140,30 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         return Container(
           padding: EdgeInsets.fromLTRB(
             horizontalPadding,
-            20,
+            16,
             horizontalPadding,
-            20,
+            16,
           ),
           decoration: BoxDecoration(
             color: surfaceColor,
             border: Border(bottom: BorderSide(color: dividerColor)),
           ),
           child: isNarrow
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              ? Row(
                   children: [
-                    titleBlock,
-                    const SizedBox(height: 16),
+                    Expanded(
+                      child: Text(
+                        'Supervisor Dashboard',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: isCompact ? 20 : 24,
+                          fontWeight: FontWeight.w700,
+                          color: primaryTextColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
                     ConstrainedBox(
                       constraints: BoxConstraints(maxWidth: profileMaxWidth),
                       child: profileSection,
@@ -1062,7 +1173,16 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               : Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: titleBlock),
+                    Expanded(
+                      child: Text(
+                        'Supervisor Dashboard',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          color: primaryTextColor,
+                        ),
+                      ),
+                    ),
                     const SizedBox(width: 12),
                     ConstrainedBox(
                       constraints: BoxConstraints(maxWidth: profileMaxWidth),
@@ -1144,11 +1264,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               const SizedBox(height: 10),
               Text(
                 helper,
-                style: const TextStyle(
-                  fontSize: 13,
-                  height: 1.45,
-                  color: _bodyColor,
-                ),
+                style: TextStyle(fontSize: 13, height: 1.45, color: _bodyColor),
               ),
             ],
           ),
@@ -1202,7 +1318,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               borderRadius: BorderRadius.circular(999),
               border: Border.all(color: _surfaceTone(0.12)),
             ),
-            child: const Text(
+            child: Text(
               'Supervisor workspace',
               style: TextStyle(
                 color: Colors.white,
@@ -1264,7 +1380,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                         const SizedBox(height: 6),
                         Text(
                           stat.value,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
                             color: Colors.white,
@@ -1401,13 +1517,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Widget _buildTableHeader() {
-    const headerStyle = TextStyle(
+    final headerStyle = TextStyle(
       fontWeight: FontWeight.w700,
       color: _bodyColor,
       fontSize: 13,
     );
 
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.fromLTRB(28, 18, 28, 18),
       child: Row(
         children: [
@@ -1449,7 +1565,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 backgroundColor: _accentPrimary,
                 child: Text(
                   _initialsFor(log.studentName),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
@@ -1463,7 +1579,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   children: [
                     Text(
                       log.studentName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: _headlineColor,
@@ -1473,7 +1589,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     const SizedBox(height: 2),
                     Text(
                       _formatDate(log.date),
-                      style: const TextStyle(fontSize: 13, color: _bodyColor),
+                      style: TextStyle(fontSize: 13, color: _bodyColor),
                     ),
                   ],
                 ),
@@ -1503,7 +1619,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             log.taskDescription,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 14, color: _headlineColor),
+            style: TextStyle(fontSize: 14, color: _headlineColor),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -1540,7 +1656,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   ),
                   child: Text(
                     log.companyName!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       color: _accentSecondary,
                       fontWeight: FontWeight.w600,
@@ -1549,7 +1665,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 ),
               Text(
                 '${log.hoursRendered}h rendered',
-                style: const TextStyle(fontSize: 12, color: _bodyColor),
+                style: TextStyle(fontSize: 12, color: _bodyColor),
               ),
             ],
           ),
@@ -1558,8 +1674,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: () => _openLogReview(log),
-              icon: const Icon(Icons.rate_review_outlined),
-              label: const Text('Review Log'),
+              icon: Icon(Icons.rate_review_outlined),
+              label: Text('Review Log'),
             ),
           ),
         ],
@@ -1570,7 +1686,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   Widget _buildLogRow(SupervisorLogItem log) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(top: BorderSide(color: Color(0xFFF0F3F7))),
       ),
       child: Row(
@@ -1584,7 +1700,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   backgroundColor: _accentPrimary,
                   child: Text(
                     _initialsFor(log.studentName),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1594,7 +1710,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 Expanded(
                   child: Text(
                     log.studentName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: _headlineColor,
@@ -1609,14 +1725,14 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             flex: 20,
             child: Text(
               _formatDate(log.date),
-              style: const TextStyle(fontSize: 15, color: _bodyColor),
+              style: TextStyle(fontSize: 15, color: _bodyColor),
             ),
           ),
           Expanded(
             flex: 12,
             child: Text(
               '${log.hoursRendered}h',
-              style: const TextStyle(fontSize: 15, color: _bodyColor),
+              style: TextStyle(fontSize: 15, color: _bodyColor),
             ),
           ),
           Expanded(
@@ -1625,7 +1741,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               log.taskDescription,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 15, color: _bodyColor),
+              style: TextStyle(fontSize: 15, color: _bodyColor),
             ),
           ),
           Expanded(
@@ -1680,8 +1796,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(
                 onPressed: () => _openLogReview(log),
-                icon: const Icon(Icons.rate_review_outlined),
-                label: const Text('Review Log'),
+                icon: Icon(Icons.rate_review_outlined),
+                label: Text('Review Log'),
               ),
             ),
           ),
@@ -1723,7 +1839,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Pending Reviews',
                             style: TextStyle(
                               fontSize: 20,
@@ -1736,7 +1852,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                             visibleLogs.isEmpty
                                 ? 'No student submissions are waiting right now.'
                                 : 'Showing the latest ${visibleLogs.length} log${visibleLogs.length == 1 ? '' : 's'} that need your attention.',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13.5,
                               height: 1.45,
                               color: _bodyColor,
@@ -1757,7 +1873,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       ),
                       child: Text(
                         '${_pendingLogs.length} total',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: _accentPrimary,
@@ -1774,7 +1890,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: _openPendingQueue,
-                        icon: const Icon(Icons.open_in_new_rounded),
+                        icon: Icon(Icons.open_in_new_rounded),
                         label: Text(
                           isNarrow ? 'Open Queue' : 'Open Full Review Queue',
                         ),
@@ -1819,7 +1935,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                             color: _accentSoft,
                             borderRadius: BorderRadius.circular(18),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.task_alt_rounded,
                             color: _accentPrimary,
                           ),
@@ -1829,7 +1945,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           _logsError == null
                               ? 'All caught up'
                               : 'Pending logs could not be refreshed',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                             color: _headlineColor,
@@ -1841,7 +1957,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                               ? 'There are no student logs waiting for review at the moment.'
                               : 'You can retry loading the list or open the full queue for another attempt.',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             height: 1.5,
                             color: _bodyColor,
@@ -1880,6 +1996,898 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           ),
         );
       },
+    );
+  }
+
+  String _editRequestValueLabel(Object? value) {
+    if (value == null) {
+      return 'Not set';
+    }
+
+    final raw = value.toString();
+    final dateTime = DateTime.tryParse(raw);
+    if (dateTime == null) {
+      return raw;
+    }
+
+    return DateFormat('MMM d, yyyy hh:mm a').format(dateTime.toLocal());
+  }
+
+  Future<void> _approveEditRequest(EditRequestItem request) async {
+    if (_processingEditRequestIds.contains(request.id)) {
+      return;
+    }
+
+    setState(() {
+      _processingEditRequestIds.add(request.id);
+      _sectionErrors[_SupervisorDashboardSection.editRequests] = null;
+    });
+
+    try {
+      await _editRequestService.approveRequest(
+        requestId: request.id,
+        role: 'supervisor',
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Edit request approved.')));
+      await _refreshEditRequests();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _sectionErrors[_SupervisorDashboardSection.editRequests] = e
+            .toString()
+            .replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingEditRequestIds.remove(request.id);
+        });
+      }
+    }
+  }
+
+  Future<void> _rejectEditRequest(EditRequestItem request) async {
+    if (_processingEditRequestIds.contains(request.id)) {
+      return;
+    }
+
+    final commentController = TextEditingController();
+    String? validationError;
+
+    final comment = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Reject Edit Request'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: commentController,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Reason for rejection',
+                      hintText: 'Explain what the student needs to fix.',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  if (validationError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      validationError!,
+                      style: TextStyle(color: Color(0xFFB42318)),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: Text('Cancel'),
+                ),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFB42318),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    final trimmed = commentController.text.trim();
+                    if (trimmed.length < 3) {
+                      setDialogState(() {
+                        validationError =
+                            'Rejection reason must be at least 3 characters.';
+                      });
+                      return;
+                    }
+
+                    Navigator.of(dialogContext).pop(trimmed);
+                  },
+                  child: Text('Reject'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    commentController.dispose();
+
+    if (comment == null) {
+      return;
+    }
+
+    setState(() {
+      _processingEditRequestIds.add(request.id);
+      _sectionErrors[_SupervisorDashboardSection.editRequests] = null;
+    });
+
+    try {
+      await _editRequestService.rejectRequest(
+        requestId: request.id,
+        comment: comment,
+        role: 'supervisor',
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Edit request rejected.')));
+      await _refreshEditRequests();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _sectionErrors[_SupervisorDashboardSection.editRequests] = e
+            .toString()
+            .replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingEditRequestIds.remove(request.id);
+        });
+      }
+    }
+  }
+
+  Widget _buildEditRequestCard(EditRequestItem request) {
+    final isProcessing = _processingEditRequestIds.contains(request.id);
+    final currentValues = request.currentValues;
+    final requestedChanges = request.requestedChanges;
+
+    Widget valuePair(String label, Object? current, Object? requested) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: _panelSoft,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _panelBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: _bodyColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Current: ${_editRequestValueLabel(current)}',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: _headlineColor,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Requested: ${_editRequestValueLabel(requested)}',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: _accentPrimary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final comparisonWidgets = request.isLog
+        ? <Widget>[
+            valuePair('Date', currentValues['date'], requestedChanges['date']),
+            valuePair(
+              'Hours Rendered',
+              currentValues['hours_rendered'],
+              requestedChanges['hours_rendered'],
+            ),
+            valuePair(
+              'Task Description',
+              currentValues['task_description'],
+              requestedChanges['task_description'],
+            ),
+          ]
+        : <Widget>[
+            valuePair(
+              'Morning Time In',
+              currentValues['time_in_at'],
+              requestedChanges['time_in_at'],
+            ),
+            valuePair(
+              'Morning Time Out',
+              currentValues['lunch_out_at'],
+              requestedChanges['lunch_out_at'],
+            ),
+            valuePair(
+              'Afternoon Time In',
+              currentValues['lunch_in_at'],
+              requestedChanges['lunch_in_at'],
+            ),
+            valuePair(
+              'Afternoon Time Out',
+              currentValues['time_out_at'],
+              requestedChanges['time_out_at'],
+            ),
+          ];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _panelColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _panelBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: _accentSoft,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  request.isLog ? 'Log Request' : 'Attendance Request',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: _accentPrimary,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: _panelSoft,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'Request #${request.id}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: _headlineColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            request.student?.name.isNotEmpty == true
+                ? request.student!.name
+                : request.requester?.name ?? 'Unknown student',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: _headlineColor,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            request.requester?.email ?? '',
+            style: TextStyle(fontSize: 13, color: _bodyColor),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            request.reason,
+            style: TextStyle(fontSize: 14, height: 1.5, color: _headlineColor),
+          ),
+          const SizedBox(height: 14),
+          ...comparisonWidgets
+              .expand((widget) => [widget, const SizedBox(height: 10)])
+              .toList()
+            ..removeLast(),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              FilledButton.icon(
+                onPressed: isProcessing
+                    ? null
+                    : () => _approveEditRequest(request),
+                icon: isProcessing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Icon(Icons.check_circle_outline_rounded),
+                label: Text('Approve'),
+              ),
+              OutlinedButton.icon(
+                onPressed: isProcessing
+                    ? null
+                    : () => _rejectEditRequest(request),
+                icon: Icon(Icons.close_rounded),
+                label: Text('Reject'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFB42318),
+                  side: BorderSide(color: Color(0xFFF0C4C0)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditRequestsPanel() {
+    final isLoading = _isSectionLoading(
+      _SupervisorDashboardSection.editRequests,
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: _panelColor,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: _panelBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F0F172A),
+            blurRadius: 24,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Student Correction Requests',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: _headlineColor,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Review requested log and attendance corrections from your assigned students.',
+              style: TextStyle(fontSize: 13.5, height: 1.45, color: _bodyColor),
+            ),
+            const SizedBox(height: 18),
+            if (isLoading &&
+                _pendingEditRequests.isEmpty &&
+                _editRequestError == null)
+              const Center(child: CircularProgressIndicator())
+            else if (_editRequestError != null && _pendingEditRequests.isEmpty)
+              DashboardInlineNotice(
+                message: _editRequestError!,
+                onRetry: () =>
+                    _refreshSection(_SupervisorDashboardSection.editRequests),
+              )
+            else if (_pendingEditRequests.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: _panelSoft,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: _panelBorder),
+                ),
+                child: Text(
+                  'No pending correction requests right now.',
+                  style: TextStyle(fontSize: 14, color: _bodyColor),
+                ),
+              )
+            else ...[
+              ..._pendingEditRequests.map(_buildEditRequestCard),
+              if (_editRequestError != null)
+                DashboardInlineNotice(
+                  message: _editRequestError!,
+                  onRetry: () =>
+                      _refreshSection(_SupervisorDashboardSection.editRequests),
+                )
+              else if (isLoading)
+                _buildSectionRefreshingHint(
+                  'Refreshing correction requests...',
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileTopBar(AuthProvider authProvider) {
+    final themeController = context.watch<ThemeController>();
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      decoration: BoxDecoration(
+        color: _panelColor,
+        border: Border(bottom: BorderSide(color: _panelBorder)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Supervisor Dashboard',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: _headlineColor,
+                height: 1.15,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          NotificationBellButton(
+            token: authProvider.token ?? '',
+            iconColor: _headlineColor,
+          ),
+          const SizedBox(width: 6),
+          Icon(
+            themeController.isDarkMode
+                ? Icons.dark_mode_rounded
+                : Icons.light_mode_rounded,
+            color: _headlineColor,
+            size: 18,
+          ),
+          Switch(
+            value: themeController.isDarkMode,
+            onChanged: (value) {
+              context.read<ThemeController>().setDarkMode(value);
+            },
+          ),
+          const SizedBox(width: 4),
+          _buildProfileTrigger(
+            user: authProvider.user,
+            displayName: _resolvedUserName(authProvider.user),
+            compact: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileDashboardTab() {
+    final summary = _dashboardSummary;
+    final isSummaryLoading = _isSectionLoading(
+      _SupervisorDashboardSection.summary,
+    );
+    final pendingCount = summary?.pendingReview ?? _pendingLogs.length;
+    final totalStudents = summary?.totalStudents ?? 0;
+    final approvedToday = summary?.approvedToday ?? 0;
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+      children: [
+        _buildHeroPanel(
+          pendingCount: pendingCount,
+          approvedToday: approvedToday,
+          totalStudents: totalStudents,
+          isNarrow: true,
+        ),
+        const SizedBox(height: 18),
+        if (isSummaryLoading && _dashboardSummary == null)
+          _buildStatsSkeleton()
+        else
+          Column(
+            children: [
+              _buildStatCard(
+                title: 'Pending Review',
+                value: '$pendingCount',
+                icon: Icons.access_time_rounded,
+                accent: _accentPrimary,
+                helper: 'Submissions waiting for your decision.',
+                width: double.infinity,
+              ),
+              const SizedBox(height: 12),
+              _buildStatCard(
+                title: 'Approved Today',
+                value: '$approvedToday',
+                icon: Icons.check_circle_outline_rounded,
+                accent: _accentSecondary,
+                helper: 'Logs you cleared within today\'s cycle.',
+                width: double.infinity,
+              ),
+              const SizedBox(height: 12),
+              _buildStatCard(
+                title: 'Total Students',
+                value: '$totalStudents',
+                icon: Icons.groups_rounded,
+                accent: _accentMuted,
+                helper: 'Interns currently assigned to your supervision.',
+                width: double.infinity,
+              ),
+            ],
+          ),
+        if (_summaryError != null) ...[
+          const SizedBox(height: 12),
+          DashboardInlineNotice(
+            message: _summaryError!,
+            onRetry: () => _refreshSection(_SupervisorDashboardSection.summary),
+          ),
+        ] else if (isSummaryLoading) ...[
+          const SizedBox(height: 12),
+          _buildSectionRefreshingHint('Refreshing dashboard summary...'),
+        ],
+        const SizedBox(height: 16),
+        _buildActionBar(),
+      ],
+    );
+  }
+
+  Widget _buildMobileLogsTab() {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      children: [_buildLogsPanel()],
+    );
+  }
+
+  Widget _buildMobileRequestsTab() {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      children: [_buildEditRequestsPanel()],
+    );
+  }
+
+  Widget _buildInternSpotlightCard(SupervisorLogItem log) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _panelColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _panelBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      log.studentName,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: _headlineColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      (log.companyName ?? '').isNotEmpty
+                          ? log.companyName!
+                          : _formatDate(log.date),
+                      style: TextStyle(fontSize: 13, color: _bodyColor),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: _statusBg(log.status),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  _statusLabel(log.status),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _statusFg(log.status),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            log.taskDescription,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 13.5, height: 1.4, color: _bodyColor),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _openLogReview(log),
+                  icon: const Icon(Icons.rate_review_outlined),
+                  label: const Text('Review Log'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _openAssignedInterns,
+                  icon: const Icon(Icons.groups_2_outlined),
+                  label: const Text('Open Roster'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileInternsTab() {
+    final uniqueLogs = <int, SupervisorLogItem>{};
+    for (final log in _pendingLogs) {
+      uniqueLogs.putIfAbsent(log.internshipProfileId, () => log);
+    }
+    final spotlightLogs = uniqueLogs.values.take(6).toList();
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      children: [
+        _buildQuickActionCard(
+          title: 'Assigned Intern Roster',
+          description:
+              'Open the full supervisor intern list to review assigned students and access their detail pages.',
+          icon: Icons.groups_2_outlined,
+          onTap: _openAssignedInterns,
+          filled: true,
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _panelColor,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: _panelBorder),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0F0F172A),
+                blurRadius: 20,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Intern Spotlight',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: _headlineColor,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Jump into recent intern review activity, then use the assigned roster for full student access.',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  height: 1.45,
+                  color: _bodyColor,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (spotlightLogs.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: _panelSoft,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: _panelBorder),
+                  ),
+                  child: Text(
+                    'No active log queue right now. Open the assigned intern roster to view your students.',
+                    style: TextStyle(fontSize: 14, color: _bodyColor),
+                  ),
+                )
+              else
+                ...spotlightLogs.map(_buildInternSpotlightCard),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileProfileTab(AuthProvider authProvider) {
+    final user = authProvider.user;
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _panelColor,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: _panelBorder),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x120F172A),
+                blurRadius: 20,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _buildAvatar(user: user, radius: 28, fontSize: 18),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _resolvedUserName(user),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: _headlineColor,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          user?.email.isNotEmpty == true
+                              ? user!.email
+                              : 'No email available',
+                          style: TextStyle(fontSize: 13, color: _bodyColor),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildMiniTag(
+                          label:
+                              (user?.role.isNotEmpty == true
+                                      ? user!.role
+                                      : 'Supervisor')
+                                  .toUpperCase(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              _buildProfileInfoCard(user),
+              const SizedBox(height: 16),
+              _buildProfileActionTile(
+                icon: Icons.person_outline_rounded,
+                title: 'Edit profile details',
+                subtitle: 'Update your display name and gender details.',
+                onTap: () async {
+                  await showProfileEditDialog(
+                    context,
+                    title: 'Edit supervisor profile',
+                    user: authProvider.user,
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              _buildProfileActionTile(
+                icon: Icons.edit_outlined,
+                title: 'Change profile photo',
+                subtitle: 'Upload a JPG or PNG image for this supervisor.',
+                onTap: _pickProfilePhoto,
+              ),
+              if ((user?.avatarBase64 ?? '').isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _buildProfileActionTile(
+                  icon: Icons.hide_image_outlined,
+                  title: 'Remove profile photo',
+                  subtitle: 'Switch back to the generated initials avatar.',
+                  onTap: _removeProfilePhoto,
+                ),
+              ],
+              const SizedBox(height: 10),
+              _buildProfileActionTile(
+                icon: Icons.groups_2_outlined,
+                title: 'Open assigned interns',
+                subtitle: 'Jump to the full supervisor intern roster screen.',
+                onTap: _openAssignedInterns,
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _logout,
+                  icon: const Icon(Icons.logout_rounded),
+                  label: const Text('Log out'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFB42318),
+                    side: const BorderSide(color: Color(0xFFF0C4C0)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileBody(AuthProvider authProvider) {
+    return Column(
+      children: [
+        _buildMobileTopBar(authProvider),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _loadDashboardData,
+            child: switch (_currentMobileTab) {
+              _SupervisorMobileTab.dashboard => _buildMobileDashboardTab(),
+              _SupervisorMobileTab.logs => _buildMobileLogsTab(),
+              _SupervisorMobileTab.requests => _buildMobileRequestsTab(),
+              _SupervisorMobileTab.interns => _buildMobileInternsTab(),
+              _SupervisorMobileTab.profile => _buildMobileProfileTab(
+                authProvider,
+              ),
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -1984,6 +2992,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   _buildActionBar(),
                   SizedBox(height: isNarrow ? 16 : 24),
                   _buildLogsPanel(),
+                  SizedBox(height: isNarrow ? 16 : 24),
+                  _buildEditRequestsPanel(),
                 ],
               ),
             ),
@@ -1997,20 +3007,123 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
 
-    return Scaffold(
-      backgroundColor: _canvasColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(authProvider),
-            Expanded(
-              child: _isInitialLoading && !_hasCompletedFirstLoad
-                  ? const Center(child: CircularProgressIndicator())
-                  : _buildBody(),
-            ),
-          ],
-        ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobileLayout = constraints.maxWidth < 960;
+
+        return Scaffold(
+          backgroundColor: _canvasColor,
+          bottomNavigationBar: isMobileLayout
+              ? _SupervisorMobileBottomNavBar(
+                  currentTab: _currentMobileTab,
+                  onChanged: (tab) {
+                    if (tab == _currentMobileTab) return;
+                    setState(() {
+                      _currentMobileTab = tab;
+                    });
+                  },
+                )
+              : null,
+          body: SafeArea(
+            bottom: !isMobileLayout,
+            child: _isInitialLoading && !_hasCompletedFirstLoad
+                ? const Center(child: CircularProgressIndicator())
+                : isMobileLayout
+                ? _buildMobileBody(authProvider)
+                : Column(
+                    children: [
+                      _buildHeader(authProvider),
+                      Expanded(child: _buildBody()),
+                    ],
+                  ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+enum _SupervisorMobileTab {
+  dashboard(
+    title: 'Dashboard',
+    subtitle: 'Summary, counts, and quick actions.',
+    icon: Icons.dashboard_outlined,
+    activeIcon: Icons.dashboard_rounded,
+  ),
+  logs(
+    title: 'Logs',
+    subtitle: 'Review submitted log entries awaiting action.',
+    icon: Icons.fact_check_outlined,
+    activeIcon: Icons.fact_check_rounded,
+  ),
+  requests(
+    title: 'Requests',
+    subtitle: 'Approve or reject student correction requests.',
+    icon: Icons.edit_note_outlined,
+    activeIcon: Icons.edit_note_rounded,
+  ),
+  interns(
+    title: 'Interns',
+    subtitle: 'Open assigned interns and student reports.',
+    icon: Icons.groups_outlined,
+    activeIcon: Icons.groups_rounded,
+  ),
+  profile(
+    title: 'Profile',
+    subtitle: 'Account details and supervisor actions.',
+    icon: Icons.person_outline_rounded,
+    activeIcon: Icons.person_rounded,
+  );
+
+  const _SupervisorMobileTab({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.activeIcon,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final IconData activeIcon;
+}
+
+class _SupervisorMobileBottomNavBar extends StatelessWidget {
+  const _SupervisorMobileBottomNavBar({
+    required this.currentTab,
+    required this.onChanged,
+  });
+
+  final _SupervisorMobileTab currentTab;
+  final ValueChanged<_SupervisorMobileTab> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tabs = _SupervisorMobileTab.values;
+
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      currentIndex: tabs.indexOf(currentTab),
+      selectedItemColor: theme.colorScheme.primary,
+      unselectedItemColor: theme.colorScheme.onSurface.withAlpha(170),
+      selectedLabelStyle: theme.textTheme.labelSmall?.copyWith(
+        fontWeight: FontWeight.w700,
       ),
+      unselectedLabelStyle: theme.textTheme.labelSmall?.copyWith(
+        fontWeight: FontWeight.w600,
+      ),
+      iconSize: 22,
+      onTap: (index) => onChanged(tabs[index]),
+      items: tabs
+          .map(
+            (tab) => BottomNavigationBarItem(
+              icon: Icon(tab.icon),
+              activeIcon: Icon(tab.activeIcon),
+              label: tab.title,
+            ),
+          )
+          .toList(growable: false),
     );
   }
 }

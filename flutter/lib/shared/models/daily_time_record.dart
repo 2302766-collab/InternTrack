@@ -32,7 +32,8 @@ class DailyTimeRecord {
       id: _parseNullableInt(json['id']),
       date: (json['date'] ?? '').toString(),
       status: (json['status'] ?? 'NOT_STARTED').toString(),
-      currentStateLabel: (json['current_state_label'] ?? 'Not Started').toString(),
+      currentStateLabel: (json['current_state_label'] ?? 'Not Started')
+          .toString(),
       nextAction: json['next_action']?.toString(),
       timeInAt: _parseDateTime(json['time_in_at']),
       lunchOutAt: _parseDateTime(json['lunch_out_at']),
@@ -68,16 +69,6 @@ class DailyTimeRecord {
       !_isMorningPunch(timeInAt);
 
   String? resolvedNextAction(DateTime now) {
-    if (nextAction == 'LUNCH_OUT' && isAfternoonOnlySession) {
-      return 'TIME_OUT';
-    }
-
-    if (nextAction == 'LUNCH_IN' &&
-        lunchOutAt != null &&
-        !_isMorningPunch(lunchOutAt)) {
-      return 'TIME_OUT';
-    }
-
     return nextAction;
   }
 

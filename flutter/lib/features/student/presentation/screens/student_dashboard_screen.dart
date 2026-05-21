@@ -18,6 +18,7 @@ import '../../../../core/utils/file_picker_helper_stub.dart'
     as file_picker;
 import '../../../../core/theme/ocean_breeze_palette.dart';
 import '../../../../core/theme/theme_controller.dart';
+import '../../../../core/theme/theme_utils.dart';
 import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/daily_time_record.dart';
 import '../../../../shared/models/internship_profile.dart';
@@ -26,6 +27,7 @@ import '../../../../shared/models/student_report.dart';
 import '../../../../shared/widgets/dashboard_info_card.dart';
 import '../../../../shared/widgets/dashboard_refresh_widgets.dart';
 import '../../../../shared/widgets/notification_bell_button.dart';
+import '../../../../shared/widgets/profile_edit_dialog.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../widgets/student_scaffold.dart';
 
@@ -58,14 +60,10 @@ class StudentDashboardScreen extends StatefulWidget {
 }
 
 class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
-  static const Color _canvasColor = OceanBreezePalette.canvas;
-  static const Color _headlineColor = OceanBreezePalette.textPrimary;
-  static const Color _bodyColor = OceanBreezePalette.textSecondary;
   static const Color _heroStart = OceanBreezePalette.midnight;
   static const Color _heroEnd = OceanBreezePalette.deepSea;
   static const Color _accentPrimary = OceanBreezePalette.deepSea;
   static const Color _accentSecondary = OceanBreezePalette.tide;
-  static const Color _topHeaderBorder = Color(0xFFD8E4EC);
 
   late final InternshipService _internshipService;
   late final DtrService _dtrService;
@@ -108,6 +106,32 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   String? get _dtrError => _sectionErrors[_StudentDashboardSection.dtr];
   String? get _reportError => _sectionErrors[_StudentDashboardSection.report];
   String? get _logsError => _sectionErrors[_StudentDashboardSection.logs];
+  ThemeData get _theme => Theme.of(context);
+  Color get _canvasColor => _theme.scaffoldBackgroundColor;
+  Color get _headlineColor => _theme.primaryTextColor;
+  Color get _bodyColor => _theme.secondaryTextColor;
+  Color get _topHeaderBorder => _theme.borderSubtleColor;
+  Color get _topHeaderSurface => _theme.panelColor;
+  Color get _topHeaderSoftSurface => _theme.softPanelColor;
+  Color get _topHeaderAvatarSurface => _theme.isDarkMode
+      ? _accentPrimary.withValues(alpha: 0.24)
+      : const Color(0xFFE3EEF7);
+  Color get _infoPanelBackground => _theme.accentPanelColor;
+  Color get _infoPanelForeground => _theme.isDarkMode
+      ? _theme.colorScheme.primaryContainer
+      : OceanBreezePalette.infoForeground;
+
+  Color _tintedSurface(Color accent, {double lightAlpha = 0.10}) {
+    return _theme.isDarkMode
+        ? accent.withValues(alpha: 0.16)
+        : accent.withValues(alpha: lightAlpha);
+  }
+
+  Color _tintedBorder(Color accent, {double lightAlpha = 0.18}) {
+    return _theme.isDarkMode
+        ? accent.withValues(alpha: 0.30)
+        : accent.withValues(alpha: lightAlpha);
+  }
 
   DateTime _now() => (widget.clock ?? DateTime.now)();
 
@@ -204,7 +228,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         _sectionLoading[_StudentDashboardSection.report] = false;
         _sectionLoading[_StudentDashboardSection.logs] = false;
       });
-    } else if (profileResult.value != null || _profile != null) {
+    } else if (profileResult.succeeded &&
+        (profileResult.value != null || _profile != null)) {
       final results = await Future.wait<_SectionRefreshResult<dynamic>>([
         _refreshReportSection(markLoading: false),
         _refreshLogsSection(markLoading: false),
@@ -556,8 +581,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   String _dtrActionLabel(String? nextAction) {
     return switch (nextAction) {
       'TIME_IN' => 'Time In',
-      'LUNCH_OUT' => 'Time Out',
-      'LUNCH_IN' => 'Time In',
+      'LUNCH_OUT' => 'Lunch Out',
+      'LUNCH_IN' => 'Lunch In',
       'TIME_OUT' => 'Time Out',
       _ => 'Completed',
     };
@@ -570,7 +595,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     return switch (record.status) {
       'WORKING' => 'You are timed in',
-      'ON_BREAK' => 'You are timed out',
+      'ON_BREAK' => 'You are on break',
       'COMPLETED' => 'Today is complete',
       _ => 'Ready to time in',
     };
@@ -585,24 +610,19 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       'WORKING' when record.isAfternoonOnlySession =>
         'Your afternoon session is active. Use Time Out when you finish your day.',
       'WORKING' when record.lunchInAt == null =>
-        'Your morning session is active. Use Time Out when you start your break.',
+        'Your morning session is active. Use Lunch Out when you start your break.',
       'WORKING' =>
         'Your afternoon session is active. Use Time Out when you finish your day.',
-      'ON_BREAK' => 'You are currently timed out. Use Time In when you return.',
+      'ON_BREAK' => 'You are currently on break. Use Lunch In when you return.',
       'COMPLETED' =>
         'Your punches for today are complete. You can still open the full DTR for details.',
       _ => 'Time in from the dashboard so attendance starts right away.',
     };
   }
 
-  Future<void> _handleDtrAction() async {
+  Future<void> _submitDtrAction(String action) async {
     final token = context.read<AuthProvider>().token ?? '';
-    final record = _dtrRecord;
-    final resolvedNextAction = record?.resolvedNextAction(_now());
-    if (token.isEmpty ||
-        record == null ||
-        resolvedNextAction == null ||
-        _isDtrSubmitting) {
+    if (token.isEmpty || _isDtrSubmitting) {
       return;
     }
 
@@ -614,7 +634,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     try {
       late final DailyTimeRecord updatedRecord;
-      switch (resolvedNextAction) {
+      switch (action) {
         case 'TIME_IN':
           updatedRecord = await _dtrService.timeIn();
           break;
@@ -646,7 +666,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${_dtrActionLabel(resolvedNextAction)} recorded at ${_formatPunchTime(_lastRecordedPunch(updatedRecord))}.',
+            '${_dtrActionLabel(action)} recorded at ${_formatPunchTime(_lastRecordedPunch(updatedRecord))}.',
           ),
         ),
       );
@@ -784,29 +804,363 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     };
   }
 
-  String get _attentionChipLabel {
-    if (!_profileComplete) return 'Profile Incomplete';
-    if (!_hasTodayLog) return 'Action Needed';
-    if (_pendingLogsCount > 0) return 'For Review';
-    if (_isBehindPace) return 'Needs Recovery';
-    return 'On Track';
-  }
-
-  (Color, Color) get _attentionChipColors {
-    if (!_profileComplete) {
-      return (OceanBreezePalette.surfaceMuted, _heroStart);
-    }
-    if (!_hasTodayLog || _pendingLogsCount > 0 || ((_paceDelta ?? 0) < 0)) {
-      return (OceanBreezePalette.surfaceSoft, _accentPrimary);
-    }
-    return (OceanBreezePalette.mist, _accentSecondary);
-  }
-
   List<LogEntryItem> get _recentLogs => _logs.take(4).toList();
 
   DateTime get _today {
     final now = _now();
     return DateTime(now.year, now.month, now.day);
+  }
+
+  bool _isMorningPunch(DateTime? value) {
+    if (value == null) return false;
+    final normalized = value.toLocal();
+    return normalized.hour < 12;
+  }
+
+  bool _isMorningWindow(DateTime now) => now.hour < 12;
+
+  bool _hasAnyAttendance(DailyTimeRecord? record) {
+    if (record == null) return false;
+    return record.timeInAt != null ||
+        record.lunchOutAt != null ||
+        record.lunchInAt != null ||
+        record.timeOutAt != null;
+  }
+
+  bool _hasMorningAttendance(DailyTimeRecord? record) {
+    if (record == null) return false;
+    return _isMorningPunch(record.timeInAt) ||
+        _isMorningPunch(record.lunchOutAt) ||
+        _isMorningPunch(record.lunchInAt) ||
+        _isMorningPunch(record.timeOutAt);
+  }
+
+  bool _missedMorningAttendance(DailyTimeRecord? record, DateTime now) {
+    if (_isMorningWindow(now)) return false;
+    return !_hasMorningAttendance(record);
+  }
+
+  bool _canStartMorningSession(DailyTimeRecord? record, DateTime now) {
+    return _isMorningWindow(now) && !_hasAnyAttendance(record);
+  }
+
+  bool _isMorningSessionActive(DailyTimeRecord? record) {
+    if (record == null || record.status != 'WORKING') return false;
+    return record.timeInAt != null &&
+        _isMorningPunch(record.timeInAt) &&
+        record.lunchOutAt == null;
+  }
+
+  bool _isBreakSession(DailyTimeRecord? record) {
+    return record?.status == 'ON_BREAK' &&
+        record?.lunchOutAt != null &&
+        record?.lunchInAt == null;
+  }
+
+  bool _canStartAfternoonSession(DailyTimeRecord? record, DateTime now) {
+    return !_isMorningWindow(now) && !_hasAnyAttendance(record);
+  }
+
+  bool _isAfternoonSessionActive(DailyTimeRecord? record) {
+    if (record == null || record.status != 'WORKING') return false;
+    if (record.isAfternoonOnlySession) return true;
+    return record.lunchInAt != null && record.timeOutAt == null;
+  }
+
+  DateTime _dateAtTime(DateTime baseDate, TimeOfDay time) {
+    return DateTime(
+      baseDate.year,
+      baseDate.month,
+      baseDate.day,
+      time.hour,
+      time.minute,
+    );
+  }
+
+  Future<DateTime?> _pickAttendanceTime({
+    required DateTime baseDate,
+    DateTime? initialValue,
+    required String helpText,
+  }) async {
+    final initialTime = initialValue != null
+        ? TimeOfDay(hour: initialValue.hour, minute: initialValue.minute)
+        : const TimeOfDay(hour: 8, minute: 0);
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+      helpText: helpText,
+    );
+
+    if (picked == null) return initialValue;
+    return _dateAtTime(baseDate, picked);
+  }
+
+  String _formatAttendanceRequestField(DateTime? value) {
+    if (value == null) return 'Not set';
+    return DateFormat('hh:mm a').format(value.toLocal());
+  }
+
+  bool _hasValidMorningCorrection({
+    required DateTime? timeInAt,
+    required DateTime? timeOutAt,
+  }) {
+    if (timeInAt == null) return false;
+    if (!_isMorningPunch(timeInAt)) return false;
+    if (timeOutAt == null) return true;
+    return _isMorningPunch(timeOutAt) && !timeOutAt.isBefore(timeInAt);
+  }
+
+  Future<void> _openMorningAttendanceRequestModal() async {
+    if (_isDtrSubmitting) return;
+
+    final requestDate = _parseApiDate(_dtrRecord?.date) ?? _today;
+    final existingRecord = _dtrRecord;
+    final reasonController = TextEditingController();
+    DateTime? timeInAt = existingRecord?.timeInAt;
+    DateTime? timeOutAt = existingRecord?.lunchOutAt;
+    String? validationError;
+
+    final payload =
+        await showModalBottomSheet<
+          ({
+            DateTime date,
+            int? dailyTimeRecordId,
+            DateTime? timeInAt,
+            DateTime? timeOutAt,
+            String reason,
+          })
+        >(
+          context: context,
+          isScrollControlled: true,
+          showDragHandle: true,
+          builder: (sheetContext) {
+            return StatefulBuilder(
+              builder: (context, setSheetState) {
+                Future<void> pickField(
+                  String label,
+                  DateTime? currentValue,
+                  void Function(DateTime?) assign,
+                ) async {
+                  final picked = await _pickAttendanceTime(
+                    baseDate: requestDate,
+                    initialValue: currentValue,
+                    helpText: label,
+                  );
+
+                  setSheetState(() {
+                    assign(picked);
+                    validationError = null;
+                  });
+                }
+
+                Widget timeTile({
+                  required String label,
+                  required DateTime? value,
+                  required void Function(DateTime?) onChanged,
+                }) {
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(
+                          context,
+                        ).dividerColor.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: ListTile(
+                      title: Text(label),
+                      subtitle: Text(_formatAttendanceRequestField(value)),
+                      trailing: Wrap(
+                        spacing: 8,
+                        children: [
+                          TextButton(
+                            onPressed: value == null
+                                ? null
+                                : () {
+                                    setSheetState(() {
+                                      onChanged(null);
+                                      validationError = null;
+                                    });
+                                  },
+                            child: Text('Clear'),
+                          ),
+                          FilledButton.tonal(
+                            onPressed: () => pickField(label, value, onChanged),
+                            child: Text(value == null ? 'Set' : 'Change'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                return SafeArea(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      8,
+                      20,
+                      MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+                    ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Request Missed Morning Attendance',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Morning attendance is closed for today. Send your morning correction with a reason so admin and your supervisor can review it.',
+                          ),
+                          const SizedBox(height: 18),
+                          timeTile(
+                            label: 'AM Time In',
+                            value: timeInAt,
+                            onChanged: (value) => timeInAt = value,
+                          ),
+                          timeTile(
+                            label: 'AM Time Out',
+                            value: timeOutAt,
+                            onChanged: (value) => timeOutAt = value,
+                          ),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: reasonController,
+                            maxLines: 4,
+                            decoration: const InputDecoration(
+                              labelText: 'Reason',
+                              hintText:
+                                  'Explain why you missed the morning attendance window.',
+                              border: OutlineInputBorder(),
+                              alignLabelWithHint: true,
+                            ),
+                            onChanged: (_) {
+                              if (validationError != null) {
+                                setSheetState(() {
+                                  validationError = null;
+                                });
+                              }
+                            },
+                          ),
+                          if (validationError != null) ...[
+                            const SizedBox(height: 10),
+                            Text(
+                              validationError!,
+                              style: TextStyle(color: Color(0xFFB42318)),
+                            ),
+                          ],
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () =>
+                                      Navigator.of(sheetContext).pop(),
+                                  child: Text('Cancel'),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: FilledButton(
+                                  onPressed: () {
+                                    final trimmedReason = reasonController.text
+                                        .trim();
+                                    if (trimmedReason.length < 5) {
+                                      setSheetState(() {
+                                        validationError =
+                                            'Reason must be at least 5 characters.';
+                                      });
+                                      return;
+                                    }
+
+                                    if (!_hasValidMorningCorrection(
+                                      timeInAt: timeInAt,
+                                      timeOutAt: timeOutAt,
+                                    )) {
+                                      setSheetState(() {
+                                        validationError =
+                                            'Enter a valid AM Time In and optional AM Time Out within the morning window.';
+                                      });
+                                      return;
+                                    }
+
+                                    Navigator.of(sheetContext).pop((
+                                      date: requestDate,
+                                      dailyTimeRecordId: existingRecord?.id,
+                                      timeInAt: timeInAt,
+                                      timeOutAt: timeOutAt,
+                                      reason: trimmedReason,
+                                    ));
+                                  },
+                                  child: Text('Send Request'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+
+    reasonController.dispose();
+
+    if (payload == null) return;
+
+    setState(() {
+      _isDtrSubmitting = true;
+      _sectionErrors[_StudentDashboardSection.dtr] = null;
+    });
+
+    try {
+      await _dtrService.requestEdit(
+        dailyTimeRecordId: payload.dailyTimeRecordId,
+        date: payload.date,
+        timeInAt: payload.timeInAt,
+        lunchOutAt: payload.timeOutAt,
+        lunchInAt: existingRecord?.lunchInAt,
+        timeOutAt: existingRecord?.timeOutAt,
+        reason: payload.reason,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Morning attendance request sent to admin and supervisor.',
+          ),
+        ),
+      );
+      await _refreshSection(_StudentDashboardSection.dtr);
+    } catch (e) {
+      if (!mounted) return;
+
+      final message = _userFacingErrorMessage(e);
+      setState(() {
+        _sectionErrors[_StudentDashboardSection.dtr] = message;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDtrSubmitting = false;
+        });
+      }
+    }
   }
 
   DateTime? _parseApiDate(String? value) {
@@ -884,8 +1238,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFF6B7F99),
+              style: TextStyle(
+                color: _bodyColor.withValues(alpha: 0.92),
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -941,94 +1295,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   }
 
   void _openRoute(String route) {
+    final currentRoute = ModalRoute.of(context)?.settings.name;
+    if (currentRoute == route) {
+      return;
+    }
     Navigator.pushNamed(context, route);
-  }
-
-  void _handlePrimaryAction() {
-    if (_profile == null) {
-      _openRoute(AppRoutes.internshipProfile);
-      return;
-    }
-
-    if (!_hasTodayLog) {
-      _openRoute(AppRoutes.logbook);
-      return;
-    }
-
-    if (_pendingLogsCount > 0) {
-      _openRoute(AppRoutes.logbook);
-      return;
-    }
-
-    if (_isBehindPace) {
-      _openRoute(AppRoutes.logbook);
-      return;
-    }
-
-    _openRoute(AppRoutes.studentReport);
-  }
-
-  String get _primaryActionLabel {
-    if (_profile == null) return 'Complete Internship Profile';
-    if (!_hasTodayLog) return 'Add Today\'s Log';
-    if (_pendingLogsCount > 0) return 'Review Pending Logs';
-    if (_isBehindPace) return 'Catch Up in Logbook';
-    return 'View Full Report';
-  }
-
-  IconData get _primaryActionIcon {
-    if (_profile == null) return Icons.business_center_outlined;
-    if (!_hasTodayLog) return Icons.edit_note;
-    if (_pendingLogsCount > 0) return Icons.pending_actions_outlined;
-    if (_isBehindPace) return Icons.edit_note;
-    return Icons.assessment_outlined;
-  }
-
-  String get _nextActionTitle {
-    if (_profile == null) {
-      return 'Complete your internship profile';
-    }
-    if (!_hasTodayLog) {
-      return 'Add today\'s log entry';
-    }
-    if (_pendingLogsCount > 0) {
-      final noun = _pendingLogsCount == 1 ? 'log' : 'logs';
-      return 'You have $_pendingLogsCount $noun pending review';
-    }
-    if (_isBehindPace) {
-      return 'You are behind expected pace';
-    }
-    return 'You are on track';
-  }
-
-  String get _nextActionDescription {
-    if (_profile == null) {
-      return 'Add your profile details to unlock tracking and reports.';
-    }
-    if (!_hasTodayLog) {
-      return 'Today\'s log is still missing.';
-    }
-    if (_pendingLogsCount > 0) {
-      return 'Recent submissions are waiting for supervisor review.';
-    }
-    final paceDelta = _paceDeltaAfterPending;
-    if (paceDelta != null && paceDelta < 0) {
-      return 'You are ${paceDelta.abs()} hours behind target pace.';
-    }
-    return 'Everything is on track for now.';
-  }
-
-  Color get _nextActionColor {
-    if (_profile == null) {
-      return _heroStart;
-    }
-    if (!_hasTodayLog) {
-      return _accentPrimary;
-    }
-    if (_pendingLogsCount > 0 || _isBehindPace) {
-      return _accentPrimary;
-    }
-    return _accentSecondary;
   }
 
   ImageProvider<Object>? _avatarImage(AuthProvider authProvider) {
@@ -1068,6 +1339,15 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      final avatarErrors = error.details?['avatar_base64'];
+      final fieldMessage = avatarErrors is List && avatarErrors.isNotEmpty
+          ? avatarErrors.first.toString()
+          : null;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(fieldMessage ?? error.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1106,9 +1386,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         final authProvider = dialogContext.watch<AuthProvider>();
         final user = authProvider.user;
         final avatar = _avatarImage(authProvider);
-        final displayName = user?.name.isNotEmpty == true
-            ? user!.name
-            : widget.userName;
+        final displayName = _resolvedUserName(user);
 
         return SafeArea(
           child: Stack(
@@ -1130,7 +1408,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     width: 320,
                     padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: _topHeaderSurface,
                       borderRadius: BorderRadius.circular(28),
                       border: Border.all(color: _topHeaderBorder),
                       boxShadow: const [
@@ -1152,12 +1430,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                               children: [
                                 CircleAvatar(
                                   radius: 28,
-                                  backgroundColor: const Color(0xFFE3EEF7),
+                                  backgroundColor: _topHeaderAvatarSurface,
                                   backgroundImage: avatar,
                                   child: avatar == null
                                       ? Text(
                                           _initialsFor(displayName),
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             color: _headlineColor,
                                             fontWeight: FontWeight.w800,
                                             fontSize: 18,
@@ -1177,7 +1455,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                         Navigator.of(dialogContext).pop();
                                         await _pickProfilePhoto();
                                       },
-                                      child: const Padding(
+                                      child: Padding(
                                         padding: EdgeInsets.all(6),
                                         child: Icon(
                                           Icons.camera_alt_rounded,
@@ -1197,7 +1475,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                 children: [
                                   Text(
                                     displayName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w800,
                                       color: _headlineColor,
@@ -1208,7 +1486,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                     user?.email.isNotEmpty == true
                                         ? user!.email
                                         : 'No email available',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
                                       color: _bodyColor,
                                     ),
@@ -1227,6 +1505,21 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
+                        _buildProfileActionTile(
+                          icon: Icons.person_outline_rounded,
+                          title: 'Edit profile details',
+                          subtitle:
+                              'Update your display name and gender details.',
+                          onTap: () async {
+                            Navigator.of(dialogContext).pop();
+                            await showProfileEditDialog(
+                              context,
+                              title: 'Edit student profile',
+                              user: authProvider.user,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 10),
                         _buildProfileActionTile(
                           icon: Icons.edit_outlined,
                           title: 'Change profile photo',
@@ -1260,11 +1553,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                               Navigator.of(dialogContext).pop();
                               await _logout();
                             },
-                            icon: const Icon(Icons.logout_rounded),
-                            label: const Text('Log out'),
+                            icon: Icon(Icons.logout_rounded),
+                            label: Text('Log out'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFFB42318),
-                              side: const BorderSide(color: Color(0xFFF0C4C0)),
+                              side: BorderSide(color: Color(0xFFF0C4C0)),
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(18),
@@ -1288,12 +1581,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF2FF),
+        color: _tintedSurface(_accentPrimary),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
           color: _accentPrimary,
@@ -1310,7 +1603,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: const Color(0xFFF7F9FC),
+      color: _topHeaderSoftSurface,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -1323,7 +1616,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: _topHeaderSurface,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(icon, color: _accentPrimary),
@@ -1335,7 +1628,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: _headlineColor,
@@ -1344,7 +1637,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     const SizedBox(height: 3),
                     Text(
                       subtitle,
-                      style: const TextStyle(fontSize: 12.5, color: _bodyColor),
+                      style: TextStyle(fontSize: 12.5, color: _bodyColor),
                     ),
                   ],
                 ),
@@ -1361,7 +1654,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: _topHeaderSoftSurface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: _topHeaderBorder),
       ),
@@ -1370,7 +1663,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           _buildInfoRow(
             icon: Icons.badge_outlined,
             label: 'Student',
-            value: user?.name.isNotEmpty == true ? user!.name : widget.userName,
+            value: _resolvedUserName(user),
           ),
           const SizedBox(height: 10),
           _buildInfoRow(
@@ -1409,7 +1702,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _topHeaderSurface,
             borderRadius: BorderRadius.circular(14),
           ),
           child: Icon(icon, color: _accentPrimary),
@@ -1421,7 +1714,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                   color: _bodyColor,
@@ -1430,7 +1723,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: _headlineColor,
@@ -1458,12 +1751,29 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
 
+  String _resolvedUserName(AppUser? user, {String fallback = 'Student'}) {
+    if (user?.name.isNotEmpty == true) {
+      return user!.name;
+    }
+
+    final providerUser = context.read<AuthProvider>().user;
+    if (providerUser?.name.isNotEmpty == true) {
+      return providerUser!.name;
+    }
+
+    if (widget.userName.isNotEmpty) {
+      return widget.userName;
+    }
+
+    return fallback;
+  }
+
   Widget _buildTopHeader(AuthProvider authProvider) {
     final themeController = context.watch<ThemeController>();
     final user = authProvider.user;
     final token = authProvider.token ?? '';
     final avatar = _avatarImage(authProvider);
-    final displayName = user?.name.isNotEmpty == true ? user!.name : 'Student';
+    final displayName = _resolvedUserName(user);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1475,7 +1785,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             vertical: 14,
           ),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _topHeaderSurface,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: _topHeaderBorder),
             boxShadow: const [
@@ -1490,19 +1800,22 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             children: [
               Expanded(
                 child: InkWell(
-                  onTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.studentDashboard),
+                  onTap: () => _openRoute(AppRoutes.studentDashboard),
                   borderRadius: BorderRadius.circular(16),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 6,
+                    ),
                     child: Text(
-                      'Student Dashboard',
-                      maxLines: 1,
+                      isCompact ? 'Student\nDashboard' : 'Student Dashboard',
+                      maxLines: isCompact ? 2 : 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: isCompact ? 15 : 16,
                         fontWeight: FontWeight.w800,
                         color: _headlineColor,
+                        height: isCompact ? 1.1 : null,
                       ),
                     ),
                   ),
@@ -1545,7 +1858,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF6FAFD),
+                      color: _topHeaderSoftSurface,
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(color: _topHeaderBorder),
                     ),
@@ -1554,12 +1867,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       children: [
                         CircleAvatar(
                           radius: 18,
-                          backgroundColor: const Color(0xFFE3EEF7),
+                          backgroundColor: _topHeaderAvatarSurface,
                           backgroundImage: avatar,
                           child: avatar == null
                               ? Text(
                                   _initialsFor(displayName),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: _headlineColor,
                                     fontWeight: FontWeight.w800,
                                     fontSize: 12,
@@ -1577,7 +1890,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                 Text(
                                   displayName,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
                                     color: _headlineColor,
@@ -1595,7 +1908,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Icon(
+                          Icon(
                             Icons.keyboard_arrow_down_rounded,
                             color: _headlineColor,
                           ),
@@ -1662,9 +1975,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     bool isCompact,
   ) {
     final timeInText = _formatPunchTime(record?.lunchInAt ?? record?.timeInAt);
-    final resolvedNextAction = record?.resolvedNextAction(_now());
-    final actionEnabled =
-        resolvedNextAction != null && !_isDtrSubmitting && !_isRefreshing;
 
     final timerColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -1691,7 +2001,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               ),
               child: Text(
                 _dtrStatusChipLabel(record?.status),
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
                   fontSize: 12,
@@ -1760,26 +2070,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       runSpacing: 10,
       alignment: WrapAlignment.center,
       children: [
-        FilledButton.icon(
-          onPressed: actionEnabled ? _handleDtrAction : null,
-          style: FilledButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: _heroStart,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          ),
-          icon: _isDtrSubmitting
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.fingerprint_rounded),
-          label: Text(
-            _isDtrSubmitting
-                ? 'Saving...'
-                : _dtrActionLabel(resolvedNextAction),
-          ),
-        ),
         OutlinedButton.icon(
           onPressed: () => _openRoute(AppRoutes.studentDtr),
           style: OutlinedButton.styleFrom(
@@ -1787,8 +2077,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             side: BorderSide(color: Colors.white.withValues(alpha: 0.55)),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
-          icon: const Icon(Icons.punch_clock_rounded),
-          label: const Text('Open Full DTR'),
+          icon: Icon(Icons.punch_clock_rounded),
+          label: Text('Open Full DTR'),
         ),
         OutlinedButton.icon(
           onPressed: () => _openRoute(AppRoutes.logbook),
@@ -1797,150 +2087,30 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             side: BorderSide(color: Colors.white.withValues(alpha: 0.55)),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
-          icon: const Icon(Icons.edit_note_rounded),
-          label: const Text('Submit Log'),
+          icon: Icon(Icons.edit_note_rounded),
+          label: Text('Submit Log'),
         ),
       ],
     );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        timerColumn,
-        const SizedBox(height: 18),
-        actionButtons,
-      ],
-    );
-  }
-
-  Widget _buildNextActionSection() {
-    return DashboardInfoCard(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isCompact = constraints.maxWidth < 640;
-
-          final attentionChip = Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: _attentionChipColors.$1,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              _attentionChipLabel,
-              style: TextStyle(
-                color: _attentionChipColors.$2,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          );
-
-          final content = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (isCompact) ...[
-                Text(
-                  _nextActionTitle,
-                  style: const TextStyle(
-                    color: _headlineColor,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                attentionChip,
-              ] else
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _nextActionTitle,
-                        style: const TextStyle(
-                          color: _headlineColor,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    attentionChip,
-                  ],
-                ),
-              const SizedBox(height: 6),
-              Text(
-                _nextActionDescription,
-                style: const TextStyle(color: _bodyColor, height: 1.4),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: isCompact ? double.infinity : null,
-                child: FilledButton.icon(
-                  onPressed: _handlePrimaryAction,
-                  icon: Icon(_primaryActionIcon),
-                  label: Text(_primaryActionLabel),
-                ),
-              ),
-            ],
-          );
-
-          return Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: _nextActionColor.withValues(alpha: 0.08),
-              border: Border.all(
-                color: _nextActionColor.withValues(alpha: 0.18),
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: isCompact
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: _nextActionColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          _primaryActionIcon,
-                          color: _nextActionColor,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      content,
-                    ],
-                  )
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: _nextActionColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          _primaryActionIcon,
-                          color: _nextActionColor,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(child: content),
-                    ],
-                  ),
-          );
-        },
-      ),
+      children: [timerColumn, const SizedBox(height: 18), actionButtons],
     );
   }
 
   Widget _buildAttendanceSection() {
     final isLoading = _isSectionLoading(_StudentDashboardSection.dtr);
     final record = _dtrRecord;
+    final now = _now();
+    final canInteract = !isLoading && !_isRefreshing && !_isDtrSubmitting;
+    final canStartMorning = canInteract && _canStartMorningSession(record, now);
+    final canEndMorning = canInteract && _isMorningSessionActive(record);
+    final canResumeAfternoon = canInteract && _isBreakSession(record);
+    final canStartAfternoon =
+        canInteract && _canStartAfternoonSession(record, now);
+    final canEndAfternoon = canInteract && _isAfternoonSessionActive(record);
+    final missedMorning = _missedMorningAttendance(record, now);
 
     Widget punchTile({
       required String label,
@@ -1948,50 +2118,106 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       required IconData icon,
       required Color iconColor,
       required Color backgroundColor,
+      required bool enabled,
+      VoidCallback? onTap,
     }) {
-      return Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: backgroundColor,
+      final tileSurface = _theme.isDarkMode
+          ? (enabled
+                ? backgroundColor
+                : backgroundColor.withValues(alpha: 0.62))
+          : Color.alphaBlend(
+              backgroundColor.withValues(alpha: enabled ? 0.34 : 0.18),
+              Colors.white,
+            );
+      final tileBorderColor = enabled
+          ? _tintedBorder(iconColor, lightAlpha: 0.28)
+          : (_theme.isDarkMode
+                ? _theme.borderSubtleColor
+                : const Color(0x220F172A));
+      final iconSurface = _theme.isDarkMode
+          ? iconColor.withValues(alpha: enabled ? 0.12 : 0.08)
+          : iconColor.withValues(alpha: enabled ? 0.14 : 0.09);
+      final foregroundColor = _theme.isDarkMode
+          ? _headlineColor
+          : const Color(0xFF17324D);
+      final secondaryForegroundColor = _theme.isDarkMode
+          ? _bodyColor
+          : iconColor.withValues(alpha: 0.96);
+
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
           borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+          child: Ink(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: tileSurface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: tileBorderColor,
               ),
-              child: Icon(icon, color: iconColor, size: 20),
+              boxShadow: _theme.isDarkMode
+                  ? const []
+                  : [
+                      BoxShadow(
+                        color: iconColor.withValues(alpha: enabled ? 0.10 : 0.05),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      color: _bodyColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: iconSurface,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _formatPunchTime(value),
-                    style: const TextStyle(
-                      color: _headlineColor,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  child: Icon(
+                    icon,
+                    color: enabled
+                        ? iconColor
+                        : iconColor.withValues(alpha: 0.55),
+                    size: 20,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: TextStyle(
+                          color: enabled
+                              ? secondaryForegroundColor
+                              : secondaryForegroundColor.withValues(
+                                  alpha: 0.72,
+                                ),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatPunchTime(value),
+                        style: TextStyle(
+                          color: enabled
+                              ? foregroundColor
+                              : foregroundColor.withValues(alpha: 0.7),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       );
     }
@@ -2006,8 +2232,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               final isCompact = constraints.maxWidth < 640;
               final tileWidth = isCompact
                   ? constraints.maxWidth
+                  : constraints.maxWidth >= 1380
+                  ? (constraints.maxWidth - 60) / 6
                   : constraints.maxWidth >= 920
-                  ? (constraints.maxWidth - 36) / 4
+                  ? (constraints.maxWidth - 24) / 3
                   : (constraints.maxWidth - 12) / 2;
 
               return Wrap(
@@ -2017,47 +2245,144 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   SizedBox(
                     width: tileWidth,
                     child: punchTile(
-                      label: 'First Time In',
+                      label: 'AM Time In',
                       value: record?.timeInAt,
                       icon: Icons.login_rounded,
                       iconColor: const Color(0xFF027A48),
-                      backgroundColor: const Color(0xFFF3FBF7),
+                      backgroundColor: _tintedSurface(
+                        const Color(0xFF027A48),
+                        lightAlpha: 0.08,
+                      ),
+                      enabled: canStartMorning,
+                      onTap: () => _submitDtrAction('TIME_IN'),
                     ),
                   ),
                   SizedBox(
                     width: tileWidth,
                     child: punchTile(
-                      label: 'First Time Out',
+                      label: 'AM Time Out',
                       value: record?.lunchOutAt,
                       icon: Icons.logout_rounded,
                       iconColor: const Color(0xFFB54708),
-                      backgroundColor: const Color(0xFFFFF8ED),
+                      backgroundColor: _tintedSurface(
+                        const Color(0xFFB54708),
+                        lightAlpha: 0.10,
+                      ),
+                      enabled: canEndMorning,
+                      onTap: () => _submitDtrAction('LUNCH_OUT'),
                     ),
                   ),
                   SizedBox(
                     width: tileWidth,
                     child: punchTile(
-                      label: 'Second Time In',
+                      label: 'Lunch Out',
+                      value: record?.lunchOutAt,
+                      icon: Icons.lunch_dining_outlined,
+                      iconColor: const Color(0xFFB54708),
+                      backgroundColor: _tintedSurface(
+                        const Color(0xFFB54708),
+                        lightAlpha: 0.10,
+                      ),
+                      enabled: canEndMorning,
+                      onTap: () => _submitDtrAction('LUNCH_OUT'),
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: punchTile(
+                      label: 'Lunch In',
+                      value: record?.lunchInAt,
+                      icon: Icons.restaurant_rounded,
+                      iconColor: const Color(0xFF027A48),
+                      backgroundColor: _tintedSurface(
+                        const Color(0xFF027A48),
+                        lightAlpha: 0.08,
+                      ),
+                      enabled: canResumeAfternoon,
+                      onTap: () => _submitDtrAction('LUNCH_IN'),
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: punchTile(
+                      label: 'PM Time In',
                       value: record?.lunchInAt,
                       icon: Icons.login_rounded,
                       iconColor: const Color(0xFF027A48),
-                      backgroundColor: const Color(0xFFF3FBF7),
+                      backgroundColor: _tintedSurface(
+                        const Color(0xFF027A48),
+                        lightAlpha: 0.08,
+                      ),
+                      enabled: canResumeAfternoon || canStartAfternoon,
+                      onTap: () => _submitDtrAction(
+                        canStartAfternoon ? 'TIME_IN' : 'LUNCH_IN',
+                      ),
                     ),
                   ),
                   SizedBox(
                     width: tileWidth,
                     child: punchTile(
-                      label: 'Final Time Out',
+                      label: 'PM Time Out',
                       value: record?.timeOutAt,
                       icon: Icons.logout_rounded,
                       iconColor: const Color(0xFFB54708),
-                      backgroundColor: const Color(0xFFFFF8ED),
+                      backgroundColor: _tintedSurface(
+                        const Color(0xFFB54708),
+                        lightAlpha: 0.10,
+                      ),
+                      enabled: canEndAfternoon,
+                      onTap: () => _submitDtrAction('TIME_OUT'),
                     ),
                   ),
                 ],
               );
             },
           ),
+          if (missedMorning) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: _infoPanelBackground,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _topHeaderBorder),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Morning attendance is closed for today.',
+                    style: TextStyle(
+                      color: _infoPanelForeground,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Only the afternoon session is available now. If you missed the morning session, send a correction request with your reason for admin and supervisor review.',
+                    style: TextStyle(
+                      color: _infoPanelForeground,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _isDtrSubmitting
+                        ? null
+                        : _openMorningAttendanceRequestModal,
+                    icon: Icon(Icons.edit_note_rounded),
+                    label: Text('Request Morning Attendance'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _infoPanelForeground,
+                      side: BorderSide(color: _topHeaderBorder),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (_dtrError != null) ...[
             const SizedBox(height: 14),
             DashboardInlineNotice(
@@ -2113,10 +2438,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           value: '$_approvedHours h',
                           helper: 'Accepted by supervisor',
                           icon: Icons.verified_outlined,
-                          tone: const _TileTone(
-                            background: Color(0xFFF3FBF7),
-                            border: Color(0xFFCDEEDC),
-                            icon: Color(0xFF027A48),
+                          tone: _TileTone(
+                            background: _tintedSurface(
+                              const Color(0xFF027A48),
+                              lightAlpha: 0.08,
+                            ),
+                            border: _tintedBorder(const Color(0xFF027A48)),
+                            icon: const Color(0xFF027A48),
                           ),
                         ),
                         _MetricTile(
@@ -2125,10 +2453,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           value: '$_pendingHours h',
                           helper: 'Awaiting review',
                           icon: Icons.pending_actions_outlined,
-                          tone: const _TileTone(
-                            background: Color(0xFFFFF8ED),
-                            border: Color(0xFFFFE1B3),
-                            icon: Color(0xFFB54708),
+                          tone: _TileTone(
+                            background: _tintedSurface(
+                              const Color(0xFFB54708),
+                              lightAlpha: 0.10,
+                            ),
+                            border: _tintedBorder(const Color(0xFFB54708)),
+                            icon: const Color(0xFFB54708),
                           ),
                         ),
                         _MetricTile(
@@ -2137,10 +2468,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           value: '$_rejectedLogsCount',
                           helper: 'Needs correction or resubmission',
                           icon: Icons.report_gmailerrorred_outlined,
-                          tone: const _TileTone(
-                            background: Color(0xFFFFF4F4),
-                            border: Color(0xFFFBCACA),
-                            icon: Color(0xFFB42318),
+                          tone: _TileTone(
+                            background: _tintedSurface(
+                              const Color(0xFFB42318),
+                              lightAlpha: 0.08,
+                            ),
+                            border: _tintedBorder(const Color(0xFFB42318)),
+                            icon: const Color(0xFFB42318),
                           ),
                         ),
                         _MetricTile(
@@ -2149,10 +2483,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           value: _daysRemaining?.toString() ?? 'N/A',
                           helper: 'Until internship end date',
                           icon: Icons.calendar_month_outlined,
-                          tone: const _TileTone(
-                            background: Color(0xFFF5F8FF),
-                            border: Color(0xFFD6E1FF),
-                            icon: Color(0xFF325EA8),
+                          tone: _TileTone(
+                            background: _tintedSurface(
+                              const Color(0xFF325EA8),
+                              lightAlpha: 0.08,
+                            ),
+                            border: _tintedBorder(const Color(0xFF325EA8)),
+                            icon: const Color(0xFF325EA8),
                           ),
                         ),
                       ],
@@ -2192,9 +2529,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'No internship profile is active yet. Complete the profile to unlock progress tracking, adviser visibility, and report generation.',
-            style: TextStyle(color: Color(0xFF4A6480), height: 1.4),
+            style: TextStyle(color: _bodyColor, height: 1.4),
           ),
           if (isLoading)
             _buildSectionRefreshingHint('Checking internship profile...'),
@@ -2207,10 +2544,77 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         profile.supervisorName?.trim().isNotEmpty == true ||
         profile.supervisorId != null;
     final adviserAssigned = profile.adviserId != null;
+    final summaryAccent = adviserAssigned && supervisorAssigned
+        ? const Color(0xFF027A48)
+        : const Color(0xFFB54708);
+    final summarySurface = _theme.isDarkMode
+        ? summaryAccent.withValues(alpha: 0.18)
+        : Color.alphaBlend(
+            summaryAccent.withValues(alpha: 0.10),
+            Colors.white,
+          );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: summarySurface,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: _tintedBorder(summaryAccent, lightAlpha: 0.22),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: _theme.isDarkMode
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : summaryAccent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  Icons.apartment_rounded,
+                  color: summaryAccent,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      profile.companyName,
+                      style: TextStyle(
+                        color: _headlineColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Your active internship setup and assignment status at a glance.',
+                      style: TextStyle(
+                        color: _bodyColor,
+                        fontSize: 13,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -2219,7 +2623,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               icon: Icons.business_center_outlined,
               label: 'Profile Active',
               color: const Color(0xFF027A48),
-              background: const Color(0xFFE8F7EE),
+              background: _tintedSurface(
+                const Color(0xFF027A48),
+                lightAlpha: 0.08,
+              ),
             ),
             _SummaryChip(
               icon: Icons.person_pin_circle_outlined,
@@ -2230,8 +2637,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   ? const Color(0xFF027A48)
                   : const Color(0xFFB54708),
               background: supervisorAssigned
-                  ? const Color(0xFFE8F7EE)
-                  : const Color(0xFFFFF4E5),
+                  ? _tintedSurface(const Color(0xFF027A48), lightAlpha: 0.08)
+                  : _tintedSurface(const Color(0xFFB54708), lightAlpha: 0.10),
             ),
             _SummaryChip(
               icon: Icons.school_outlined,
@@ -2240,30 +2647,70 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   ? const Color(0xFF027A48)
                   : const Color(0xFFB54708),
               background: adviserAssigned
-                  ? const Color(0xFFE8F7EE)
-                  : const Color(0xFFFFF4E5),
+                  ? _tintedSurface(const Color(0xFF027A48), lightAlpha: 0.08)
+                  : _tintedSurface(const Color(0xFFB54708), lightAlpha: 0.10),
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        _SummaryRow(label: 'Company', value: profile.companyName),
-        _SummaryRow(label: 'Required Hours', value: '${profile.requiredHours}'),
-        _SummaryRow(
-          label: 'Schedule',
-          value:
-              '${_formatDisplayDate(profile.startDate)} to ${_formatDisplayDate(profile.endDate)}',
-        ),
-        _SummaryRow(
-          label: 'Supervisor',
-          value: supervisorAssigned
-              ? (profile.supervisorName?.trim().isNotEmpty == true
-                    ? profile.supervisorName!
-                    : 'Assigned')
-              : 'Not assigned',
-        ),
-        _SummaryRow(
-          label: 'Adviser',
-          value: adviserAssigned ? 'Assigned' : 'Not assigned',
+        const SizedBox(height: 14),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 420;
+            final tileWidth = isWide
+                ? (constraints.maxWidth - 12) / 2
+                : constraints.maxWidth;
+
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _SummaryDetailTile(
+                  width: tileWidth,
+                  icon: Icons.business_outlined,
+                  label: 'Company',
+                  value: profile.companyName,
+                  accent: const Color(0xFF123C73),
+                ),
+                _SummaryDetailTile(
+                  width: tileWidth,
+                  icon: Icons.schedule_rounded,
+                  label: 'Required Hours',
+                  value: '${profile.requiredHours}',
+                  accent: const Color(0xFF0F766E),
+                ),
+                _SummaryDetailTile(
+                  width: tileWidth,
+                  icon: Icons.calendar_month_rounded,
+                  label: 'Schedule',
+                  value:
+                      '${_formatDisplayDate(profile.startDate)} to ${_formatDisplayDate(profile.endDate)}',
+                  accent: const Color(0xFF175CD3),
+                ),
+                _SummaryDetailTile(
+                  width: tileWidth,
+                  icon: Icons.person_pin_circle_outlined,
+                  label: 'Supervisor',
+                  value: supervisorAssigned
+                      ? (profile.supervisorName?.trim().isNotEmpty == true
+                            ? profile.supervisorName!
+                            : 'Assigned')
+                      : 'Not assigned',
+                  accent: supervisorAssigned
+                      ? const Color(0xFF027A48)
+                      : const Color(0xFFB54708),
+                ),
+                _SummaryDetailTile(
+                  width: constraints.maxWidth,
+                  icon: Icons.school_outlined,
+                  label: 'Adviser',
+                  value: adviserAssigned ? 'Assigned' : 'Not assigned',
+                  accent: adviserAssigned
+                      ? const Color(0xFF027A48)
+                      : const Color(0xFFB54708),
+                ),
+              ],
+            );
+          },
         ),
         if (_profileError != null) ...[
           const SizedBox(height: 12),
@@ -2285,14 +2732,17 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     final progressBadgeTone = switch (_paceDeltaAfterPending) {
       int value when value < 0 => (
-        const Color(0xFFFFF4E5),
+        _tintedSurface(const Color(0xFFB54708), lightAlpha: 0.10),
         const Color(0xFFB54708),
       ),
       int value when value > 0 => (
-        const Color(0xFFE8F7EE),
+        _tintedSurface(const Color(0xFF027A48), lightAlpha: 0.08),
         const Color(0xFF027A48),
       ),
-      _ => (const Color(0xFFEAF2FF), const Color(0xFF325EA8)),
+      _ => (
+        _tintedSurface(const Color(0xFF325EA8), lightAlpha: 0.08),
+        const Color(0xFF325EA8),
+      ),
     };
 
     return DashboardInfoCard(
@@ -2334,8 +2784,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         _requiredHours > 0
                             ? 'Approved Hours: $_approvedHours / $_requiredHours hours'
                             : 'Approved Hours: $_approvedHours hours',
-                        style: const TextStyle(
-                          color: Color(0xFF102A56),
+                        style: TextStyle(
+                          color: _headlineColor,
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
@@ -2351,8 +2801,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                               _requiredHours > 0
                                   ? 'Approved Hours: $_approvedHours / $_requiredHours hours'
                                   : 'Approved Hours: $_approvedHours hours',
-                              style: const TextStyle(
-                                color: Color(0xFF102A56),
+                              style: TextStyle(
+                                color: _headlineColor,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -2368,9 +2818,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       child: LinearProgressIndicator(
                         minHeight: 12,
                         value: progressRatio,
-                        backgroundColor: const Color(0xFFD8E2EC),
+                        backgroundColor:
+                            _theme.progressIndicatorTheme.linearTrackColor,
                         valueColor: const AlwaysStoppedAnimation<Color>(
-                          Color(0xFF0F4C5C),
+                          _accentPrimary,
                         ),
                       ),
                     ),
@@ -2414,34 +2865,28 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Text(
-                      () {
-                        if (_requiredHours <= 0) {
-                          return 'Progress tracking will improve once required hours are available.';
-                        }
+                    Text(() {
+                      if (_requiredHours <= 0) {
+                        return 'Progress tracking will improve once required hours are available.';
+                      }
 
-                        final approvedDelta = _paceDelta;
-                        final pendingDelta = _paceDeltaAfterPending;
-                        if (approvedDelta != null &&
-                            pendingDelta != null &&
-                            approvedDelta < 0 &&
-                            _pendingHours > 0) {
-                          final pendingStatus = pendingDelta < 0
-                              ? 'behind by ${pendingDelta.abs()} hours'
-                              : pendingDelta > 0
-                              ? 'ahead by $pendingDelta hours'
-                              : 'on pace';
+                      final approvedDelta = _paceDelta;
+                      final pendingDelta = _paceDeltaAfterPending;
+                      if (approvedDelta != null &&
+                          pendingDelta != null &&
+                          approvedDelta < 0 &&
+                          _pendingHours > 0) {
+                        final pendingStatus = pendingDelta < 0
+                            ? 'behind by ${pendingDelta.abs()} hours'
+                            : pendingDelta > 0
+                            ? 'ahead by $pendingDelta hours'
+                            : 'on pace';
 
-                          return 'You are ${approvedDelta.abs()} approved hours behind today. Pending review ($_pendingHours h) could move you to $pendingStatus once reviewed.';
-                        }
+                        return 'You are ${approvedDelta.abs()} approved hours behind today. Pending review ($_pendingHours h) could move you to $pendingStatus once reviewed.';
+                      }
 
-                        return 'Remaining: ${math.max(0, _requiredHours - _approvedHours)} hours';
-                      }(),
-                      style: const TextStyle(
-                        color: Color(0xFF4A6480),
-                        fontSize: 16,
-                      ),
-                    ),
+                      return 'Remaining: ${math.max(0, _requiredHours - _approvedHours)} hours';
+                    }(), style: TextStyle(color: _bodyColor, fontSize: 16)),
                     if (_reportError != null) ...[
                       const SizedBox(height: 14),
                       DashboardInlineNotice(
@@ -2476,9 +2921,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               onRetry: () => _refreshSection(_StudentDashboardSection.logs),
             )
           else if (_recentLogs.isEmpty)
-            const Text(
+            Text(
               'No logs submitted yet. Start with today\'s entry so your dashboard can reflect current activity.',
-              style: TextStyle(color: Color(0xFF4A6480), height: 1.4),
+              style: TextStyle(color: _bodyColor, height: 1.4),
             )
           else
             ..._recentLogs.asMap().entries.map((entry) {
@@ -2506,16 +2951,16 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                             children: [
                               Text(
                                 _formatShortDate(log.date),
-                                style: const TextStyle(
-                                  color: Color(0xFF102A56),
+                                style: TextStyle(
+                                  color: _headlineColor,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                               _StatusBadge(status: log.status),
                               Text(
                                 '${log.hoursRendered} h',
-                                style: const TextStyle(
-                                  color: Color(0xFF4A6480),
+                                style: TextStyle(
+                                  color: _bodyColor,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -2526,10 +2971,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                             _formatLogDescription(log.taskDescription),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF4A6480),
-                              height: 1.35,
-                            ),
+                            style: TextStyle(color: _bodyColor, height: 1.35),
                           ),
                         ],
                       );
@@ -2606,32 +3048,32 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 width: actionWidth,
                 child: FilledButton.icon(
                   onPressed: () => _openRoute(AppRoutes.logbook),
-                  icon: const Icon(Icons.edit_note),
-                  label: const Text('Add Today\'s Log'),
+                  icon: Icon(Icons.edit_note),
+                  label: Text('Add Today\'s Log'),
                 ),
               ),
               SizedBox(
                 width: actionWidth,
                 child: FilledButton.icon(
                   onPressed: () => _openRoute(AppRoutes.studentDtr),
-                  icon: const Icon(Icons.punch_clock_rounded),
-                  label: const Text('Open Full DTR'),
+                  icon: Icon(Icons.punch_clock_rounded),
+                  label: Text('Open Full DTR'),
                 ),
               ),
               SizedBox(
                 width: actionWidth,
                 child: OutlinedButton.icon(
                   onPressed: () => _openRoute(AppRoutes.studentReport),
-                  icon: const Icon(Icons.assessment_outlined),
-                  label: const Text('View Full Report'),
+                  icon: Icon(Icons.assessment_outlined),
+                  label: Text('View Full Report'),
                 ),
               ),
               SizedBox(
                 width: actionWidth,
                 child: OutlinedButton.icon(
                   onPressed: () => _openRoute(AppRoutes.internshipProfile),
-                  icon: const Icon(Icons.business_center_outlined),
-                  label: const Text('Update Profile'),
+                  icon: Icon(Icons.business_center_outlined),
+                  label: Text('Update Profile'),
                 ),
               ),
             ],
@@ -2653,7 +3095,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.error_outline, color: Color(0xFFB42318)),
               SizedBox(width: 12),
@@ -2673,13 +3115,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           Text(
             _dashboardError ??
                 'An unexpected error occurred. Please try again.',
-            style: const TextStyle(color: Color(0xFFB42318), height: 1.4),
+            style: TextStyle(color: Color(0xFFB42318), height: 1.4),
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: _loadDashboard,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
+            icon: Icon(Icons.refresh),
+            label: Text('Retry'),
           ),
         ],
       ),
@@ -2721,7 +3163,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     _buildHeader(),
                     const SizedBox(height: 20),
                     if (_isInitialLoading && !_hasCompletedFirstLoad)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.symmetric(vertical: 32),
                         child: Center(child: CircularProgressIndicator()),
                       )
@@ -2732,8 +3174,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       _buildDashboardErrorState()
                     else ...[
                       _buildAttendanceSection(),
-                      const SizedBox(height: 16),
-                      _buildNextActionSection(),
                       const SizedBox(height: 16),
                       _buildSummaryAndMetricsSection(),
                       const SizedBox(height: 16),
@@ -2754,33 +3194,79 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   }
 }
 
-class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, required this.value});
+class _SummaryDetailTile extends StatelessWidget {
+  const _SummaryDetailTile({
+    required this.width,
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
 
+  final double width;
+  final IconData icon;
   final String label;
   final String value;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: RichText(
-        text: TextSpan(
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: OceanBreezePalette.textSecondary,
-            height: 1.4,
-          ),
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: const TextStyle(
-                color: OceanBreezePalette.textPrimary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            TextSpan(text: value),
-          ],
+    final theme = Theme.of(context);
+    final surface = theme.isDarkMode
+        ? accent.withValues(alpha: 0.14)
+        : Color.alphaBlend(accent.withValues(alpha: 0.08), Colors.white);
+
+    return Container(
+      width: width,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: theme.isDarkMode
+              ? accent.withValues(alpha: 0.24)
+              : accent.withValues(alpha: 0.16),
         ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: theme.isDarkMode ? 0.18 : 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 18, color: accent),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: theme.secondaryTextColor,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: theme.primaryTextColor,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2820,6 +3306,8 @@ class _MetricTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
       width: width,
       padding: const EdgeInsets.all(16),
@@ -2835,8 +3323,8 @@ class _MetricTile extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF4A6480),
+            style: TextStyle(
+              color: theme.secondaryTextColor,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -2844,8 +3332,8 @@ class _MetricTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
-              color: Color(0xFF102A56),
+            style: TextStyle(
+              color: theme.primaryTextColor,
               fontSize: 24,
               fontWeight: FontWeight.w800,
             ),
@@ -2853,8 +3341,8 @@ class _MetricTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             helper,
-            style: const TextStyle(
-              color: Color(0xFF6B7F99),
+            style: TextStyle(
+              color: theme.secondaryTextColor.withValues(alpha: 0.92),
               fontSize: 13,
               height: 1.35,
             ),
@@ -2926,12 +3414,14 @@ class _PaceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        border: Border.all(color: const Color(0xFFD8E2EC)),
+        color: theme.subtlePanelColor,
+        border: Border.all(color: theme.borderSubtleColor),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -2939,8 +3429,8 @@ class _PaceTile extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF4A6480),
+            style: TextStyle(
+              color: theme.secondaryTextColor,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
@@ -2948,8 +3438,8 @@ class _PaceTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
-              color: Color(0xFF102A56),
+            style: TextStyle(
+              color: theme.primaryTextColor,
               fontSize: 16,
               fontWeight: FontWeight.w800,
             ),
