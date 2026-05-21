@@ -428,6 +428,8 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
       ancestor: overlay,
     );
     final anchorSize = anchorBox?.size ?? const Size(280, 64);
+    final availableWidth = overlay.size.width - 32;
+    final panelWidth = availableWidth < 344 ? availableWidth : 344.0;
 
     await showGeneralDialog<void>(
       context: context,
@@ -445,17 +447,18 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                 top: (anchorOffset?.dy ?? 86) + anchorSize.height + 10,
                 left: (() {
                   final desiredLeft =
-                      (anchorOffset?.dx ?? (overlay.size.width - 344)) -
-                      (344 - anchorSize.width);
-                  final maxLeft = overlay.size.width > 376
-                      ? overlay.size.width - 360.0
-                      : 16.0;
+                      (anchorOffset?.dx ?? (overlay.size.width - panelWidth)) -
+                      (panelWidth - anchorSize.width);
+                  final maxLeft = overlay.size.width - panelWidth - 16;
+                  if (maxLeft <= 16) {
+                    return 16.0;
+                  }
                   return desiredLeft.clamp(16.0, maxLeft);
                 })(),
                 child: Material(
                   color: Colors.transparent,
                   child: Container(
-                    width: 344,
+                    width: panelWidth,
                     padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
                     decoration: BoxDecoration(
                       color: _surfaceColor,
@@ -772,7 +775,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
       }
     }
 
-    final now = DateTime.now();
+    final now = _now();
     return DateTime(now.year, now.month, now.day);
   }
 

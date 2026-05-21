@@ -34,7 +34,9 @@ void main() {
         providers: [
           ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
           Provider<ApiClient>.value(value: ApiClient(dio: Dio())),
-          Provider<NotificationService>.value(value: _FakeNotificationService()),
+          Provider<NotificationService>.value(
+            value: _FakeNotificationService(),
+          ),
         ],
         child: const MaterialApp(
           home: AdviserDashboardScreen(userName: 'Sample Adviser'),
@@ -79,7 +81,9 @@ void main() {
               dio: Dio()..httpClientAdapter = _FakeAdapter(_dashboardPayload()),
             ),
           ),
-          Provider<NotificationService>.value(value: _FakeNotificationService()),
+          Provider<NotificationService>.value(
+            value: _FakeNotificationService(),
+          ),
         ],
         child: const MaterialApp(
           home: AdviserDashboardScreen(userName: 'Sample Adviser'),
@@ -95,57 +99,109 @@ void main() {
     expect(find.text('Monitoring Pulse'), findsOneWidget);
   });
 
-  testWidgets(
-    'adviser dashboard handles a single at-risk intern on mobile',
-    (tester) async {
-      tester.view.physicalSize = const Size(354, 754);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('adviser profile panel opens cleanly on narrow mobile screens', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 754);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      final authProvider = AuthProvider(
-        _FakeTokenService(),
-        authService: _FakeAuthService(),
-      );
-      await authProvider.setToken(
-        'token',
-        user: const AppUser(
-          id: 7,
-          name: 'Sample Adviser',
-          email: 'adviser@example.com',
-          role: 'adviser',
-        ),
-      );
+    final authProvider = AuthProvider(
+      _FakeTokenService(),
+      authService: _FakeAuthService(),
+    );
+    await authProvider.setToken(
+      'token',
+      user: const AppUser(
+        id: 7,
+        name: 'Sample Adviser',
+        email: 'adviser@example.com',
+        role: 'adviser',
+      ),
+    );
 
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
-            Provider<ApiClient>.value(
-              value: ApiClient(
-                dio: Dio()
-                  ..httpClientAdapter = _FakeAdapter(_singleAtRiskPayload()),
-              ),
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+          Provider<ApiClient>.value(
+            value: ApiClient(
+              dio: Dio()..httpClientAdapter = _FakeAdapter(_dashboardPayload()),
             ),
-            Provider<NotificationService>.value(
-              value: _FakeNotificationService(),
-            ),
-          ],
-          child: const MaterialApp(
-            home: AdviserDashboardScreen(userName: 'Sample Adviser'),
           ),
+          Provider<NotificationService>.value(
+            value: _FakeNotificationService(),
+          ),
+        ],
+        child: const MaterialApp(
+          home: AdviserDashboardScreen(userName: 'Sample Adviser'),
         ),
-      );
+      ),
+    );
 
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
 
-      expect(tester.takeException(), isNull);
-      expect(find.text('At-Risk Spotlight'), findsOneWidget);
-      expect(find.text('Solo Student'), findsOneWidget);
-    },
-  );
+    await tester.tap(find.text('Sample Adviser').first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Change profile photo'), findsOneWidget);
+  });
+
+  testWidgets('adviser dashboard handles a single at-risk intern on mobile', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(354, 754);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final authProvider = AuthProvider(
+      _FakeTokenService(),
+      authService: _FakeAuthService(),
+    );
+    await authProvider.setToken(
+      'token',
+      user: const AppUser(
+        id: 7,
+        name: 'Sample Adviser',
+        email: 'adviser@example.com',
+        role: 'adviser',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+          Provider<ApiClient>.value(
+            value: ApiClient(
+              dio: Dio()
+                ..httpClientAdapter = _FakeAdapter(_singleAtRiskPayload()),
+            ),
+          ),
+          Provider<NotificationService>.value(
+            value: _FakeNotificationService(),
+          ),
+        ],
+        child: const MaterialApp(
+          home: AdviserDashboardScreen(userName: 'Sample Adviser'),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('At-Risk Spotlight'), findsOneWidget);
+    expect(find.text('Solo Student'), findsOneWidget);
+  });
 }
 
 class _FakeTokenService extends TokenService {
