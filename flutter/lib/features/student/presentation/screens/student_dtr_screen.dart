@@ -980,7 +980,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                         child: Text(
                           _timeText(
                             row.lunchOutAt != null
-                                ? _formatTime(row.lunchOutAt)
+                                ? DateFormat('hh:mm a').format(row.lunchOutAt!)
                                 : row.amDeparture,
                           ),
                         ),
@@ -992,7 +992,7 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                         child: Text(
                           _timeText(
                             row.lunchInAt != null
-                                ? _formatTime(row.lunchInAt)
+                                ? DateFormat('hh:mm a').format(row.lunchInAt!)
                                 : row.pmArrival,
                           ),
                         ),

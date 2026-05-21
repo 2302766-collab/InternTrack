@@ -33,6 +33,10 @@ class StudentDailyTimeRecordTest extends TestCase
             ->assertJsonPath('data.status', 'NOT_STARTED')
             ->assertJsonPath('data.current_state_label', 'Not Started')
             ->assertJsonPath('data.next_action', 'TIME_IN')
+            ->assertJsonPath('data.am_time_in_at', null)
+            ->assertJsonPath('data.am_time_out_at', null)
+            ->assertJsonPath('data.pm_time_in_at', null)
+            ->assertJsonPath('data.pm_time_out_at', null)
             ->assertJsonPath('data.total_work_minutes', 0);
     }
 
@@ -46,12 +50,15 @@ class StudentDailyTimeRecordTest extends TestCase
         $this->postJson('/api/v1/student/dtr/time-in')
             ->assertCreated()
             ->assertJsonPath('data.status', 'WORKING')
+            ->assertJsonPath('data.am_time_in_at', '2026-04-11T08:00:00+00:00')
             ->assertJsonPath('data.next_action', 'LUNCH_OUT');
 
         Carbon::setTestNow('2026-04-11 12:30:00');
         $this->postJson('/api/v1/student/dtr/lunch-out')
             ->assertOk()
             ->assertJsonPath('data.status', 'ON_BREAK')
+            ->assertJsonPath('data.am_time_out_at', '2026-04-11T12:30:00+00:00')
+            ->assertJsonPath('data.lunch_out_at', '2026-04-11T12:30:00+00:00')
             ->assertJsonPath('data.first_work_minutes', 270)
             ->assertJsonPath('data.total_work_minutes', 270)
             ->assertJsonPath('data.next_action', 'LUNCH_IN');
@@ -60,12 +67,15 @@ class StudentDailyTimeRecordTest extends TestCase
         $this->postJson('/api/v1/student/dtr/lunch-in')
             ->assertOk()
             ->assertJsonPath('data.status', 'WORKING')
+            ->assertJsonPath('data.lunch_in_at', '2026-04-11T13:30:00+00:00')
+            ->assertJsonPath('data.pm_time_in_at', '2026-04-11T13:30:00+00:00')
             ->assertJsonPath('data.next_action', 'TIME_OUT');
 
         Carbon::setTestNow('2026-04-11 17:00:00');
         $this->postJson('/api/v1/student/dtr/time-out')
             ->assertOk()
             ->assertJsonPath('data.status', 'COMPLETED')
+            ->assertJsonPath('data.pm_time_out_at', '2026-04-11T17:00:00+00:00')
             ->assertJsonPath('data.second_work_minutes', 210)
             ->assertJsonPath('data.total_work_minutes', 480)
             ->assertJsonPath('data.next_action', null);
@@ -75,6 +85,11 @@ class StudentDailyTimeRecordTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.status', 'COMPLETED')
             ->assertJsonPath('data.current_state_label', 'Completed')
+            ->assertJsonPath('data.am_time_in_at', '2026-04-11T08:00:00+00:00')
+            ->assertJsonPath('data.am_time_out_at', '2026-04-11T12:30:00+00:00')
+            ->assertJsonPath('data.lunch_in_at', '2026-04-11T13:30:00+00:00')
+            ->assertJsonPath('data.pm_time_in_at', '2026-04-11T13:30:00+00:00')
+            ->assertJsonPath('data.pm_time_out_at', '2026-04-11T17:00:00+00:00')
             ->assertJsonPath('data.first_work_minutes', 270)
             ->assertJsonPath('data.second_work_minutes', 210)
             ->assertJsonPath('data.total_work_minutes', 480);
