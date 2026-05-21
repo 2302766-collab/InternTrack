@@ -1481,6 +1481,61 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
             ),
           ],
         );
+        final mobileActions = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SettingsShortcutButton(),
+            const SizedBox(width: 8),
+            NotificationBellButton(token: authProvider.token ?? ''),
+          ],
+        );
+        final mobileProfileSection = InkWell(
+          key: _profileMenuAnchorKey,
+          onTap: _openProfilePanel,
+          borderRadius: BorderRadius.circular(999),
+          child: Ink(
+            padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF6F9FC),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: _borderColor),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildAvatar(user: authProvider.user, radius: 22, fontSize: 14),
+                const SizedBox(width: 10),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 170),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.userName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: _headlineColor,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        authProvider.user?.role.isNotEmpty == true
+                            ? authProvider.user!.role
+                            : 'Academic Adviser',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: _bodyColor),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
 
         return Container(
           padding: EdgeInsets.fromLTRB(
@@ -1498,54 +1553,51 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         IconButton(
                           onPressed: _logout,
                           icon: const Icon(Icons.arrow_back),
                           tooltip: 'Logout',
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Academic Adviser Dashboard',
-                                style: TextStyle(
-                                  fontSize: isCompact ? 22 : 24,
-                                  fontWeight: FontWeight.w700,
-                                  color: _headlineColor,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Search, triage, and coach advisees from one place.',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: _bodyColor,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              DashboardRefreshStatus(
-                                lastUpdated: _lastUpdated,
-                                isRefreshing: _isRefreshing,
-                                pullToRefreshLabel:
-                                    'Pull down to refresh dashboard data',
-                                refreshingLabel:
-                                    'Refreshing adviser dashboard...',
-                              ),
-                            ],
-                          ),
-                        ),
+                        const Spacer(),
+                        mobileActions,
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Academic Adviser Dashboard',
+                      style: TextStyle(
+                        fontSize: isCompact ? 20 : 22,
+                        height: 1.15,
+                        fontWeight: FontWeight.w700,
+                        color: _headlineColor,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 320),
+                      child: Text(
+                        'Search, triage, and coach advisees from one place.',
+                        style: TextStyle(
+                          fontSize: isCompact ? 13 : 14,
+                          height: 1.35,
+                          color: _bodyColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    DashboardRefreshStatus(
+                      lastUpdated: _lastUpdated,
+                      isRefreshing: _isRefreshing,
+                      pullToRefreshLabel: 'Pull down to refresh dashboard data',
+                      refreshingLabel: 'Refreshing adviser dashboard...',
+                      dense: true,
+                    ),
+                    const SizedBox(height: 14),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: profileMaxWidth),
-                        child: profileSection,
-                      ),
+                      child: mobileProfileSection,
                     ),
                   ],
                 )
@@ -1930,11 +1982,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
     required int columns,
     required double spacing,
   }) {
-    return Wrap(
-      spacing: spacing,
-      runSpacing: spacing,
-      children: panels,
-    );
+    return Wrap(spacing: spacing, runSpacing: spacing, children: panels);
   }
 
   Widget _buildEmptySectionMessage(String message) {
@@ -2120,10 +2168,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
       spacing: 12,
       runSpacing: 12,
       children: atRiskInterns.map((detail) {
-        return SizedBox(
-          width: 260,
-          child: buildCard(detail),
-        );
+        return SizedBox(width: 260, child: buildCard(detail));
       }).toList(),
     );
   }
@@ -3365,8 +3410,8 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
               .clamp(0.0, _maxContentWidth)
               .toDouble();
           final isPhone = constraints.maxWidth < 640;
-          final isTablet = constraints.maxWidth >= 640 &&
-              constraints.maxWidth < 1024;
+          final isTablet =
+              constraints.maxWidth >= 640 && constraints.maxWidth < 1024;
           final horizontalPadding = isPhone
               ? 16.0
               : constraints.maxWidth >= 1440
