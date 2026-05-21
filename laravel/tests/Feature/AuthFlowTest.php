@@ -12,6 +12,9 @@ class AuthFlowTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const ONE_BY_ONE_PNG_BASE64 =
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5Wn6kAAAAASUVORK5CYII=';
+
     public function test_student_can_register_successfully(): void
     {
         $studentRole = $this->ensureRoleExists('Student');
@@ -141,6 +144,52 @@ class AuthFlowTest extends TestCase
 
         $this->assertSame('Maria Santos', $user->fresh()->name);
         $this->assertSame('Female', $user->fresh()->gender);
+    }
+
+    public function test_authenticated_user_can_update_their_profile_photo_with_a_three_megabyte_image(): void
+    {
+        $user = $this->createUserWithRole('Student');
+        $token = $user->createToken('api-token')->plainTextToken;
+        $binary = base64_decode(self::ONE_BY_ONE_PNG_BASE64, true);
+
+        $this->assertNotFalse($binary);
+
+        $avatarBase64 = base64_encode(str_pad($binary, 3 * 1024 * 1024, "\0"));
+
+        $this->withHeader('Accept', 'application/json')
+            ->withToken($token)
+            ->patch('/api/v1/auth/avatar', [
+                'avatar_base64' => $avatarBase64,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Profile photo updated successfully.')
+            ->assertJsonPath('data.user.id', $user->id)
+            ->assertJsonPath('data.user.avatar_base64', $avatarBase64);
+
+        $this->assertSame($avatarBase64, $user->fresh()->avatar_base64);
+    }
+
+    public function test_profile_photo_update_rejects_images_larger_than_five_megabytes(): void
+    {
+        $user = $this->createUserWithRole('Student');
+        $token = $user->createToken('api-token')->plainTextToken;
+        $binary = base64_decode(self::ONE_BY_ONE_PNG_BASE64, true);
+
+        $this->assertNotFalse($binary);
+
+        $oversizedAvatarBase64 = base64_encode(
+            str_pad($binary, (5 * 1024 * 1024) + 1, "\0")
+        );
+
+        $this->withHeader('Accept', 'application/json')
+            ->withToken($token)
+            ->patch('/api/v1/auth/avatar', [
+                'avatar_base64' => $oversizedAvatarBase64,
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'The given data was invalid.')
+            ->assertJsonPath('errors.avatar_base64.0', 'Profile photo must be 5MB or smaller.');
     }
 
     public function test_login_access_token_can_be_reused_for_authenticated_requests_until_logout(): void

@@ -567,6 +567,15 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      final avatarErrors = error.details?['avatar_base64'];
+      final fieldMessage = avatarErrors is List && avatarErrors.isNotEmpty
+          ? avatarErrors.first.toString()
+          : null;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(fieldMessage ?? error.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

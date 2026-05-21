@@ -13,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    private const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+
     private InputSanitizationService $sanitizer;
 
     public function __construct(InputSanitizationService $sanitizer)
@@ -87,9 +89,9 @@ class AuthController extends Controller
             ]);
         }
 
-        if (strlen($decoded) > 2 * 1024 * 1024) {
+        if (strlen($decoded) > self::MAX_AVATAR_BYTES) {
             throw ValidationException::withMessages([
-                'avatar_base64' => 'Profile photo must be 2MB or smaller.',
+                'avatar_base64' => 'Profile photo must be 5MB or smaller.',
             ]);
         }
 

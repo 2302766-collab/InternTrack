@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_routes.dart';
+import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/intern_list_service.dart';
 import '../../../../core/theme/ocean_breeze_palette.dart';
@@ -235,6 +236,15 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      final avatarErrors = error.details?['avatar_base64'];
+      final fieldMessage = avatarErrors is List && avatarErrors.isNotEmpty
+          ? avatarErrors.first.toString()
+          : null;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(fieldMessage ?? error.message)));
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

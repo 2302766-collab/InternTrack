@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_routes.dart';
+import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/admin_dashboard_service.dart';
 import '../../../../core/services/admin_student_service.dart';
@@ -959,6 +960,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      final avatarErrors = error.details?['avatar_base64'];
+      final fieldMessage = avatarErrors is List && avatarErrors.isNotEmpty
+          ? avatarErrors.first.toString()
+          : null;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(fieldMessage ?? error.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
