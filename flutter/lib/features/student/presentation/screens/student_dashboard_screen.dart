@@ -18,6 +18,7 @@ import '../../../../core/utils/file_picker_helper_stub.dart'
     as file_picker;
 import '../../../../core/theme/ocean_breeze_palette.dart';
 import '../../../../core/theme/theme_controller.dart';
+import '../../../../core/theme/theme_utils.dart';
 import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/daily_time_record.dart';
 import '../../../../shared/models/internship_profile.dart';
@@ -59,14 +60,10 @@ class StudentDashboardScreen extends StatefulWidget {
 }
 
 class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
-  static const Color _canvasColor = OceanBreezePalette.canvas;
-  static const Color _headlineColor = OceanBreezePalette.textPrimary;
-  static const Color _bodyColor = OceanBreezePalette.textSecondary;
   static const Color _heroStart = OceanBreezePalette.midnight;
   static const Color _heroEnd = OceanBreezePalette.deepSea;
   static const Color _accentPrimary = OceanBreezePalette.deepSea;
   static const Color _accentSecondary = OceanBreezePalette.tide;
-  static const Color _topHeaderBorder = Color(0xFFD8E4EC);
 
   late final InternshipService _internshipService;
   late final DtrService _dtrService;
@@ -109,6 +106,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   String? get _dtrError => _sectionErrors[_StudentDashboardSection.dtr];
   String? get _reportError => _sectionErrors[_StudentDashboardSection.report];
   String? get _logsError => _sectionErrors[_StudentDashboardSection.logs];
+  ThemeData get _theme => Theme.of(context);
+  Color get _canvasColor => _theme.scaffoldBackgroundColor;
+  Color get _headlineColor => _theme.primaryTextColor;
+  Color get _bodyColor => _theme.secondaryTextColor;
+  Color get _topHeaderBorder => _theme.borderSubtleColor;
 
   DateTime _now() => (widget.clock ?? DateTime.now)();
 
@@ -961,7 +963,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                       validationError = null;
                                     });
                                   },
-                            child: const Text('Clear'),
+                            child: Text('Clear'),
                           ),
                           FilledButton.tonal(
                             onPressed: () => pickField(label, value, onChanged),
@@ -1029,7 +1031,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                             const SizedBox(height: 10),
                             Text(
                               validationError!,
-                              style: const TextStyle(color: Color(0xFFB42318)),
+                              style: TextStyle(color: Color(0xFFB42318)),
                             ),
                           ],
                           const SizedBox(height: 16),
@@ -1039,7 +1041,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                 child: OutlinedButton(
                                   onPressed: () =>
                                       Navigator.of(sheetContext).pop(),
-                                  child: const Text('Cancel'),
+                                  child: Text('Cancel'),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -1075,7 +1077,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                       reason: trimmedReason,
                                     ));
                                   },
-                                  child: const Text('Send Request'),
+                                  child: Text('Send Request'),
                                 ),
                               ),
                             ],
@@ -1215,7 +1217,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Color(0xFF6B7F99),
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -1414,7 +1416,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                   child: avatar == null
                                       ? Text(
                                           _initialsFor(displayName),
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             color: _headlineColor,
                                             fontWeight: FontWeight.w800,
                                             fontSize: 18,
@@ -1434,7 +1436,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                         Navigator.of(dialogContext).pop();
                                         await _pickProfilePhoto();
                                       },
-                                      child: const Padding(
+                                      child: Padding(
                                         padding: EdgeInsets.all(6),
                                         child: Icon(
                                           Icons.camera_alt_rounded,
@@ -1454,7 +1456,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                 children: [
                                   Text(
                                     displayName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w800,
                                       color: _headlineColor,
@@ -1465,7 +1467,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                     user?.email.isNotEmpty == true
                                         ? user!.email
                                         : 'No email available',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
                                       color: _bodyColor,
                                     ),
@@ -1532,11 +1534,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                               Navigator.of(dialogContext).pop();
                               await _logout();
                             },
-                            icon: const Icon(Icons.logout_rounded),
-                            label: const Text('Log out'),
+                            icon: Icon(Icons.logout_rounded),
+                            label: Text('Log out'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFFB42318),
-                              side: const BorderSide(color: Color(0xFFF0C4C0)),
+                              side: BorderSide(color: Color(0xFFF0C4C0)),
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(18),
@@ -1565,7 +1567,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
           color: _accentPrimary,
@@ -1607,7 +1609,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: _headlineColor,
@@ -1616,7 +1618,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     const SizedBox(height: 3),
                     Text(
                       subtitle,
-                      style: const TextStyle(fontSize: 12.5, color: _bodyColor),
+                      style: TextStyle(fontSize: 12.5, color: _bodyColor),
                     ),
                   ],
                 ),
@@ -1693,7 +1695,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                   color: _bodyColor,
@@ -1702,7 +1704,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: _headlineColor,
@@ -1834,7 +1836,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           child: avatar == null
                               ? Text(
                                   _initialsFor(displayName),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: _headlineColor,
                                     fontWeight: FontWeight.w800,
                                     fontSize: 12,
@@ -1852,7 +1854,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                 Text(
                                   displayName,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
                                     color: _headlineColor,
@@ -1870,7 +1872,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Icon(
+                          Icon(
                             Icons.keyboard_arrow_down_rounded,
                             color: _headlineColor,
                           ),
@@ -1963,7 +1965,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               ),
               child: Text(
                 _dtrStatusChipLabel(record?.status),
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
                   fontSize: 12,
@@ -2039,8 +2041,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             side: BorderSide(color: Colors.white.withValues(alpha: 0.55)),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
-          icon: const Icon(Icons.punch_clock_rounded),
-          label: const Text('Open Full DTR'),
+          icon: Icon(Icons.punch_clock_rounded),
+          label: Text('Open Full DTR'),
         ),
         OutlinedButton.icon(
           onPressed: () => _openRoute(AppRoutes.logbook),
@@ -2049,8 +2051,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             side: BorderSide(color: Colors.white.withValues(alpha: 0.55)),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
-          icon: const Icon(Icons.edit_note_rounded),
-          label: const Text('Submit Log'),
+          icon: Icon(Icons.edit_note_rounded),
+          label: Text('Submit Log'),
         ),
       ],
     );
@@ -2265,7 +2267,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Morning attendance is closed for today.',
                     style: TextStyle(
                       color: OceanBreezePalette.infoForeground,
@@ -2273,7 +2275,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'Only the afternoon session is available now. If you missed the morning session, send a correction request with your reason for admin and supervisor review.',
                     style: TextStyle(
                       color: OceanBreezePalette.infoForeground,
@@ -2286,11 +2288,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     onPressed: _isDtrSubmitting
                         ? null
                         : _openMorningAttendanceRequestModal,
-                    icon: const Icon(Icons.edit_note_rounded),
-                    label: const Text('Request Morning Attendance'),
+                    icon: Icon(Icons.edit_note_rounded),
+                    label: Text('Request Morning Attendance'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: OceanBreezePalette.infoForeground,
-                      side: const BorderSide(color: OceanBreezePalette.border),
+                      side: BorderSide(color: OceanBreezePalette.border),
                     ),
                   ),
                 ],
@@ -2431,9 +2433,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'No internship profile is active yet. Complete the profile to unlock progress tracking, adviser visibility, and report generation.',
-            style: TextStyle(color: Color(0xFF4A6480), height: 1.4),
+            style: TextStyle(color: _bodyColor, height: 1.4),
           ),
           if (isLoading)
             _buildSectionRefreshingHint('Checking internship profile...'),
@@ -2573,8 +2575,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         _requiredHours > 0
                             ? 'Approved Hours: $_approvedHours / $_requiredHours hours'
                             : 'Approved Hours: $_approvedHours hours',
-                        style: const TextStyle(
-                          color: Color(0xFF102A56),
+                        style: TextStyle(
+                          color: _headlineColor,
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
@@ -2590,8 +2592,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                               _requiredHours > 0
                                   ? 'Approved Hours: $_approvedHours / $_requiredHours hours'
                                   : 'Approved Hours: $_approvedHours hours',
-                              style: const TextStyle(
-                                color: Color(0xFF102A56),
+                              style: TextStyle(
+                                color: _headlineColor,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -2653,34 +2655,28 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Text(
-                      () {
-                        if (_requiredHours <= 0) {
-                          return 'Progress tracking will improve once required hours are available.';
-                        }
+                    Text(() {
+                      if (_requiredHours <= 0) {
+                        return 'Progress tracking will improve once required hours are available.';
+                      }
 
-                        final approvedDelta = _paceDelta;
-                        final pendingDelta = _paceDeltaAfterPending;
-                        if (approvedDelta != null &&
-                            pendingDelta != null &&
-                            approvedDelta < 0 &&
-                            _pendingHours > 0) {
-                          final pendingStatus = pendingDelta < 0
-                              ? 'behind by ${pendingDelta.abs()} hours'
-                              : pendingDelta > 0
-                              ? 'ahead by $pendingDelta hours'
-                              : 'on pace';
+                      final approvedDelta = _paceDelta;
+                      final pendingDelta = _paceDeltaAfterPending;
+                      if (approvedDelta != null &&
+                          pendingDelta != null &&
+                          approvedDelta < 0 &&
+                          _pendingHours > 0) {
+                        final pendingStatus = pendingDelta < 0
+                            ? 'behind by ${pendingDelta.abs()} hours'
+                            : pendingDelta > 0
+                            ? 'ahead by $pendingDelta hours'
+                            : 'on pace';
 
-                          return 'You are ${approvedDelta.abs()} approved hours behind today. Pending review ($_pendingHours h) could move you to $pendingStatus once reviewed.';
-                        }
+                        return 'You are ${approvedDelta.abs()} approved hours behind today. Pending review ($_pendingHours h) could move you to $pendingStatus once reviewed.';
+                      }
 
-                        return 'Remaining: ${math.max(0, _requiredHours - _approvedHours)} hours';
-                      }(),
-                      style: const TextStyle(
-                        color: Color(0xFF4A6480),
-                        fontSize: 16,
-                      ),
-                    ),
+                      return 'Remaining: ${math.max(0, _requiredHours - _approvedHours)} hours';
+                    }(), style: TextStyle(color: _bodyColor, fontSize: 16)),
                     if (_reportError != null) ...[
                       const SizedBox(height: 14),
                       DashboardInlineNotice(
@@ -2715,9 +2711,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               onRetry: () => _refreshSection(_StudentDashboardSection.logs),
             )
           else if (_recentLogs.isEmpty)
-            const Text(
+            Text(
               'No logs submitted yet. Start with today\'s entry so your dashboard can reflect current activity.',
-              style: TextStyle(color: Color(0xFF4A6480), height: 1.4),
+              style: TextStyle(color: _bodyColor, height: 1.4),
             )
           else
             ..._recentLogs.asMap().entries.map((entry) {
@@ -2745,16 +2741,16 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                             children: [
                               Text(
                                 _formatShortDate(log.date),
-                                style: const TextStyle(
-                                  color: Color(0xFF102A56),
+                                style: TextStyle(
+                                  color: _headlineColor,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                               _StatusBadge(status: log.status),
                               Text(
                                 '${log.hoursRendered} h',
-                                style: const TextStyle(
-                                  color: Color(0xFF4A6480),
+                                style: TextStyle(
+                                  color: _bodyColor,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -2765,10 +2761,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                             _formatLogDescription(log.taskDescription),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF4A6480),
-                              height: 1.35,
-                            ),
+                            style: TextStyle(color: _bodyColor, height: 1.35),
                           ),
                         ],
                       );
@@ -2845,32 +2838,32 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 width: actionWidth,
                 child: FilledButton.icon(
                   onPressed: () => _openRoute(AppRoutes.logbook),
-                  icon: const Icon(Icons.edit_note),
-                  label: const Text('Add Today\'s Log'),
+                  icon: Icon(Icons.edit_note),
+                  label: Text('Add Today\'s Log'),
                 ),
               ),
               SizedBox(
                 width: actionWidth,
                 child: FilledButton.icon(
                   onPressed: () => _openRoute(AppRoutes.studentDtr),
-                  icon: const Icon(Icons.punch_clock_rounded),
-                  label: const Text('Open Full DTR'),
+                  icon: Icon(Icons.punch_clock_rounded),
+                  label: Text('Open Full DTR'),
                 ),
               ),
               SizedBox(
                 width: actionWidth,
                 child: OutlinedButton.icon(
                   onPressed: () => _openRoute(AppRoutes.studentReport),
-                  icon: const Icon(Icons.assessment_outlined),
-                  label: const Text('View Full Report'),
+                  icon: Icon(Icons.assessment_outlined),
+                  label: Text('View Full Report'),
                 ),
               ),
               SizedBox(
                 width: actionWidth,
                 child: OutlinedButton.icon(
                   onPressed: () => _openRoute(AppRoutes.internshipProfile),
-                  icon: const Icon(Icons.business_center_outlined),
-                  label: const Text('Update Profile'),
+                  icon: Icon(Icons.business_center_outlined),
+                  label: Text('Update Profile'),
                 ),
               ),
             ],
@@ -2892,7 +2885,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.error_outline, color: Color(0xFFB42318)),
               SizedBox(width: 12),
@@ -2912,13 +2905,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           Text(
             _dashboardError ??
                 'An unexpected error occurred. Please try again.',
-            style: const TextStyle(color: Color(0xFFB42318), height: 1.4),
+            style: TextStyle(color: Color(0xFFB42318), height: 1.4),
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: _loadDashboard,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
+            icon: Icon(Icons.refresh),
+            label: Text('Retry'),
           ),
         ],
       ),
@@ -2960,7 +2953,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     _buildHeader(),
                     const SizedBox(height: 20),
                     if (_isInitialLoading && !_hasCompletedFirstLoad)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.symmetric(vertical: 32),
                         child: Center(child: CircularProgressIndicator()),
                       )
@@ -3004,14 +2997,14 @@ class _SummaryRow extends StatelessWidget {
       child: RichText(
         text: TextSpan(
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: OceanBreezePalette.textSecondary,
+            color: Theme.of(context).secondaryTextColor,
             height: 1.4,
           ),
           children: [
             TextSpan(
               text: '$label: ',
-              style: const TextStyle(
-                color: OceanBreezePalette.textPrimary,
+              style: TextStyle(
+                color: Theme.of(context).primaryTextColor,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -3057,6 +3050,8 @@ class _MetricTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
       width: width,
       padding: const EdgeInsets.all(16),
@@ -3072,8 +3067,8 @@ class _MetricTile extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF4A6480),
+            style: TextStyle(
+              color: theme.secondaryTextColor,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -3081,8 +3076,8 @@ class _MetricTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
-              color: Color(0xFF102A56),
+            style: TextStyle(
+              color: theme.primaryTextColor,
               fontSize: 24,
               fontWeight: FontWeight.w800,
             ),
@@ -3090,8 +3085,8 @@ class _MetricTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             helper,
-            style: const TextStyle(
-              color: Color(0xFF6B7F99),
+            style: TextStyle(
+              color: theme.secondaryTextColor.withValues(alpha: 0.92),
               fontSize: 13,
               height: 1.35,
             ),
@@ -3163,12 +3158,14 @@ class _PaceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        border: Border.all(color: const Color(0xFFD8E2EC)),
+        color: theme.subtlePanelColor,
+        border: Border.all(color: theme.borderSubtleColor),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -3176,8 +3173,8 @@ class _PaceTile extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF4A6480),
+            style: TextStyle(
+              color: theme.secondaryTextColor,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
@@ -3185,8 +3182,8 @@ class _PaceTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
-              color: Color(0xFF102A56),
+            style: TextStyle(
+              color: theme.primaryTextColor,
               fontSize: 16,
               fontWeight: FontWeight.w800,
             ),

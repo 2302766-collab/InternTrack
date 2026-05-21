@@ -11,6 +11,7 @@ import '../../../../core/services/edit_request_service.dart';
 import '../../../../core/services/supervisor_dashboard_service.dart';
 import '../../../../core/services/supervisor_log_service.dart';
 import '../../../../core/theme/ocean_breeze_palette.dart';
+import '../../../../core/theme/theme_utils.dart';
 import '../../../../core/utils/file_picker_helper_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
     as file_picker;
@@ -50,12 +51,6 @@ class SupervisorDashboardScreen extends StatefulWidget {
 
 class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   static const double _maxContentWidth = 1520;
-  static const Color _canvasColor = OceanBreezePalette.canvas;
-  static const Color _panelColor = OceanBreezePalette.surface;
-  static const Color _panelSoft = OceanBreezePalette.surfaceSoft;
-  static const Color _panelBorder = OceanBreezePalette.border;
-  static const Color _headlineColor = OceanBreezePalette.textPrimary;
-  static const Color _bodyColor = OceanBreezePalette.textSecondary;
   static const Color _heroStart = OceanBreezePalette.midnight;
   static const Color _heroEnd = OceanBreezePalette.deepSea;
   static const Color _accentPrimary = OceanBreezePalette.deepSea;
@@ -98,6 +93,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   String? get _logsError => _sectionErrors[_SupervisorDashboardSection.logs];
   String? get _editRequestError =>
       _sectionErrors[_SupervisorDashboardSection.editRequests];
+  ThemeData get _theme => Theme.of(context);
+  Color get _canvasColor => _theme.scaffoldBackgroundColor;
+  Color get _panelColor => _theme.panelColor;
+  Color get _panelSoft => _theme.softPanelColor;
+  Color get _panelBorder => _theme.borderSubtleColor;
+  Color get _headlineColor => _theme.primaryTextColor;
+  Color get _bodyColor => _theme.secondaryTextColor;
 
   DateTime _now() => (widget.clock ?? DateTime.now)();
 
@@ -484,7 +486,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                         displayName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: _headlineColor,
@@ -502,10 +504,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: _headlineColor,
-                ),
+                Icon(Icons.keyboard_arrow_down_rounded, color: _headlineColor),
               ],
             ],
           ),
@@ -670,7 +669,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                         Navigator.of(dialogContext).pop();
                                         await _pickProfilePhoto();
                                       },
-                                      child: const Padding(
+                                      child: Padding(
                                         padding: EdgeInsets.all(6),
                                         child: Icon(
                                           Icons.camera_alt_rounded,
@@ -692,7 +691,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                     user?.name.isNotEmpty == true
                                         ? user!.name
                                         : widget.userName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 21,
                                       fontWeight: FontWeight.w800,
                                       color: _headlineColor,
@@ -703,7 +702,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                     user?.email.isNotEmpty == true
                                         ? user!.email
                                         : 'No email available',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
                                       color: _bodyColor,
                                     ),
@@ -770,11 +769,11 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                               Navigator.of(dialogContext).pop();
                               await _logout();
                             },
-                            icon: const Icon(Icons.logout_rounded),
-                            label: const Text('Log out'),
+                            icon: Icon(Icons.logout_rounded),
+                            label: Text('Log out'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFFB42318),
-                              side: const BorderSide(color: Color(0xFFF0C4C0)),
+                              side: BorderSide(color: Color(0xFFF0C4C0)),
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(18),
@@ -803,7 +802,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
           color: _accentPrimary,
@@ -845,7 +844,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: _headlineColor,
@@ -854,7 +853,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     const SizedBox(height: 3),
                     Text(
                       subtitle,
-                      style: const TextStyle(fontSize: 12.5, color: _bodyColor),
+                      style: TextStyle(fontSize: 12.5, color: _bodyColor),
                     ),
                   ],
                 ),
@@ -930,7 +929,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: _bodyColor,
@@ -939,7 +938,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: _headlineColor,
@@ -992,7 +991,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: _bodyColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -1255,11 +1254,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               const SizedBox(height: 10),
               Text(
                 helper,
-                style: const TextStyle(
-                  fontSize: 13,
-                  height: 1.45,
-                  color: _bodyColor,
-                ),
+                style: TextStyle(fontSize: 13, height: 1.45, color: _bodyColor),
               ),
             ],
           ),
@@ -1313,7 +1308,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               borderRadius: BorderRadius.circular(999),
               border: Border.all(color: _surfaceTone(0.12)),
             ),
-            child: const Text(
+            child: Text(
               'Supervisor workspace',
               style: TextStyle(
                 color: Colors.white,
@@ -1375,7 +1370,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                         const SizedBox(height: 6),
                         Text(
                           stat.value,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
                             color: Colors.white,
@@ -1512,13 +1507,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Widget _buildTableHeader() {
-    const headerStyle = TextStyle(
+    final headerStyle = TextStyle(
       fontWeight: FontWeight.w700,
       color: _bodyColor,
       fontSize: 13,
     );
 
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.fromLTRB(28, 18, 28, 18),
       child: Row(
         children: [
@@ -1560,7 +1555,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 backgroundColor: _accentPrimary,
                 child: Text(
                   _initialsFor(log.studentName),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
@@ -1574,7 +1569,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   children: [
                     Text(
                       log.studentName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: _headlineColor,
@@ -1584,7 +1579,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     const SizedBox(height: 2),
                     Text(
                       _formatDate(log.date),
-                      style: const TextStyle(fontSize: 13, color: _bodyColor),
+                      style: TextStyle(fontSize: 13, color: _bodyColor),
                     ),
                   ],
                 ),
@@ -1614,7 +1609,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             log.taskDescription,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 14, color: _headlineColor),
+            style: TextStyle(fontSize: 14, color: _headlineColor),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -1651,7 +1646,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   ),
                   child: Text(
                     log.companyName!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       color: _accentSecondary,
                       fontWeight: FontWeight.w600,
@@ -1660,7 +1655,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 ),
               Text(
                 '${log.hoursRendered}h rendered',
-                style: const TextStyle(fontSize: 12, color: _bodyColor),
+                style: TextStyle(fontSize: 12, color: _bodyColor),
               ),
             ],
           ),
@@ -1669,8 +1664,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: () => _openLogReview(log),
-              icon: const Icon(Icons.rate_review_outlined),
-              label: const Text('Review Log'),
+              icon: Icon(Icons.rate_review_outlined),
+              label: Text('Review Log'),
             ),
           ),
         ],
@@ -1681,7 +1676,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   Widget _buildLogRow(SupervisorLogItem log) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(top: BorderSide(color: Color(0xFFF0F3F7))),
       ),
       child: Row(
@@ -1695,7 +1690,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   backgroundColor: _accentPrimary,
                   child: Text(
                     _initialsFor(log.studentName),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1705,7 +1700,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 Expanded(
                   child: Text(
                     log.studentName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: _headlineColor,
@@ -1720,14 +1715,14 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             flex: 20,
             child: Text(
               _formatDate(log.date),
-              style: const TextStyle(fontSize: 15, color: _bodyColor),
+              style: TextStyle(fontSize: 15, color: _bodyColor),
             ),
           ),
           Expanded(
             flex: 12,
             child: Text(
               '${log.hoursRendered}h',
-              style: const TextStyle(fontSize: 15, color: _bodyColor),
+              style: TextStyle(fontSize: 15, color: _bodyColor),
             ),
           ),
           Expanded(
@@ -1736,7 +1731,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               log.taskDescription,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 15, color: _bodyColor),
+              style: TextStyle(fontSize: 15, color: _bodyColor),
             ),
           ),
           Expanded(
@@ -1791,8 +1786,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(
                 onPressed: () => _openLogReview(log),
-                icon: const Icon(Icons.rate_review_outlined),
-                label: const Text('Review Log'),
+                icon: Icon(Icons.rate_review_outlined),
+                label: Text('Review Log'),
               ),
             ),
           ),
@@ -1834,7 +1829,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Pending Reviews',
                             style: TextStyle(
                               fontSize: 20,
@@ -1847,7 +1842,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                             visibleLogs.isEmpty
                                 ? 'No student submissions are waiting right now.'
                                 : 'Showing the latest ${visibleLogs.length} log${visibleLogs.length == 1 ? '' : 's'} that need your attention.',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13.5,
                               height: 1.45,
                               color: _bodyColor,
@@ -1868,7 +1863,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       ),
                       child: Text(
                         '${_pendingLogs.length} total',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: _accentPrimary,
@@ -1885,7 +1880,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: _openPendingQueue,
-                        icon: const Icon(Icons.open_in_new_rounded),
+                        icon: Icon(Icons.open_in_new_rounded),
                         label: Text(
                           isNarrow ? 'Open Queue' : 'Open Full Review Queue',
                         ),
@@ -1930,7 +1925,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                             color: _accentSoft,
                             borderRadius: BorderRadius.circular(18),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.task_alt_rounded,
                             color: _accentPrimary,
                           ),
@@ -1940,7 +1935,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           _logsError == null
                               ? 'All caught up'
                               : 'Pending logs could not be refreshed',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                             color: _headlineColor,
@@ -1952,7 +1947,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                               ? 'There are no student logs waiting for review at the moment.'
                               : 'You can retry loading the list or open the full queue for another attempt.',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             height: 1.5,
                             color: _bodyColor,
@@ -2060,7 +2055,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Reject Edit Request'),
+              title: Text('Reject Edit Request'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -2077,7 +2072,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     const SizedBox(height: 8),
                     Text(
                       validationError!,
-                      style: const TextStyle(color: Color(0xFFB42318)),
+                      style: TextStyle(color: Color(0xFFB42318)),
                     ),
                   ],
                 ],
@@ -2085,7 +2080,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel'),
+                  child: Text('Cancel'),
                 ),
                 FilledButton(
                   style: FilledButton.styleFrom(
@@ -2104,7 +2099,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
                     Navigator.of(dialogContext).pop(trimmed);
                   },
-                  child: const Text('Reject'),
+                  child: Text('Reject'),
                 ),
               ],
             );
@@ -2172,7 +2167,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           children: [
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
                 color: _bodyColor,
@@ -2181,7 +2176,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             const SizedBox(height: 8),
             Text(
               'Current: ${_editRequestValueLabel(current)}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: _headlineColor,
@@ -2190,7 +2185,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             const SizedBox(height: 4),
             Text(
               'Requested: ${_editRequestValueLabel(requested)}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: _accentPrimary,
@@ -2264,7 +2259,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 ),
                 child: Text(
                   request.isLog ? 'Log Request' : 'Attendance Request',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: _accentPrimary,
@@ -2282,7 +2277,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 ),
                 child: Text(
                   'Request #${request.id}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: _headlineColor,
@@ -2296,7 +2291,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             request.student?.name.isNotEmpty == true
                 ? request.student!.name
                 : request.requester?.name ?? 'Unknown student',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
               color: _headlineColor,
@@ -2305,16 +2300,12 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           const SizedBox(height: 4),
           Text(
             request.requester?.email ?? '',
-            style: const TextStyle(fontSize: 13, color: _bodyColor),
+            style: TextStyle(fontSize: 13, color: _bodyColor),
           ),
           const SizedBox(height: 12),
           Text(
             request.reason,
-            style: const TextStyle(
-              fontSize: 14,
-              height: 1.5,
-              color: _headlineColor,
-            ),
+            style: TextStyle(fontSize: 14, height: 1.5, color: _headlineColor),
           ),
           const SizedBox(height: 14),
           ...comparisonWidgets
@@ -2339,18 +2330,18 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Icon(Icons.check_circle_outline_rounded),
-                label: const Text('Approve'),
+                    : Icon(Icons.check_circle_outline_rounded),
+                label: Text('Approve'),
               ),
               OutlinedButton.icon(
                 onPressed: isProcessing
                     ? null
                     : () => _rejectEditRequest(request),
-                icon: const Icon(Icons.close_rounded),
-                label: const Text('Reject'),
+                icon: Icon(Icons.close_rounded),
+                label: Text('Reject'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFB42318),
-                  side: const BorderSide(color: Color(0xFFF0C4C0)),
+                  side: BorderSide(color: Color(0xFFF0C4C0)),
                 ),
               ),
             ],
@@ -2383,7 +2374,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Student Correction Requests',
               style: TextStyle(
                 fontSize: 20,
@@ -2392,7 +2383,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Review requested log and attendance corrections from your assigned students.',
               style: TextStyle(fontSize: 13.5, height: 1.45, color: _bodyColor),
             ),
@@ -2416,7 +2407,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: _panelBorder),
                 ),
-                child: const Text(
+                child: Text(
                   'No pending correction requests right now.',
                   style: TextStyle(fontSize: 14, color: _bodyColor),
                 ),

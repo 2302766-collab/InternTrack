@@ -9,6 +9,7 @@ import '../../../../core/exceptions/api_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/intern_list_service.dart';
 import '../../../../core/theme/ocean_breeze_palette.dart';
+import '../../../../core/theme/theme_utils.dart';
 import '../../../../core/utils/file_picker_helper_stub.dart'
     if (dart.library.html) '../../../../core/utils/file_picker_helper_web.dart'
     as file_picker;
@@ -35,11 +36,6 @@ class AdviserDashboardScreen extends StatefulWidget {
 class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   static const double _maxContentWidth = 1360;
   static const int _staleLogThresholdDays = 3;
-  static const Color _canvasColor = OceanBreezePalette.canvas;
-  static const Color _surfaceColor = OceanBreezePalette.surface;
-  static const Color _borderColor = OceanBreezePalette.border;
-  static const Color _headlineColor = OceanBreezePalette.textPrimary;
-  static const Color _bodyColor = OceanBreezePalette.textSecondary;
   static const Color _heroStart = OceanBreezePalette.midnight;
   static const Color _accentPrimary = OceanBreezePalette.deepSea;
   static const Color _accentSecondary = OceanBreezePalette.tide;
@@ -65,6 +61,12 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
   _DashboardSort _selectedSort = _DashboardSort.mostUrgent;
   _DashboardSurfaceView _selectedView = _DashboardSurfaceView.main;
   List<InternListItem> _interns = <InternListItem>[];
+  ThemeData get _theme => Theme.of(context);
+  Color get _canvasColor => _theme.scaffoldBackgroundColor;
+  Color get _surfaceColor => _theme.panelColor;
+  Color get _borderColor => _theme.borderSubtleColor;
+  Color get _headlineColor => _theme.primaryTextColor;
+  Color get _bodyColor => _theme.secondaryTextColor;
 
   DateTime _now() => (widget.clock ?? DateTime.now)();
 
@@ -282,7 +284,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
           color: _accentPrimary,
@@ -324,7 +326,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: _headlineColor,
@@ -333,7 +335,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                     const SizedBox(height: 3),
                     Text(
                       subtitle,
-                      style: const TextStyle(fontSize: 12.5, color: _bodyColor),
+                      style: TextStyle(fontSize: 12.5, color: _bodyColor),
                     ),
                   ],
                 ),
@@ -368,7 +370,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: _bodyColor,
@@ -377,7 +379,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: _headlineColor,
@@ -509,7 +511,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                         Navigator.of(dialogContext).pop();
                                         await _pickProfilePhoto();
                                       },
-                                      child: const Padding(
+                                      child: Padding(
                                         padding: EdgeInsets.all(6),
                                         child: Icon(
                                           Icons.camera_alt_rounded,
@@ -531,7 +533,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                     user?.name.isNotEmpty == true
                                         ? user!.name
                                         : widget.userName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 21,
                                       fontWeight: FontWeight.w800,
                                       color: _headlineColor,
@@ -542,7 +544,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                     user?.email.isNotEmpty == true
                                         ? user!.email
                                         : 'No email available',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
                                       color: _bodyColor,
                                     ),
@@ -609,11 +611,11 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                               Navigator.of(dialogContext).pop();
                               await _logout();
                             },
-                            icon: const Icon(Icons.logout_rounded),
-                            label: const Text('Log out'),
+                            icon: Icon(Icons.logout_rounded),
+                            label: Text('Log out'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFFB42318),
-                              side: const BorderSide(color: Color(0xFFF0C4C0)),
+                              side: BorderSide(color: Color(0xFFF0C4C0)),
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(18),
@@ -826,7 +828,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                         displayName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: _headlineColor,
@@ -844,10 +846,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: _headlineColor,
-                ),
+                Icon(Icons.keyboard_arrow_down_rounded, color: _headlineColor),
               ],
             ],
           ),
@@ -1470,14 +1469,14 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
               Text(
                 'Send Reminder',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: const Color(0xFF102A56),
+                  color: _headlineColor,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Use this reminder draft for ${detail.studentName}.',
-                style: const TextStyle(fontSize: 14, color: Color(0xFF4A6480)),
+                style: TextStyle(fontSize: 14, color: _bodyColor),
               ),
               const SizedBox(height: 16),
               Container(
@@ -1490,7 +1489,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                 ),
                 child: Text(
                   message,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     height: 1.5,
                     color: Color(0xFF243B63),
@@ -1515,8 +1514,8 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                       ),
                     );
                   },
-                  icon: const Icon(Icons.copy_all_rounded),
-                  label: const Text('Copy Reminder'),
+                  icon: Icon(Icons.copy_all_rounded),
+                  label: Text('Copy Reminder'),
                 ),
               ),
             ],
@@ -1584,7 +1583,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
           ),
           decoration: BoxDecoration(
             color: _surfaceColor,
-            border: const Border(bottom: BorderSide(color: _borderColor)),
+            border: Border(bottom: BorderSide(color: _borderColor)),
           ),
           child: isNarrow
               ? Column(
@@ -1717,7 +1716,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                         title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           height: 1.25,
                           color: _headlineColor,
@@ -1751,7 +1750,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                   subtitle,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     height: 1.4,
                     color: _bodyColor,
@@ -1907,10 +1906,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 13,
-              color: OceanBreezePalette.mist,
-            ),
+            style: TextStyle(fontSize: 13, color: OceanBreezePalette.mist),
           ),
         ],
       ),
@@ -1976,7 +1972,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                           const SizedBox(height: 4),
                           Text(
                             subtitle,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
                               height: 1.4,
                               color: _bodyColor,
@@ -2042,7 +2038,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Dashboard Menu',
             style: TextStyle(
               fontSize: 16,
@@ -2053,11 +2049,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
           const SizedBox(height: 4),
           Text(
             _selectedView.description,
-            style: const TextStyle(
-              fontSize: 13,
-              height: 1.4,
-              color: _bodyColor,
-            ),
+            style: TextStyle(fontSize: 13, height: 1.4, color: _bodyColor),
           ),
           const SizedBox(height: 14),
           Wrap(
@@ -2089,11 +2081,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
       ),
       child: Text(
         message,
-        style: const TextStyle(
-          fontSize: 14,
-          height: 1.5,
-          color: Color(0xFF66798F),
-        ),
+        style: TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF66798F)),
       ),
     );
   }
@@ -2113,7 +2101,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: onEmptyAction,
-              icon: const Icon(Icons.open_in_new_rounded),
+              icon: Icon(Icons.open_in_new_rounded),
               label: Text(emptyButtonLabel),
             ),
           ],
@@ -2144,19 +2132,19 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                       children: [
                         Text(
                           item.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF102A56),
+                            color: _headlineColor,
                           ),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           item.subtitle,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             height: 1.45,
-                            color: Color(0xFF4A6480),
+                            color: _bodyColor,
                           ),
                         ),
                       ],
@@ -2204,7 +2192,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                     backgroundColor: const Color(0xFF326DE6),
                     child: Text(
                       _initialsFor(detail.studentName),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
@@ -2215,10 +2203,10 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                   Expanded(
                     child: Text(
                       detail.studentName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF102A56),
+                        color: _headlineColor,
                       ),
                     ),
                   ),
@@ -2229,16 +2217,12 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
               const SizedBox(height: 10),
               Text(
                 detail.alertMessage,
-                style: const TextStyle(
-                  fontSize: 13,
-                  height: 1.45,
-                  color: Color(0xFF4A6480),
-                ),
+                style: TextStyle(fontSize: 13, height: 1.45, color: _bodyColor),
               ),
               const SizedBox(height: 10),
               Text(
                 _staleLogLabel(detail, referenceDate),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: Color(0xFFB54708),
@@ -2281,7 +2265,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
       children: [
         Row(
           children: [
-            const Text(
+            Text(
               'Students active per day',
               style: TextStyle(
                 fontSize: 14,
@@ -2292,7 +2276,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
             const Spacer(),
             Text(
               '${points.fold<int>(0, (sum, point) => sum + point.count)} activity checks',
-              style: const TextStyle(fontSize: 13, color: Color(0xFF68768A)),
+              style: TextStyle(fontSize: 13, color: Color(0xFF68768A)),
             ),
           ],
         ),
@@ -2314,10 +2298,10 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                       children: [
                         Text(
                           '${point.count}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF102A56),
+                            color: _headlineColor,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -2348,7 +2332,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                         const SizedBox(height: 8),
                         Text(
                           point.label,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: Color(0xFF68768A),
@@ -2392,10 +2376,10 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                     Expanded(
                       child: Text(
                         snapshot.companyName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF102A56),
+                          color: _headlineColor,
                         ),
                       ),
                     ),
@@ -2457,10 +2441,10 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
             ),
             TextSpan(
               text: label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF4A6480),
+                color: _bodyColor,
               ),
             ),
           ],
@@ -2499,19 +2483,19 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                       children: [
                         Text(
                           forecast.intern.studentName,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF102A56),
+                            color: _headlineColor,
                           ),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           forecast.subtitle,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             height: 1.45,
-                            color: Color(0xFF4A6480),
+                            color: _bodyColor,
                           ),
                         ),
                       ],
@@ -2548,15 +2532,15 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.warning_amber_rounded, color: Color(0xFFFF5B00)),
+              Icon(Icons.warning_amber_rounded, color: Color(0xFFFF5B00)),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Alerts',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF102A56),
+                    color: _headlineColor,
                   ),
                 ),
               ),
@@ -2570,7 +2554,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Top priority students surface here first, with one-tap actions for follow-up.',
             style: TextStyle(
               fontSize: 14,
@@ -2591,7 +2575,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                 key: ValueKey<String>(
                   'alerts-count-$showingCount-$_showAllAlerts',
                 ),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFFB54708),
@@ -2601,9 +2585,9 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
           ],
           const SizedBox(height: 18),
           if (alerts.isEmpty)
-            const Text(
+            Text(
               'No active alerts. Your advisees are progressing well.',
-              style: TextStyle(fontSize: 15, color: Color(0xFF4A6480)),
+              style: TextStyle(fontSize: 15, color: _bodyColor),
             )
           else
             ...primaryAlerts.map((alert) {
@@ -2624,10 +2608,10 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
 
                         final title = Text(
                           alert.studentName,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF102A56),
+                            color: _headlineColor,
                           ),
                         );
 
@@ -2653,16 +2637,16 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                     const SizedBox(height: 8),
                     Text(
                       alert.message,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF4A6480),
+                        color: _bodyColor,
                         height: 1.5,
                       ),
                     ),
                     const SizedBox(height: 10),
                     Text(
                       alert.followUpLabel,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFFB54708),
@@ -2675,18 +2659,18 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                       children: [
                         OutlinedButton.icon(
                           onPressed: () => _openIntern(alert.intern),
-                          icon: const Icon(Icons.person_search_rounded),
-                          label: const Text('View Student'),
+                          icon: Icon(Icons.person_search_rounded),
+                          label: Text('View Student'),
                         ),
                         OutlinedButton.icon(
                           onPressed: () => _showReminderSheet(alert.intern),
-                          icon: const Icon(Icons.mark_email_unread_rounded),
-                          label: const Text('Send Reminder'),
+                          icon: Icon(Icons.mark_email_unread_rounded),
+                          label: Text('Send Reminder'),
                         ),
                         FilledButton.tonalIcon(
                           onPressed: () => _openIntern(alert.intern),
-                          icon: const Icon(Icons.description_outlined),
-                          label: const Text('Open Report'),
+                          icon: Icon(Icons.description_outlined),
+                          label: Text('Open Report'),
                         ),
                       ],
                     ),
@@ -2720,10 +2704,10 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
 
                                   final title = Text(
                                     alert.studentName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 17,
                                       fontWeight: FontWeight.w600,
-                                      color: Color(0xFF102A56),
+                                      color: _headlineColor,
                                     ),
                                   );
 
@@ -2753,16 +2737,16 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                               const SizedBox(height: 8),
                               Text(
                                 alert.message,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
-                                  color: Color(0xFF4A6480),
+                                  color: _bodyColor,
                                   height: 1.5,
                                 ),
                               ),
                               const SizedBox(height: 10),
                               Text(
                                 alert.followUpLabel,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: Color(0xFFB54708),
@@ -2775,25 +2759,19 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                 children: [
                                   OutlinedButton.icon(
                                     onPressed: () => _openIntern(alert.intern),
-                                    icon: const Icon(
-                                      Icons.person_search_rounded,
-                                    ),
-                                    label: const Text('View Student'),
+                                    icon: Icon(Icons.person_search_rounded),
+                                    label: Text('View Student'),
                                   ),
                                   OutlinedButton.icon(
                                     onPressed: () =>
                                         _showReminderSheet(alert.intern),
-                                    icon: const Icon(
-                                      Icons.mark_email_unread_rounded,
-                                    ),
-                                    label: const Text('Send Reminder'),
+                                    icon: Icon(Icons.mark_email_unread_rounded),
+                                    label: Text('Send Reminder'),
                                   ),
                                   FilledButton.tonalIcon(
                                     onPressed: () => _openIntern(alert.intern),
-                                    icon: const Icon(
-                                      Icons.description_outlined,
-                                    ),
-                                    label: const Text('Open Report'),
+                                    icon: Icon(Icons.description_outlined),
+                                    label: Text('Open Report'),
                                   ),
                                 ],
                               ),
@@ -2842,7 +2820,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
             },
             decoration: InputDecoration(
               hintText: 'Search student, company, status, or alert',
-              prefixIcon: const Icon(Icons.search_rounded),
+              prefixIcon: Icon(Icons.search_rounded),
               suffixIcon: _searchQuery.isEmpty
                   ? null
                   : IconButton(
@@ -2852,7 +2830,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                           _searchQuery = '';
                         });
                       },
-                      icon: const Icon(Icons.close_rounded),
+                      icon: Icon(Icons.close_rounded),
                     ),
             ),
           );
@@ -2920,8 +2898,8 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                           _searchQuery = '';
                         });
                       },
-                      icon: const Icon(Icons.restart_alt_rounded),
-                      label: const Text('Clear filters'),
+                      icon: Icon(Icons.restart_alt_rounded),
+                      label: Text('Clear filters'),
                     ),
                 ],
               ),
@@ -2967,16 +2945,16 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Filter Shortcuts',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF102A56),
+                color: _headlineColor,
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Sticky search and sort stay pinned above while these quick filters let you jump between student groups.',
               style: TextStyle(
                 fontSize: 13,
@@ -3106,18 +3084,18 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Intern Progress',
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF102A56),
+                              color: _headlineColor,
                             ),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             subtitle,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               color: Color(0xFF68768A),
                             ),
@@ -3129,8 +3107,8 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                               onPressed: _interns.isEmpty
                                   ? null
                                   : _openInternReports,
-                              icon: const Icon(Icons.open_in_new_rounded),
-                              label: const Text('Open Intern Details'),
+                              icon: Icon(Icons.open_in_new_rounded),
+                              label: Text('Open Intern Details'),
                             ),
                           ),
                         ],
@@ -3141,18 +3119,18 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'Intern Progress',
                                   style: TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w800,
-                                    color: Color(0xFF102A56),
+                                    color: _headlineColor,
                                   ),
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
                                   subtitle,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
                                     color: Color(0xFF68768A),
                                   ),
@@ -3165,8 +3143,8 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                             onPressed: _interns.isEmpty
                                 ? null
                                 : _openInternReports,
-                            icon: const Icon(Icons.open_in_new_rounded),
-                            label: const Text('Open Intern Details'),
+                            icon: Icon(Icons.open_in_new_rounded),
+                            label: Text('Open Intern Details'),
                           ),
                         ],
                       );
@@ -3222,7 +3200,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                       backgroundColor: const Color(0xFF326DE6),
                                       child: Text(
                                         _initialsFor(detail.studentName),
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.w700,
                                         ),
@@ -3236,18 +3214,18 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                         children: [
                                           Text(
                                             detail.studentName,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.w800,
-                                              color: Color(0xFF102A56),
+                                              color: _headlineColor,
                                             ),
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
                                             detail.companyName,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 14,
-                                              color: Color(0xFF4A6480),
+                                              color: _bodyColor,
                                             ),
                                           ),
                                           const SizedBox(height: 12),
@@ -3294,7 +3272,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                   children: [
                                     Text(
                                       'Last log',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700,
                                         color: Color(0xFF68768A),
@@ -3308,7 +3286,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                         fontWeight: FontWeight.w700,
                                         color: isStale
                                             ? const Color(0xFFB54708)
-                                            : const Color(0xFF102A56),
+                                            : _headlineColor,
                                       ),
                                     ),
                                     const SizedBox(height: 10),
@@ -3345,7 +3323,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                     const SizedBox(height: 20),
                                     Row(
                                       children: [
-                                        const Text(
+                                        Text(
                                           'Progress',
                                           style: TextStyle(
                                             fontSize: 15,
@@ -3356,7 +3334,7 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                         const Spacer(),
                                         Text(
                                           '${detail.completedHours} / ${detail.requiredHours} hours',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 14,
                                             color: Color(0xFF243B63),
                                           ),
@@ -3386,18 +3364,18 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                         children: [
                                           Text(
                                             '${(progress * 100).round()}% complete',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.w700,
-                                              color: Color(0xFF102A56),
+                                              color: _headlineColor,
                                             ),
                                           ),
                                           const SizedBox(height: 6),
                                           Text(
                                             detail.alertMessage,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 13,
-                                              color: Color(0xFF4A6480),
+                                              color: _bodyColor,
                                             ),
                                           ),
                                         ],
@@ -3410,9 +3388,9 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                           Expanded(
                                             child: Text(
                                               detail.alertMessage,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 13,
-                                                color: Color(0xFF4A6480),
+                                                color: _bodyColor,
                                                 height: 1.45,
                                               ),
                                             ),
@@ -3420,10 +3398,10 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                                           const SizedBox(width: 12),
                                           Text(
                                             '${(progress * 100).round()}%',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.w800,
-                                              color: Color(0xFF102A56),
+                                              color: _headlineColor,
                                             ),
                                           ),
                                         ],
@@ -3836,12 +3814,12 @@ class _AdviserDashboardScreenState extends State<AdviserDashboardScreen> {
                           Text(
                             _errorMessage!,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(color: _bodyColor),
+                            style: TextStyle(color: _bodyColor),
                           ),
                           const SizedBox(height: 12),
                           ElevatedButton(
                             onPressed: _loadDashboardData,
-                            child: const Text('Retry'),
+                            child: Text('Retry'),
                           ),
                         ],
                       ),
@@ -3919,7 +3897,10 @@ class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    return Container(color: OceanBreezePalette.canvas, child: child);
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: child,
+    );
   }
 
   @override
