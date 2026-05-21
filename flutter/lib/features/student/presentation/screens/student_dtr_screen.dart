@@ -903,12 +903,12 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                       alignment: Alignment.center,
                     ),
                     headerCell(
-                      'LUNCH OUT',
+                      'LUNCH IN',
                       timeWidth,
                       alignment: Alignment.center,
                     ),
                     headerCell(
-                      'LUNCH IN',
+                      'LUNCH OUT',
                       timeWidth,
                       alignment: Alignment.center,
                     ),
@@ -979,9 +979,9 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                         alignment: Alignment.center,
                         child: Text(
                           _timeText(
-                            row.lunchOutAt != null
-                                ? DateFormat('hh:mm a').format(row.lunchOutAt!)
-                                : row.amDeparture,
+                            row.lunchInAt != null
+                                ? DateFormat('hh:mm a').format(row.lunchInAt!)
+                                : row.pmArrival,
                           ),
                         ),
                       ),
@@ -991,9 +991,9 @@ class _StudentDtrScreenState extends State<StudentDtrScreen> {
                         alignment: Alignment.center,
                         child: Text(
                           _timeText(
-                            row.lunchInAt != null
-                                ? DateFormat('hh:mm a').format(row.lunchInAt!)
-                                : row.pmArrival,
+                            row.lunchOutAt != null
+                                ? DateFormat('hh:mm a').format(row.lunchOutAt!)
+                                : row.amDeparture,
                           ),
                         ),
                       ),

@@ -2051,21 +2051,21 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   SizedBox(
                     width: tileWidth,
                     child: punchTile(
-                      label: 'Lunch Out',
-                      value: record?.lunchOutAt,
-                      icon: Icons.lunch_dining_outlined,
-                      iconColor: const Color(0xFFB54708),
-                      backgroundColor: const Color(0xFFFFF8ED),
-                    ),
-                  ),
-                  SizedBox(
-                    width: tileWidth,
-                    child: punchTile(
                       label: 'Lunch In',
                       value: record?.lunchInAt,
                       icon: Icons.restaurant_rounded,
                       iconColor: const Color(0xFF027A48),
                       backgroundColor: const Color(0xFFF3FBF7),
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: punchTile(
+                      label: 'Lunch Out',
+                      value: record?.lunchOutAt,
+                      icon: Icons.lunch_dining_outlined,
+                      iconColor: const Color(0xFFB54708),
+                      backgroundColor: const Color(0xFFFFF8ED),
                     ),
                   ),
                   SizedBox(
