@@ -85,7 +85,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   bool _didLoadDashboard = false;
   bool _hasCompletedFirstLoad = false;
   bool _isDtrSubmitting = false;
-  bool _attendanceButtonsLocked = false;
   String? _dashboardError;
   DateTime? _lastUpdated;
   Duration _liveElapsed = Duration.zero;
@@ -605,7 +604,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     setState(() {
       _isDtrSubmitting = true;
-      _attendanceButtonsLocked = true;
       _sectionErrors[_StudentDashboardSection.dtr] = null;
       _dashboardError = null;
     });
@@ -653,7 +651,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
       final message = _userFacingErrorMessage(e);
       setState(() {
-        _attendanceButtonsLocked = false;
         _sectionErrors[_StudentDashboardSection.dtr] = message;
       });
 
@@ -788,6 +785,358 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   DateTime get _today {
     final now = _now();
     return DateTime(now.year, now.month, now.day);
+  }
+
+  bool _isMorningPunch(DateTime? value) {
+    if (value == null) return false;
+    final normalized = value.toLocal();
+    return normalized.hour < 12;
+  }
+
+  bool _isMorningWindow(DateTime now) => now.hour < 12;
+
+  bool _hasAnyAttendance(DailyTimeRecord? record) {
+    if (record == null) return false;
+    return record.timeInAt != null ||
+        record.lunchOutAt != null ||
+        record.lunchInAt != null ||
+        record.timeOutAt != null;
+  }
+
+  bool _hasMorningAttendance(DailyTimeRecord? record) {
+    if (record == null) return false;
+    return _isMorningPunch(record.timeInAt) ||
+        _isMorningPunch(record.lunchOutAt) ||
+        _isMorningPunch(record.lunchInAt) ||
+        _isMorningPunch(record.timeOutAt);
+  }
+
+  bool _missedMorningAttendance(DailyTimeRecord? record, DateTime now) {
+    if (_isMorningWindow(now)) return false;
+    return !_hasMorningAttendance(record);
+  }
+
+  bool _canStartMorningSession(DailyTimeRecord? record, DateTime now) {
+    return _isMorningWindow(now) && !_hasAnyAttendance(record);
+  }
+
+  bool _isMorningSessionActive(DailyTimeRecord? record) {
+    if (record == null || record.status != 'WORKING') return false;
+    return record.timeInAt != null &&
+        _isMorningPunch(record.timeInAt) &&
+        record.lunchOutAt == null;
+  }
+
+  bool _isBreakSession(DailyTimeRecord? record) {
+    return record?.status == 'ON_BREAK' &&
+        record?.lunchOutAt != null &&
+        record?.lunchInAt == null;
+  }
+
+  bool _canStartAfternoonSession(DailyTimeRecord? record, DateTime now) {
+    return !_isMorningWindow(now) && !_hasAnyAttendance(record);
+  }
+
+  bool _isAfternoonSessionActive(DailyTimeRecord? record) {
+    if (record == null || record.status != 'WORKING') return false;
+    if (record.isAfternoonOnlySession) return true;
+    return record.lunchInAt != null && record.timeOutAt == null;
+  }
+
+  DateTime _dateAtTime(DateTime baseDate, TimeOfDay time) {
+    return DateTime(
+      baseDate.year,
+      baseDate.month,
+      baseDate.day,
+      time.hour,
+      time.minute,
+    );
+  }
+
+  Future<DateTime?> _pickAttendanceTime({
+    required DateTime baseDate,
+    DateTime? initialValue,
+    required String helpText,
+  }) async {
+    final initialTime = initialValue != null
+        ? TimeOfDay(hour: initialValue.hour, minute: initialValue.minute)
+        : const TimeOfDay(hour: 8, minute: 0);
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+      helpText: helpText,
+    );
+
+    if (picked == null) return initialValue;
+    return _dateAtTime(baseDate, picked);
+  }
+
+  String _formatAttendanceRequestField(DateTime? value) {
+    if (value == null) return 'Not set';
+    return DateFormat('hh:mm a').format(value.toLocal());
+  }
+
+  bool _hasValidMorningCorrection({
+    required DateTime? timeInAt,
+    required DateTime? timeOutAt,
+  }) {
+    if (timeInAt == null) return false;
+    if (!_isMorningPunch(timeInAt)) return false;
+    if (timeOutAt == null) return true;
+    return _isMorningPunch(timeOutAt) && !timeOutAt.isBefore(timeInAt);
+  }
+
+  Future<void> _openMorningAttendanceRequestModal() async {
+    if (_isDtrSubmitting) return;
+
+    final requestDate = _parseApiDate(_dtrRecord?.date) ?? _today;
+    final existingRecord = _dtrRecord;
+    final reasonController = TextEditingController();
+    DateTime? timeInAt = existingRecord?.timeInAt;
+    DateTime? timeOutAt = existingRecord?.lunchOutAt;
+    String? validationError;
+
+    final payload =
+        await showModalBottomSheet<
+          ({
+            DateTime date,
+            int? dailyTimeRecordId,
+            DateTime? timeInAt,
+            DateTime? timeOutAt,
+            String reason,
+          })
+        >(
+          context: context,
+          isScrollControlled: true,
+          showDragHandle: true,
+          builder: (sheetContext) {
+            return StatefulBuilder(
+              builder: (context, setSheetState) {
+                Future<void> pickField(
+                  String label,
+                  DateTime? currentValue,
+                  void Function(DateTime?) assign,
+                ) async {
+                  final picked = await _pickAttendanceTime(
+                    baseDate: requestDate,
+                    initialValue: currentValue,
+                    helpText: label,
+                  );
+
+                  setSheetState(() {
+                    assign(picked);
+                    validationError = null;
+                  });
+                }
+
+                Widget timeTile({
+                  required String label,
+                  required DateTime? value,
+                  required void Function(DateTime?) onChanged,
+                }) {
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(
+                          context,
+                        ).dividerColor.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: ListTile(
+                      title: Text(label),
+                      subtitle: Text(_formatAttendanceRequestField(value)),
+                      trailing: Wrap(
+                        spacing: 8,
+                        children: [
+                          TextButton(
+                            onPressed: value == null
+                                ? null
+                                : () {
+                                    setSheetState(() {
+                                      onChanged(null);
+                                      validationError = null;
+                                    });
+                                  },
+                            child: const Text('Clear'),
+                          ),
+                          FilledButton.tonal(
+                            onPressed: () => pickField(label, value, onChanged),
+                            child: Text(value == null ? 'Set' : 'Change'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                return SafeArea(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      8,
+                      20,
+                      MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+                    ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Request Missed Morning Attendance',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Morning attendance is closed for today. Send your morning correction with a reason so admin and your supervisor can review it.',
+                          ),
+                          const SizedBox(height: 18),
+                          timeTile(
+                            label: 'AM Time In',
+                            value: timeInAt,
+                            onChanged: (value) => timeInAt = value,
+                          ),
+                          timeTile(
+                            label: 'AM Time Out',
+                            value: timeOutAt,
+                            onChanged: (value) => timeOutAt = value,
+                          ),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: reasonController,
+                            maxLines: 4,
+                            decoration: const InputDecoration(
+                              labelText: 'Reason',
+                              hintText:
+                                  'Explain why you missed the morning attendance window.',
+                              border: OutlineInputBorder(),
+                              alignLabelWithHint: true,
+                            ),
+                            onChanged: (_) {
+                              if (validationError != null) {
+                                setSheetState(() {
+                                  validationError = null;
+                                });
+                              }
+                            },
+                          ),
+                          if (validationError != null) ...[
+                            const SizedBox(height: 10),
+                            Text(
+                              validationError!,
+                              style: const TextStyle(color: Color(0xFFB42318)),
+                            ),
+                          ],
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () =>
+                                      Navigator.of(sheetContext).pop(),
+                                  child: const Text('Cancel'),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: FilledButton(
+                                  onPressed: () {
+                                    final trimmedReason = reasonController.text
+                                        .trim();
+                                    if (trimmedReason.length < 5) {
+                                      setSheetState(() {
+                                        validationError =
+                                            'Reason must be at least 5 characters.';
+                                      });
+                                      return;
+                                    }
+
+                                    if (!_hasValidMorningCorrection(
+                                      timeInAt: timeInAt,
+                                      timeOutAt: timeOutAt,
+                                    )) {
+                                      setSheetState(() {
+                                        validationError =
+                                            'Enter a valid AM Time In and optional AM Time Out within the morning window.';
+                                      });
+                                      return;
+                                    }
+
+                                    Navigator.of(sheetContext).pop((
+                                      date: requestDate,
+                                      dailyTimeRecordId: existingRecord?.id,
+                                      timeInAt: timeInAt,
+                                      timeOutAt: timeOutAt,
+                                      reason: trimmedReason,
+                                    ));
+                                  },
+                                  child: const Text('Send Request'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+
+    reasonController.dispose();
+
+    if (payload == null) return;
+
+    setState(() {
+      _isDtrSubmitting = true;
+      _sectionErrors[_StudentDashboardSection.dtr] = null;
+    });
+
+    try {
+      await _dtrService.requestEdit(
+        dailyTimeRecordId: payload.dailyTimeRecordId,
+        date: payload.date,
+        timeInAt: payload.timeInAt,
+        lunchOutAt: payload.timeOutAt,
+        lunchInAt: existingRecord?.lunchInAt,
+        timeOutAt: existingRecord?.timeOutAt,
+        reason: payload.reason,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Morning attendance request sent to admin and supervisor.',
+          ),
+        ),
+      );
+      await _refreshSection(_StudentDashboardSection.dtr);
+    } catch (e) {
+      if (!mounted) return;
+
+      final message = _userFacingErrorMessage(e);
+      setState(() {
+        _sectionErrors[_StudentDashboardSection.dtr] = message;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDtrSubmitting = false;
+        });
+      }
+    }
   }
 
   DateTime? _parseApiDate(String? value) {
@@ -1698,11 +2047,15 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   Widget _buildAttendanceSection() {
     final isLoading = _isSectionLoading(_StudentDashboardSection.dtr);
     final record = _dtrRecord;
-    final attendanceButtonsEnabled =
-        !isLoading &&
-        !_isRefreshing &&
-        !_isDtrSubmitting &&
-        !_attendanceButtonsLocked;
+    final now = _now();
+    final canInteract = !isLoading && !_isRefreshing && !_isDtrSubmitting;
+    final canStartMorning = canInteract && _canStartMorningSession(record, now);
+    final canEndMorning = canInteract && _isMorningSessionActive(record);
+    final canResumeAfternoon = canInteract && _isBreakSession(record);
+    final canStartAfternoon =
+        canInteract && _canStartAfternoonSession(record, now);
+    final canEndAfternoon = canInteract && _isAfternoonSessionActive(record);
+    final missedMorning = _missedMorningAttendance(record, now);
 
     Widget punchTile({
       required String label,
@@ -1812,7 +2165,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.login_rounded,
                       iconColor: const Color(0xFF027A48),
                       backgroundColor: const Color(0xFFF3FBF7),
-                      enabled: attendanceButtonsEnabled,
+                      enabled: canStartMorning,
                       onTap: () => _submitDtrAction('TIME_IN'),
                     ),
                   ),
@@ -1824,7 +2177,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.logout_rounded,
                       iconColor: const Color(0xFFB54708),
                       backgroundColor: const Color(0xFFFFF8ED),
-                      enabled: attendanceButtonsEnabled,
+                      enabled: canEndMorning,
                       onTap: () => _submitDtrAction('LUNCH_OUT'),
                     ),
                   ),
@@ -1836,7 +2189,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.lunch_dining_outlined,
                       iconColor: const Color(0xFFB54708),
                       backgroundColor: const Color(0xFFFFF8ED),
-                      enabled: attendanceButtonsEnabled,
+                      enabled: canEndMorning,
                       onTap: () => _submitDtrAction('LUNCH_OUT'),
                     ),
                   ),
@@ -1848,7 +2201,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.restaurant_rounded,
                       iconColor: const Color(0xFF027A48),
                       backgroundColor: const Color(0xFFF3FBF7),
-                      enabled: attendanceButtonsEnabled,
+                      enabled: canResumeAfternoon,
                       onTap: () => _submitDtrAction('LUNCH_IN'),
                     ),
                   ),
@@ -1860,8 +2213,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.login_rounded,
                       iconColor: const Color(0xFF027A48),
                       backgroundColor: const Color(0xFFF3FBF7),
-                      enabled: attendanceButtonsEnabled,
-                      onTap: () => _submitDtrAction('LUNCH_IN'),
+                      enabled: canResumeAfternoon || canStartAfternoon,
+                      onTap: () => _submitDtrAction(
+                        canStartAfternoon ? 'TIME_IN' : 'LUNCH_IN',
+                      ),
                     ),
                   ),
                   SizedBox(
@@ -1872,7 +2227,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       icon: Icons.logout_rounded,
                       iconColor: const Color(0xFFB54708),
                       backgroundColor: const Color(0xFFFFF8ED),
-                      enabled: attendanceButtonsEnabled,
+                      enabled: canEndAfternoon,
                       onTap: () => _submitDtrAction('TIME_OUT'),
                     ),
                   ),
@@ -1880,6 +2235,51 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               );
             },
           ),
+          if (missedMorning) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: OceanBreezePalette.infoBackground,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: OceanBreezePalette.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Morning attendance is closed for today.',
+                    style: TextStyle(
+                      color: OceanBreezePalette.infoForeground,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Only the afternoon session is available now. If you missed the morning session, send a correction request with your reason for admin and supervisor review.',
+                    style: TextStyle(
+                      color: OceanBreezePalette.infoForeground,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _isDtrSubmitting
+                        ? null
+                        : _openMorningAttendanceRequestModal,
+                    icon: const Icon(Icons.edit_note_rounded),
+                    label: const Text('Request Morning Attendance'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: OceanBreezePalette.infoForeground,
+                      side: const BorderSide(color: OceanBreezePalette.border),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (_dtrError != null) ...[
             const SizedBox(height: 14),
             DashboardInlineNotice(

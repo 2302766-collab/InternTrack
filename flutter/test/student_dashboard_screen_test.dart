@@ -798,66 +798,162 @@ void main() {
     await _disposeRenderedTree(tester);
   });
 
+  testWidgets('morning session only allows AM time in before noon', (
+    tester,
+  ) async {
+    final authProvider = await _buildAuthProvider();
+    final dtrService = _ActionTrackingDtrService(
+      initialRecord: DailyTimeRecord(
+        id: 12,
+        date: '2026-05-10',
+        status: 'NOT_STARTED',
+        currentStateLabel: 'Not Started',
+        nextAction: 'TIME_IN',
+        timeInAt: null,
+        lunchOutAt: null,
+        lunchInAt: null,
+        timeOutAt: null,
+        firstWorkMinutes: 0,
+        secondWorkMinutes: 0,
+        totalWorkMinutes: 0,
+      ),
+      lunchOutRecord: DailyTimeRecord(
+        id: 12,
+        date: '2026-05-10',
+        status: 'WORKING',
+        currentStateLabel: 'Working',
+        nextAction: 'LUNCH_OUT',
+        timeInAt: DateTime(2026, 5, 10, 8, 0),
+        lunchOutAt: null,
+        lunchInAt: null,
+        timeOutAt: null,
+        firstWorkMinutes: 0,
+        secondWorkMinutes: 0,
+        totalWorkMinutes: 0,
+      ),
+      lunchInRecord: DailyTimeRecord(
+        id: 12,
+        date: '2026-05-10',
+        status: 'WORKING',
+        currentStateLabel: 'Working',
+        nextAction: 'TIME_OUT',
+        timeInAt: DateTime(2026, 5, 10, 8, 0),
+        lunchOutAt: DateTime(2026, 5, 10, 12, 0),
+        lunchInAt: DateTime(2026, 5, 10, 13, 0),
+        timeOutAt: null,
+        firstWorkMinutes: 240,
+        secondWorkMinutes: 0,
+        totalWorkMinutes: 240,
+      ),
+      timeOutRecord: DailyTimeRecord(
+        id: 12,
+        date: '2026-05-10',
+        status: 'COMPLETED',
+        currentStateLabel: 'Completed',
+        nextAction: null,
+        timeInAt: DateTime(2026, 5, 10, 8, 0),
+        lunchOutAt: DateTime(2026, 5, 10, 12, 0),
+        lunchInAt: DateTime(2026, 5, 10, 13, 0),
+        timeOutAt: DateTime(2026, 5, 10, 17, 0),
+        firstWorkMinutes: 240,
+        secondWorkMinutes: 240,
+        totalWorkMinutes: 480,
+      ),
+    );
+
+    await tester.pumpWidget(
+      _buildApp(
+        authProvider: authProvider,
+        internshipService: _QueuedInternshipService(
+          responses: Queue.of([() async => _sampleProfile()]),
+        ),
+        dtrService: dtrService,
+        reportService: _QueuedStudentReportService(
+          responses: Queue.of([() async => _sampleReport()]),
+        ),
+        logbookService: _QueuedLogbookService(
+          responses: Queue.of([() async => _sampleLogs()]),
+        ),
+        clock: _FakeClock(DateTime(2026, 5, 10, 9, 0)).call,
+      ),
+    );
+
+    await _pumpDashboardReady(tester);
+
+    await tester.tap(find.text('PM Time In'));
+    await _pumpDashboardReady(tester);
+
+    expect(dtrService.timeInCalls, 0);
+
+    await tester.tap(find.text('AM Time In'));
+    await _pumpDashboardReady(tester);
+
+    expect(dtrService.lastAction, 'timeIn');
+    expect(dtrService.timeInCalls, 1);
+
+    await _disposeRenderedTree(tester);
+  });
+
   testWidgets(
-    'attendance buttons start enabled and lock after one successful tap',
+    'afternoon session disables morning start and allows PM time in',
     (tester) async {
       final authProvider = await _buildAuthProvider();
       final dtrService = _ActionTrackingDtrService(
         initialRecord: DailyTimeRecord(
-          id: 12,
+          id: 13,
           date: '2026-05-10',
-          status: 'COMPLETED',
-          currentStateLabel: 'Completed',
-          nextAction: null,
-          timeInAt: DateTime(2026, 5, 10, 8, 0),
-          lunchOutAt: DateTime(2026, 5, 10, 12, 0),
-          lunchInAt: DateTime(2026, 5, 10, 13, 0),
-          timeOutAt: DateTime(2026, 5, 10, 17, 0),
-          firstWorkMinutes: 240,
-          secondWorkMinutes: 240,
-          totalWorkMinutes: 480,
+          status: 'NOT_STARTED',
+          currentStateLabel: 'Not Started',
+          nextAction: 'TIME_IN',
+          timeInAt: null,
+          lunchOutAt: null,
+          lunchInAt: null,
+          timeOutAt: null,
+          firstWorkMinutes: 0,
+          secondWorkMinutes: 0,
+          totalWorkMinutes: 0,
         ),
         lunchOutRecord: DailyTimeRecord(
-          id: 12,
+          id: 13,
           date: '2026-05-10',
-          status: 'COMPLETED',
-          currentStateLabel: 'Completed',
-          nextAction: null,
-          timeInAt: DateTime(2026, 5, 10, 8, 0),
-          lunchOutAt: DateTime(2026, 5, 10, 12, 0),
-          lunchInAt: DateTime(2026, 5, 10, 13, 0),
-          timeOutAt: DateTime(2026, 5, 10, 17, 0),
-          firstWorkMinutes: 240,
-          secondWorkMinutes: 240,
-          totalWorkMinutes: 480,
+          status: 'WORKING',
+          currentStateLabel: 'Working',
+          nextAction: 'TIME_OUT',
+          timeInAt: DateTime(2026, 5, 10, 13, 0),
+          lunchOutAt: null,
+          lunchInAt: null,
+          timeOutAt: null,
+          firstWorkMinutes: 0,
+          secondWorkMinutes: 0,
+          totalWorkMinutes: 0,
         ),
         lunchInRecord: DailyTimeRecord(
-          id: 12,
+          id: 13,
           date: '2026-05-10',
-          status: 'COMPLETED',
-          currentStateLabel: 'Completed',
-          nextAction: null,
-          timeInAt: DateTime(2026, 5, 10, 8, 0),
-          lunchOutAt: DateTime(2026, 5, 10, 12, 0),
-          lunchInAt: DateTime(2026, 5, 10, 13, 0),
-          timeOutAt: DateTime(2026, 5, 10, 17, 0),
-          firstWorkMinutes: 240,
-          secondWorkMinutes: 240,
-          totalWorkMinutes: 480,
+          status: 'WORKING',
+          currentStateLabel: 'Working',
+          nextAction: 'TIME_OUT',
+          timeInAt: DateTime(2026, 5, 10, 13, 0),
+          lunchOutAt: null,
+          lunchInAt: null,
+          timeOutAt: null,
+          firstWorkMinutes: 0,
+          secondWorkMinutes: 0,
+          totalWorkMinutes: 0,
         ),
         timeOutRecord: DailyTimeRecord(
-          id: 12,
+          id: 13,
           date: '2026-05-10',
           status: 'COMPLETED',
           currentStateLabel: 'Completed',
           nextAction: null,
-          timeInAt: DateTime(2026, 5, 10, 8, 0),
-          lunchOutAt: DateTime(2026, 5, 10, 12, 0),
-          lunchInAt: DateTime(2026, 5, 10, 13, 0),
+          timeInAt: DateTime(2026, 5, 10, 13, 0),
+          lunchOutAt: null,
+          lunchInAt: null,
           timeOutAt: DateTime(2026, 5, 10, 17, 0),
-          firstWorkMinutes: 240,
+          firstWorkMinutes: 0,
           secondWorkMinutes: 240,
-          totalWorkMinutes: 480,
+          totalWorkMinutes: 240,
         ),
       );
 
@@ -874,22 +970,24 @@ void main() {
           logbookService: _QueuedLogbookService(
             responses: Queue.of([() async => _sampleLogs()]),
           ),
+          clock: _FakeClock(DateTime(2026, 5, 10, 13, 30)).call,
         ),
       );
 
       await _pumpDashboardReady(tester);
 
-      await tester.tap(find.text('PM Time Out'));
-      await _pumpDashboardReady(tester);
-
-      expect(dtrService.lastAction, 'timeOut');
-      expect(dtrService.timeOutCalls, 1);
+      expect(find.text('Request Morning Attendance'), findsOneWidget);
 
       await tester.tap(find.text('AM Time In'));
       await _pumpDashboardReady(tester);
 
       expect(dtrService.timeInCalls, 0);
-      expect(dtrService.timeOutCalls, 1);
+
+      await tester.tap(find.text('PM Time In'));
+      await _pumpDashboardReady(tester);
+
+      expect(dtrService.lastAction, 'timeIn');
+      expect(dtrService.timeInCalls, 1);
 
       await _disposeRenderedTree(tester);
     },
