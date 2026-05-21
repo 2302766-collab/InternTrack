@@ -86,14 +86,19 @@ class _HeroSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isMobile = MediaQuery.sizeOf(context).width < 600;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile = screenWidth < 600;
+    final isCompact = screenWidth < 980;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: isCompact
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
       children: [
         Wrap(
           spacing: 12,
           runSpacing: 12,
+          alignment: isCompact ? WrapAlignment.center : WrapAlignment.start,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: const [
             _BrandMark(),
@@ -113,6 +118,7 @@ class _HeroSection extends StatelessWidget {
           ),
           child: const Text(
             'Internship Monitoring System',
+            textAlign: TextAlign.center,
             style: TextStyle(
               color: LandingScreen._accent,
               fontWeight: FontWeight.w700,
@@ -123,6 +129,7 @@ class _HeroSection extends StatelessWidget {
         SizedBox(height: isMobile ? 18 : 22),
         Text(
           'Track internship progress from first duty to final approval.',
+          textAlign: isCompact ? TextAlign.center : TextAlign.start,
           style: theme.textTheme.displaySmall?.copyWith(
             color: LandingScreen._headline,
             fontWeight: FontWeight.w800,
@@ -136,6 +143,7 @@ class _HeroSection extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 640),
           child: Text(
             'InternTrack keeps student logbooks, daily time records, reports, and approvals in one guided workflow so everyone sees accurate progress in real time.',
+            textAlign: isCompact ? TextAlign.center : TextAlign.start,
             style: theme.textTheme.titleMedium?.copyWith(
               color: LandingScreen._body,
               height: 1.55,
@@ -147,6 +155,7 @@ class _HeroSection extends StatelessWidget {
         Wrap(
           spacing: 14,
           runSpacing: 14,
+          alignment: isCompact ? WrapAlignment.center : WrapAlignment.start,
           children: [
             SizedBox(
               width: isMobile ? double.infinity : 210,
@@ -189,6 +198,7 @@ class _HeroSection extends StatelessWidget {
         Wrap(
           spacing: 14,
           runSpacing: 14,
+          alignment: isCompact ? WrapAlignment.center : WrapAlignment.start,
           children: const [
             _MetricChip(value: '24/7', label: 'Progress visibility'),
             _MetricChip(value: '1', label: 'Centralized workflow'),
@@ -196,23 +206,24 @@ class _HeroSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 28),
-        const Wrap(
+        Wrap(
           spacing: 16,
           runSpacing: 16,
+          alignment: isCompact ? WrapAlignment.center : WrapAlignment.start,
           children: [
-            _FeatureTile(
+            const _FeatureTile(
               icon: Icons.menu_book_rounded,
               title: 'Daily Logbook',
               description:
                   'Students write activities, attach proof, and keep records organized by date.',
             ),
-            _FeatureTile(
+            const _FeatureTile(
               icon: Icons.schedule_rounded,
               title: 'DTR Monitoring',
               description:
                   'Track rendered hours and attendance without switching between separate files.',
             ),
-            _FeatureTile(
+            const _FeatureTile(
               icon: Icons.verified_user_rounded,
               title: 'Faster Review',
               description:
@@ -231,6 +242,7 @@ class _PreviewPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isCompact = MediaQuery.sizeOf(context).width < 980;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(34),
@@ -255,51 +267,86 @@ class _PreviewPanel extends StatelessWidget {
             ],
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF8DE8FF), Color(0xFF3FA9D9)],
+              if (isCompact) ...[
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF8DE8FF), Color(0xFF3FA9D9)],
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.space_dashboard_rounded,
+                    color: Color(0xFF07243A),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Internship overview',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: LandingScreen._headline,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Responsive from mobile cards to desktop dashboard previews.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: LandingScreen._body,
+                    height: 1.45,
+                  ),
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8DE8FF), Color(0xFF3FA9D9)],
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.space_dashboard_rounded,
+                        color: Color(0xFF07243A),
                       ),
                     ),
-                    child: const Icon(
-                      Icons.space_dashboard_rounded,
-                      color: Color(0xFF07243A),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Internship overview',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            color: LandingScreen._headline,
-                            fontWeight: FontWeight.w800,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Internship overview',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: LandingScreen._headline,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Responsive from mobile cards to desktop dashboard previews.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: LandingScreen._body,
-                            height: 1.45,
+                          const SizedBox(height: 4),
+                          Text(
+                            'Responsive from mobile cards to desktop dashboard previews.',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: LandingScreen._body,
+                              height: 1.45,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 22),
-              const _ProgressPreview(),
+              const Align(alignment: Alignment.center, child: _ProgressPreview()),
               const SizedBox(height: 18),
               LayoutBuilder(
                 builder: (context, constraints) {
@@ -307,20 +354,26 @@ class _PreviewPanel extends StatelessWidget {
                   return stacked
                       ? const Column(
                           children: [
-                            _MiniPanel(
-                              title: 'Pending Reviews',
-                              value: '08',
-                              helper: 'Supervisor queue',
-                              icon: Icons.rate_review_rounded,
-                              accent: Color(0xFFFFC56E),
+                            SizedBox(
+                              width: 240,
+                              child: _MiniPanel(
+                                title: 'Pending Reviews',
+                                value: '08',
+                                helper: 'Supervisor queue',
+                                icon: Icons.rate_review_rounded,
+                                accent: Color(0xFFFFC56E),
+                              ),
                             ),
                             SizedBox(height: 14),
-                            _MiniPanel(
-                              title: 'Hours Logged',
-                              value: '320',
-                              helper: 'Current internship total',
-                              icon: Icons.access_time_filled_rounded,
-                              accent: LandingScreen._success,
+                            SizedBox(
+                              width: 240,
+                              child: _MiniPanel(
+                                title: 'Hours Logged',
+                                value: '320',
+                                helper: 'Current internship total',
+                                icon: Icons.access_time_filled_rounded,
+                                accent: LandingScreen._success,
+                              ),
                             ),
                           ],
                         )
@@ -560,6 +613,7 @@ class _ProgressPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isCompact = MediaQuery.sizeOf(context).width < 420;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -569,13 +623,14 @@ class _ProgressPreview extends StatelessWidget {
         border: Border.all(color: Colors.white.withAlpha(14)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Row(
             children: [
               Expanded(
                 child: Text(
                   'Internship Progress',
+                  textAlign: isCompact ? TextAlign.center : TextAlign.start,
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: LandingScreen._headline,
                     fontWeight: FontWeight.w800,
@@ -605,13 +660,23 @@ class _ProgressPreview extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Row(
+          const Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            alignment: WrapAlignment.center,
             children: [
-              Expanded(child: _StageBadge(label: 'Orientation', active: true)),
-              SizedBox(width: 10),
-              Expanded(child: _StageBadge(label: 'Logbook', active: true)),
-              SizedBox(width: 10),
-              Expanded(child: _StageBadge(label: 'Evaluation', active: false)),
+              SizedBox(
+                width: 100,
+                child: _StageBadge(label: 'Orientation', active: true),
+              ),
+              SizedBox(
+                width: 100,
+                child: _StageBadge(label: 'Logbook', active: true),
+              ),
+              SizedBox(
+                width: 100,
+                child: _StageBadge(label: 'Evaluation', active: false),
+              ),
             ],
           ),
         ],
