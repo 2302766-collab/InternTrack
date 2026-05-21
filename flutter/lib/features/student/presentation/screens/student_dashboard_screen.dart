@@ -205,7 +205,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         _sectionLoading[_StudentDashboardSection.report] = false;
         _sectionLoading[_StudentDashboardSection.logs] = false;
       });
-    } else if (profileResult.value != null || _profile != null) {
+    } else if (profileResult.succeeded &&
+        (profileResult.value != null || _profile != null)) {
       final results = await Future.wait<_SectionRefreshResult<dynamic>>([
         _refreshReportSection(markLoading: false),
         _refreshLogsSection(markLoading: false),
@@ -1271,6 +1272,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   }
 
   void _openRoute(String route) {
+    final currentRoute = ModalRoute.of(context)?.settings.name;
+    if (currentRoute == route) {
+      return;
+    }
     Navigator.pushNamed(context, route);
   }
 
@@ -1748,8 +1753,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             children: [
               Expanded(
                 child: InkWell(
-                  onTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.studentDashboard),
+                  onTap: () => _openRoute(AppRoutes.studentDashboard),
                   borderRadius: BorderRadius.circular(16),
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
