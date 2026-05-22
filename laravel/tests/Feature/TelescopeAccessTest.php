@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use Laravel\Telescope\TelescopeServiceProvider;
 use Laravel\Telescope\TelescopeApplicationServiceProvider;
 use Tests\TestCase;
 
@@ -13,18 +14,14 @@ class TelescopeAccessTest extends TestCase
             $this->markTestSkipped('Laravel Telescope is not installed in this environment.');
         }
 
-        putenv('TELESCOPE_ENABLED=true');
-        $_ENV['TELESCOPE_ENABLED'] = 'true';
-        $_SERVER['TELESCOPE_ENABLED'] = 'true';
-
-        $this->refreshApplication();
+        // PHPUnit forces TELESCOPE_ENABLED=false via phpunit.xml, so toggle
+        // Telescope through runtime config and re-register its provider.
+        config()->set('telescope.enabled', true);
+        $this->app->register(TelescopeServiceProvider::class, true);
 
         $response = $this->get('/telescope');
 
         $response->assertOk();
         $this->assertStringContainsString('Telescope', $response->getContent());
-
-        putenv('TELESCOPE_ENABLED=false');
-        unset($_ENV['TELESCOPE_ENABLED'], $_SERVER['TELESCOPE_ENABLED']);
     }
 }

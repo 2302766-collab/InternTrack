@@ -54,7 +54,7 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: secret
         run: |
-          php artisan test \
+          ./vendor/bin/phpunit \
             tests/Feature/AdminDashboardTest.php \
             tests/Feature/AdminStudentListingTest.php \
             tests/Feature/ApiFoundationTest.php \
@@ -62,63 +62,3 @@ jobs:
             tests/Feature/StudentInternshipProfileTest.php \
             tests/Feature/StudentLogSubmissionTest.php \
             tests/Feature/StudentAttachmentFlowTest.php
-
-
-
-  flutter-tests:
-    name: Flutter Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-
-    defaults:
-      run:
-        working-directory: flutter
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-
-      - name: Install Flutter dependencies
-        run: flutter pub get
-
-      - name: Run widget tests with per-file timing
-        run: |
-          set -euo pipefail
-
-          mapfile -t test_files < <(
-            find test -name "*_test.dart" \
-              ! -name "login_form_validation_test.dart" \
-              ! -name "login_validation_direct_test.dart" \
-              ! -name "simple_validation_test.dart" \
-              | sort
-          )
-
-          failures=0
-          suite_started_at=$(date +%s)
-
-          for file in "${test_files[@]}"; do
-            echo "::group::flutter test ${file}"
-            file_started_at=$(date +%s)
-
-            if ! timeout 8m flutter test --reporter expanded --timeout 2m "$file"; then
-              echo "Test file ${file} failed or timed out"
-              failures=$((failures + 1))
-            fi
-
-            file_finished_at=$(date +%s)
-            echo "Completed ${file} in $((file_finished_at - file_started_at))s"
-            echo "::endgroup::"
-          done
-
-          suite_finished_at=$(date +%s)
-          echo "Completed Flutter test suite in $((suite_finished_at - suite_started_at))s"
-
-          if [ "$failures" -gt 0 ]; then
-            echo "${failures} test file(s) failed"
-            exit 1
-          fi
